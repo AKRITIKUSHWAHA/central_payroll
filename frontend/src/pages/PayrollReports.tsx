@@ -22,6 +22,10 @@ export const PayrollReports: React.FC = () => {
 
   const handleExportCSV = () => {
     const period = periods[0];
+    if (!period || !period.items) {
+      showToast('No payroll items available to export.', 'info');
+      return;
+    }
     const headers = ['Employee', 'Regular Hours', 'Holiday Hours', 'Gross Pay', 'Deductions', 'Net Pay'];
     const rows = period.items.map(i => [i.employeeName, i.regularHours, i.holidayHours, i.grossPay, i.deductions, i.netPay]);
     reportService.exportToCSV('Payroll_Report.csv', headers, rows);

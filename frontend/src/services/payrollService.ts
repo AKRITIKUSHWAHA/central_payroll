@@ -1,5 +1,6 @@
-import { PayrollPeriod, EmployeePayrollItem, PayrollStatus } from '../types';
+import { Employee, PayrollPeriod, EmployeePayrollItem, PayrollStatus } from '../types';
 import { initialPayrollPeriods } from '../mock/mockData';
+import { employeeService } from './employeeService';
 import { apiFetch } from './api';
 
 const STORAGE_KEY = 'cdl_payroll_periods';
@@ -22,26 +23,82 @@ class PayrollService {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(periods));
   }
 
+  public createNewDraft(): PayrollPeriod {
+    const employees = employeeService.getEmployees();
+    const today = new Date();
+
+    const periodStart = today.toISOString().split('T')[0];
+    const nextWeek = new Date(today.getTime() + 6 * 24 * 60 * 60 * 1000);
+    const periodEnd = nextWeek.toISOString().split('T')[0];
+    const payDate = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    const items: EmployeePayrollItem[] = employees.map((emp: Employee) => ({
+      employeeId: emp.id || emp.employeeId,
+      employeeName: emp.displayName,
+      position: emp.position,
+      department: emp.department,
+      regularRate: emp.payRate || 0,
+      regularHours: 40,
+      regularPay: (emp.payRate || 0) * 40,
+      holidayRate: emp.holidayRate || (emp.payRate || 0) * 1.5,
+      holidayHours: 0,
+      holidayPay: 0,
+      otherPay: 0,
+      deductions: 0,
+      totalHours: 40,
+      grossPay: (emp.payRate || 0) * 40,
+      netPay: (emp.payRate || 0) * 40,
+      status: 'Incomplete'
+    }));
+
+    const totals = this.calculateTotals(items);
+
+    const draft: PayrollPeriod = {
+      id: `pay-${Date.now()}`,
+      periodStart,
+      periodEnd,
+      payDate,
+      status: 'Draft',
+      items,
+      totalHours: totals.totalHours,
+      totalGrossPayroll: totals.totalGrossPayroll,
+      totalDeductions: totals.totalDeductions,
+      totalNetPayroll: totals.totalNetPayroll,
+      createdBy: 'Super Admin',
+      createdAt: new Date().toISOString().split('T')[0]
+    };
+
+    return draft;
+  }
+
   public getPayrollPeriods(): PayrollPeriod[] {
     // Async background sync with backend
     apiFetch<{ success: boolean; periods: PayrollPeriod[] }>('/payroll').then(res => {
-      if (res && res.success && res.periods) {
+      if (res && res.success && res.periods && res.periods.length > 0) {
         this.saveStorage(res.periods);
       }
     });
-    return this.getStorage();
+
+    const storage = this.getStorage();
+    if (storage.length === 0) {
+      const initialDraft = this.createNewDraft();
+      this.saveStorage([initialDraft]);
+      return [initialDraft];
+    }
+    return storage;
   }
 
   public getPayrollPeriodById(id: string): PayrollPeriod | undefined {
-    const periods = this.getStorage();
+    const periods = this.getPayrollPeriods();
     return periods.find(p => p.id === id);
   }
 
   public getCurrentDraft(): PayrollPeriod {
-    const periods = this.getStorage();
+    const periods = this.getPayrollPeriods();
     const draft = periods.find(p => p.status === 'Draft' || p.status === 'Calculated');
     if (draft) return draft;
-    return periods[0];
+    if (periods.length > 0) return periods[0];
+    return this.createNewDraft();
   }
 
   public calculateTotals(items: EmployeePayrollItem[]) {

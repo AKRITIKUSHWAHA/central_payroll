@@ -11,6 +11,15 @@ export const PayslipsView: React.FC = () => {
   const [selectedEmpId, setSelectedEmpId] = useState<string>(employees[0]?.id || '');
   const [showEmailModal, setShowEmailModal] = useState(false);
 
+  if (!employees || employees.length === 0) {
+    return (
+      <div className="bg-white border border-[#dde7f0] rounded-2xl p-8 shadow-cdCard text-center space-y-3">
+        <h2 className="text-lg font-black text-[#12345b]">No Employee Records Available</h2>
+        <p className="text-sm text-[#607286]">Please add employees under the Employee Directory to generate payslips.</p>
+      </div>
+    );
+  }
+
   const selectedEmp = employees.find(e => e.id === selectedEmpId) || employees[0];
   const item = currentPeriod.items.find(i => i.employeeId === selectedEmp.employeeId || i.employeeName === selectedEmp.displayName) || currentPeriod.items[0];
 

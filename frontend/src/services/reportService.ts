@@ -1,6 +1,7 @@
 import { PayrollPeriod, AuditLogItem } from '../types';
 import { initialAuditLogs } from '../mock/mockData';
 import { payrollService } from './payrollService';
+import { apiFetch } from './api';
 
 const AUDIT_STORAGE_KEY = 'cdl_audit_logs';
 
@@ -31,19 +32,42 @@ class ReportService {
     }
   }
 
-  public getAuditLogs(): AuditLogItem[] {
+  public async fetchAuditLogs(): Promise<AuditLogItem[]> {
+    try {
+      const res = await apiFetch<{ success: boolean; auditLogs: AuditLogItem[] }>('/reports/audit');
+      if (res && res.success && res.auditLogs) {
+        localStorage.setItem(AUDIT_STORAGE_KEY, JSON.stringify(res.auditLogs));
+        return res.auditLogs;
+      }
+    } catch (err) {
+      console.warn('Failed to fetch audit logs from API:', err);
+    }
     return this.getAuditStorage();
   }
 
-  public addAuditLog(log: Omit<AuditLogItem, 'id' | 'timestamp'>) {
+  public getAuditLogs(): AuditLogItem[] {
+    this.fetchAuditLogs();
+    return this.getAuditStorage();
+  }
+
+  public async addAuditLog(log: Omit<AuditLogItem, 'id' | 'timestamp'>) {
     const logs = this.getAuditStorage();
     const newLog: AuditLogItem = {
       ...log,
       id: `aud-${Date.now()}`,
-      timestamp: new Date().toLocaleString()
+      timestamp: new Date().toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' })
     };
     logs.unshift(newLog);
     localStorage.setItem(AUDIT_STORAGE_KEY, JSON.stringify(logs));
+
+    try {
+      await apiFetch('/reports/audit', {
+        method: 'POST',
+        body: JSON.stringify(newLog)
+      });
+    } catch (err) {
+      console.error('Failed to save audit log to backend:', err);
+    }
   }
 
   public generateWeeklyPayrollSummary(periodId?: string) {

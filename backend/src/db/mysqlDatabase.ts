@@ -391,6 +391,15 @@ export class MySQLDatabase {
     const [rows]: any = await pool.query('SELECT * FROM audit_logs ORDER BY timestamp DESC');
     return rows;
   }
+
+  public async saveAuditLog(log: AuditLogItem) {
+    await pool.query(
+      `INSERT INTO audit_logs (id, action, module, user, role, timestamp, details)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE action = VALUES(action), details = VALUES(details)`,
+      [log.id, log.action, log.module, log.user, log.role, log.timestamp, log.details || '']
+    );
+  }
 }
 
 export const mySQLDb = new MySQLDatabase();

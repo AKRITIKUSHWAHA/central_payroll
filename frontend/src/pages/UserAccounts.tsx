@@ -147,23 +147,23 @@ export const UserAccounts: React.FC = () => {
             <table className="w-full text-left text-xs">
               <thead>
                 <tr className="bg-[#12345b] text-white font-bold uppercase">
-                  <th className="py-3 px-3">ID</th>
-                  <th className="py-3 px-3">User</th>
-                  <th className="py-3 px-3">Role</th>
-                  <th className="py-3 px-3">Password</th>
-                  <th className="py-3 px-3">Status</th>
-                  <th className="py-3 px-3 text-right">Actions</th>
+                  <th className="py-3 px-3">LOGIN ID</th>
+                  <th className="py-3 px-3">NAME</th>
+                  <th className="py-3 px-3">ROLE</th>
+                  <th className="py-3 px-3">PASSWORD</th>
+                  <th className="py-3 px-3">STATUS</th>
+                  <th className="py-3 px-3 text-right">ACTIONS</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e1e9f0]">
                 {users.map(u => (
                   <tr key={u.id} className="hover:bg-[#f8fbfd]">
-                    <td className="py-3 px-3 font-mono text-[11px] font-bold text-[#607286] whitespace-nowrap">
-                      {u.id}
+                    <td className="py-3 px-3 font-mono text-xs font-bold text-[#183a61] whitespace-nowrap">
+                      {u.username}
                     </td>
                     <td className="py-3 px-3">
                       <div className="font-bold text-[#183a61]">{u.displayName}</div>
-                      <div className="text-[11px] text-[#607286]">{u.username} ({u.email})</div>
+                      <div className="text-[11px] text-[#607286]">{u.email}</div>
                     </td>
                     <td className="py-3 px-3 font-extrabold uppercase text-[#2f6fb3]">{u.role}</td>
                     <td className="py-3 px-3 whitespace-nowrap">

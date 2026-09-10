@@ -71,6 +71,56 @@ class PayrollService {
     return draft;
   }
 
+  public syncItemsWithEmployees(period: PayrollPeriod): PayrollPeriod {
+    const employees = employeeService.getEmployees();
+    if (!employees || employees.length === 0) return period;
+
+    const existingEmpIds = new Set(period.items.map(i => i.employeeId));
+    let modified = false;
+    const items = [...period.items];
+
+    employees.forEach((emp: Employee) => {
+      const id = emp.id || emp.employeeId;
+      if (!existingEmpIds.has(id)) {
+        modified = true;
+        items.push({
+          employeeId: id,
+          employeeName: emp.displayName,
+          position: emp.position,
+          department: emp.department,
+          regularRate: emp.payRate || 0,
+          regularHours: 40,
+          regularPay: (emp.payRate || 0) * 40,
+          holidayRate: emp.holidayRate || (emp.payRate || 0) * 1.5,
+          holidayHours: 0,
+          holidayPay: 0,
+          otherPay: 0,
+          deductions: 0,
+          totalHours: 40,
+          grossPay: (emp.payRate || 0) * 40,
+          netPay: (emp.payRate || 0) * 40,
+          status: 'Incomplete'
+        });
+      }
+    });
+
+    if (modified) {
+      const totals = this.calculateTotals(items);
+      const updated = {
+        ...period,
+        items,
+        totalHours: totals.totalHours,
+        totalGrossPayroll: totals.totalGrossPayroll,
+        totalDeductions: totals.totalDeductions,
+        totalNetPayroll: totals.totalNetPayroll,
+      };
+      this.savePayrollPeriod(updated);
+      return updated;
+    }
+
+    return period;
+  }
+
   public getPayrollPeriods(): PayrollPeriod[] {
     // Async background sync with backend
     apiFetch<{ success: boolean; periods: PayrollPeriod[] }>('/payroll').then(res => {
@@ -95,10 +145,10 @@ class PayrollService {
 
   public getCurrentDraft(): PayrollPeriod {
     const periods = this.getPayrollPeriods();
-    const draft = periods.find(p => p.status === 'Draft' || p.status === 'Calculated');
-    if (draft) return draft;
-    if (periods.length > 0) return periods[0];
-    return this.createNewDraft();
+    let draft = periods.find(p => p.status === 'Draft' || p.status === 'Calculated');
+    if (!draft && periods.length > 0) draft = periods[0];
+    if (!draft) draft = this.createNewDraft();
+    return this.syncItemsWithEmployees(draft);
   }
 
   public calculateTotals(items: EmployeePayrollItem[]) {

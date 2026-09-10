@@ -212,15 +212,22 @@ export const PayrollConsole: React.FC = () => {
                     <div className="font-extrabold text-[#183a61]">{item.employeeName}</div>
                     <div className="text-[11px] font-semibold text-[#607286]">{item.position}</div>
                   </td>
-                  <td className="py-2.5 px-3 text-right font-semibold text-[#1c2b3a] tabular-nums">
-                    ${item.regularRate.toFixed(2)}
+                  <td className="py-2.5 px-3 text-right">
+                    <input
+                      type="number"
+                      step="0.5"
+                      min="0"
+                      value={item.regularRate === 0 ? '' : item.regularRate}
+                      onChange={e => handleItemChange(item.employeeId, 'regularRate', parseFloat(e.target.value) || 0)}
+                      className="w-20 px-2 py-1.5 text-right border border-[#bdcbd9] rounded-lg font-bold text-[#1c2b3a] bg-white focus:border-[#2f6fb3] focus:outline-none"
+                    />
                   </td>
                   <td className="py-2.5 px-3 text-right">
                     <input
                       type="number"
                       step="0.5"
                       min="0"
-                      value={item.regularHours || ''}
+                      value={item.regularHours === 0 ? '' : item.regularHours}
                       onChange={e => handleItemChange(item.employeeId, 'regularHours', parseFloat(e.target.value) || 0)}
                       className="w-20 px-2 py-1.5 text-right border border-[#bdcbd9] rounded-lg font-bold text-[#1c2b3a] bg-white focus:border-[#2f6fb3] focus:outline-none"
                     />
@@ -228,15 +235,22 @@ export const PayrollConsole: React.FC = () => {
                   <td className="py-2.5 px-3 text-right font-bold text-[#234d74] tabular-nums">
                     ${item.regularPay.toFixed(2)}
                   </td>
-                  <td className="py-2.5 px-3 text-right font-semibold text-[#607286] tabular-nums">
-                    {item.holidayRate > 0 ? `$${item.holidayRate.toFixed(2)}` : '—'}
+                  <td className="py-2.5 px-3 text-right">
+                    <input
+                      type="number"
+                      step="0.5"
+                      min="0"
+                      value={item.holidayRate === 0 ? '' : item.holidayRate}
+                      onChange={e => handleItemChange(item.employeeId, 'holidayRate', parseFloat(e.target.value) || 0)}
+                      className="w-20 px-2 py-1.5 text-right border border-[#bdcbd9] rounded-lg font-bold text-[#1c2b3a] bg-white focus:border-[#2f6fb3] focus:outline-none"
+                    />
                   </td>
                   <td className="py-2.5 px-3 text-right">
                     <input
                       type="number"
                       step="0.5"
                       min="0"
-                      value={item.holidayHours || ''}
+                      value={item.holidayHours === 0 ? '' : item.holidayHours}
                       onChange={e => handleItemChange(item.employeeId, 'holidayHours', parseFloat(e.target.value) || 0)}
                       className="w-20 px-2 py-1.5 text-right border border-[#bdcbd9] rounded-lg font-bold text-[#1c2b3a] bg-white focus:border-[#2f6fb3] focus:outline-none"
                     />
@@ -247,9 +261,9 @@ export const PayrollConsole: React.FC = () => {
                   <td className="py-2.5 px-3 text-right">
                     <input
                       type="number"
-                      step="5"
+                      step="1"
                       min="0"
-                      value={item.otherPay || ''}
+                      value={item.otherPay === 0 ? '' : item.otherPay}
                       onChange={e => handleItemChange(item.employeeId, 'otherPay', parseFloat(e.target.value) || 0)}
                       className="w-20 px-2 py-1.5 text-right border border-[#bdcbd9] rounded-lg font-bold text-[#1c2b3a] bg-white focus:border-[#2f6fb3] focus:outline-none"
                     />
@@ -257,11 +271,12 @@ export const PayrollConsole: React.FC = () => {
                   <td className="py-2.5 px-3 text-right">
                     <input
                       type="number"
-                      step="5"
+                      step="1"
                       min="0"
-                      value={item.deductions || ''}
+                      value={item.deductions === 0 ? '' : item.deductions}
                       onChange={e => handleItemChange(item.employeeId, 'deductions', parseFloat(e.target.value) || 0)}
-                      className="w-20 px-2 py-1.5 text-right border border-[#bdcbd9] rounded-lg font-bold text-[#1c2b3a] bg-white focus:border-[#2f6fb3] focus:outline-none"
+                      className="w-24 px-2 py-1.5 text-right border border-[#bdcbd9] rounded-lg font-bold text-[#1c2b3a] bg-white focus:border-[#2f6fb3] focus:outline-none placeholder-gray-400"
+                      placeholder="Tax / Ded"
                     />
                   </td>
                   <td className="py-2.5 px-3 text-right font-extrabold text-[#12345b] tabular-nums">

@@ -12,7 +12,20 @@ class ReportService {
       return [];
     }
     try {
-      return JSON.parse(data);
+      const logs: AuditLogItem[] = JSON.parse(data);
+      // Filter out dummy sample logs
+      const realLogs = logs.filter(l => 
+        l.user !== 'prashant' && 
+        l.user !== 'Neli Outerbridge' && 
+        l.user !== 'alesia' && 
+        l.id !== 'aud-1' && 
+        l.id !== 'aud-2' && 
+        l.id !== 'aud-3'
+      );
+      if (realLogs.length !== logs.length) {
+        localStorage.setItem(AUDIT_STORAGE_KEY, JSON.stringify(realLogs));
+      }
+      return realLogs;
     } catch {
       return [];
     }

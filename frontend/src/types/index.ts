@@ -27,7 +27,7 @@ export interface DailyShift {
 export interface EmployeeSchedule {
   employeeId: string;
   weekStartDate: string; // YYYY-MM-DD (Thursday or Monday)
-  shifts: Record<string, DailyShift>; // Keyed by day name or date
+  shifts: Record<string, any>; // Keyed by day name or date
   totalHours: number;
 }
 

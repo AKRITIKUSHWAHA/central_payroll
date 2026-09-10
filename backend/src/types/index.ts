@@ -27,7 +27,7 @@ export interface DailyShift {
 export interface EmployeeSchedule {
   employeeId: string;
   weekStartDate: string; // YYYY-MM-DD
-  shifts: Record<string, DailyShift>;
+  shifts: Record<string, any>;
   totalHours: number;
 }
 

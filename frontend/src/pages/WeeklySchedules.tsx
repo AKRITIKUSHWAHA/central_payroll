@@ -51,8 +51,20 @@ export const WeeklySchedules: React.FC = () => {
   };
 
   const handleSave = () => {
+    const schedulesToSave = employees.map(emp => {
+      const empShifts = gridData[emp.id] || {};
+      const hours = calculateRowHours(empShifts);
+      return {
+        employeeId: emp.id || emp.employeeId,
+        weekStartDate: weekStart,
+        shifts: empShifts,
+        totalHours: hours
+      };
+    });
+
+    scheduleService.saveWeeklySchedules(weekStart, schedulesToSave);
     scheduleService.saveScheduleNotes(weekStart, notes);
-    showToast('Weekly staff schedule and notes saved successfully.');
+    showToast('Weekly staff schedule and notes saved successfully to database (schedules).');
   };
 
   const handleClear = () => {

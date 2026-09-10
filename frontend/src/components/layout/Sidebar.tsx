@@ -86,11 +86,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       )}
 
       <aside
-        className={`sidebar-container bg-white border-r border-[#dde6ee] flex flex-col justify-between transition-transform md:transition-all duration-300 z-50 md:z-30 h-screen sticky top-0 ${
+        className={`sidebar-container bg-white border-r border-[#dde6ee] flex flex-col justify-between transition-transform md:transition-all duration-300 z-50 md:z-30 h-screen sticky top-0 overflow-hidden flex-shrink-0 ${
           /* Mobile layout positioning */
           mobileOpen
             ? 'fixed inset-y-0 left-0 w-[260px] p-4 translate-x-0 shadow-2xl md:shadow-none'
-            : 'fixed inset-y-0 left-0 -translate-x-full md:translate-x-0 md:sticky'
+            : 'fixed inset-y-0 left-0 -translate-x-full md:translate-x-0 md:sticky md:top-0'
         } ${
           /* Desktop collapsed sizing */
           collapsed ? 'md:w-[72px] md:p-3' : 'md:w-[250px] md:p-4'
@@ -114,30 +114,62 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
         </button>
 
-        <div>
-          {/* Brand Header */}
-          <div className={`flex items-center gap-2.5 pb-4 mb-2 border-b border-[#f0f4f8] ${collapsed ? 'md:justify-center' : 'px-1'}`}>
-            <div className="w-7 h-7 rounded-full bg-[#0b7895] text-white flex items-center justify-center font-black text-xs shadow-sm flex-shrink-0">
-              ▶
-            </div>
+        {/* Brand Header (Fixed at top) */}
+        <div className={`flex-shrink-0 flex items-center gap-2.5 pb-4 mb-2 border-b border-[#f0f4f8] ${collapsed ? 'md:justify-center' : 'px-1'}`}>
+          <div className="w-7 h-7 rounded-full bg-[#0b7895] text-white flex items-center justify-center font-black text-xs shadow-sm flex-shrink-0">
+            ▶
+          </div>
+          {(!collapsed || mobileOpen) && (
+            <span className="font-extrabold text-[#25384b] text-lg tracking-tight">
+              Central Dispatch
+            </span>
+          )}
+        </div>
+
+        {/* Middle Navigation Links (Scrolls internally) */}
+        <div className="flex-1 overflow-y-auto min-h-0 space-y-4 pr-1">
+          {/* WORKSPACE Category */}
+          <div>
             {(!collapsed || mobileOpen) && (
-              <span className="font-extrabold text-[#25384b] text-lg tracking-tight">
-                Central Dispatch
-              </span>
+              <div className="text-[11px] font-extrabold tracking-wider text-[#8292a3] uppercase px-3 py-1.5 mb-1">
+                WORKSPACE
+              </div>
             )}
+            <nav className="space-y-0.5">
+              {workspaceNavItems.filter(item => item.visible).map(item => {
+                const Icon = item.icon;
+                return (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    onClick={handleNavClick}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold text-sm transition-all ${
+                        isActive
+                          ? 'bg-[#e6e8ea] text-[#20262d] font-bold shadow-sm'
+                          : 'text-[#4b5563] hover:bg-[#f0f4f7] hover:text-[#12345b]'
+                      } ${collapsed && !mobileOpen ? 'md:justify-center md:px-0' : ''}`
+                    }
+                    title={collapsed && !mobileOpen ? item.label : undefined}
+                  >
+                    <Icon className="w-4 h-4 flex-shrink-0 text-[#2f6fb3]" />
+                    {(!collapsed || mobileOpen) && <span className="truncate">{item.label}</span>}
+                  </NavLink>
+                );
+              })}
+            </nav>
           </div>
 
-          {/* Navigation Links */}
-          <div className="space-y-4 overflow-y-auto max-h-[calc(100vh-210px)] pr-1">
-            {/* WORKSPACE Category */}
+          {/* ADMINISTRATION Category */}
+          {adminNavItems.some(i => i.visible) && (
             <div>
               {(!collapsed || mobileOpen) && (
                 <div className="text-[11px] font-extrabold tracking-wider text-[#8292a3] uppercase px-3 py-1.5 mb-1">
-                  WORKSPACE
+                  ADMINISTRATION
                 </div>
               )}
               <nav className="space-y-0.5">
-                {workspaceNavItems.filter(item => item.visible).map(item => {
+                {adminNavItems.filter(item => item.visible).map(item => {
                   const Icon = item.icon;
                   return (
                     <NavLink
@@ -160,45 +192,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 })}
               </nav>
             </div>
-
-            {/* ADMINISTRATION Category */}
-            {adminNavItems.some(i => i.visible) && (
-              <div>
-                {(!collapsed || mobileOpen) && (
-                  <div className="text-[11px] font-extrabold tracking-wider text-[#8292a3] uppercase px-3 py-1.5 mb-1">
-                    ADMINISTRATION
-                  </div>
-                )}
-                <nav className="space-y-0.5">
-                  {adminNavItems.filter(item => item.visible).map(item => {
-                    const Icon = item.icon;
-                    return (
-                      <NavLink
-                        key={item.to}
-                        to={item.to}
-                        onClick={handleNavClick}
-                        className={({ isActive }) =>
-                          `flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold text-sm transition-all ${
-                            isActive
-                              ? 'bg-[#e6e8ea] text-[#20262d] font-bold shadow-sm'
-                              : 'text-[#4b5563] hover:bg-[#f0f4f7] hover:text-[#12345b]'
-                          } ${collapsed && !mobileOpen ? 'md:justify-center md:px-0' : ''}`
-                        }
-                        title={collapsed && !mobileOpen ? item.label : undefined}
-                      >
-                        <Icon className="w-4 h-4 flex-shrink-0 text-[#2f6fb3]" />
-                        {(!collapsed || mobileOpen) && <span className="truncate">{item.label}</span>}
-                      </NavLink>
-                    );
-                  })}
-                </nav>
-              </div>
-            )}
-          </div>
+          )}
         </div>
 
-        {/* User Chip Section */}
-        <div className={`border-t border-[#d7e2ec] pt-3 ${collapsed && !mobileOpen ? 'md:text-center' : 'px-1'}`}>
+        {/* User Chip Section (Fixed at bottom) */}
+        <div className={`flex-shrink-0 border-t border-[#d7e2ec] pt-3 ${collapsed && !mobileOpen ? 'md:text-center' : 'px-1'}`}>
           {!collapsed || mobileOpen ? (
             <div>
               <div className="font-extrabold text-[#12345b] text-sm truncate">

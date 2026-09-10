@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Production & Build outputs
+dist/
+**/dist/
+dist-ssr/
+.vite/
+**/.vite/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+**/.env
+
+# Local data / DB
+data/
+**/data/
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store

@@ -11,6 +11,7 @@ export const UserAccounts: React.FC = () => {
   const [role, setRole] = useState<UserRole>('admin');
   const [tempPassword, setTempPassword] = useState('');
   const [showTempPassword, setShowTempPassword] = useState(false);
+  const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -18,6 +19,10 @@ export const UserAccounts: React.FC = () => {
       setUsers([...fetched]);
     });
   }, []);
+
+  const togglePasswordVisibility = (userId: string) => {
+    setVisiblePasswords(prev => ({ ...prev, [userId]: !prev[userId] }));
+  };
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -142,31 +147,51 @@ export const UserAccounts: React.FC = () => {
             <table className="w-full text-left text-xs">
               <thead>
                 <tr className="bg-[#12345b] text-white font-bold uppercase">
-                  <th className="py-3 px-4">User</th>
-                  <th className="py-3 px-4">Role</th>
-                  <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
+                  <th className="py-3 px-3">ID</th>
+                  <th className="py-3 px-3">User</th>
+                  <th className="py-3 px-3">Role</th>
+                  <th className="py-3 px-3">Password</th>
+                  <th className="py-3 px-3">Status</th>
+                  <th className="py-3 px-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#e1e9f0]">
                 {users.map(u => (
                   <tr key={u.id} className="hover:bg-[#f8fbfd]">
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-3 font-mono text-[11px] font-bold text-[#607286] whitespace-nowrap">
+                      {u.id}
+                    </td>
+                    <td className="py-3 px-3">
                       <div className="font-bold text-[#183a61]">{u.displayName}</div>
                       <div className="text-[11px] text-[#607286]">{u.username} ({u.email})</div>
                     </td>
-                    <td className="py-3 px-4 font-extrabold uppercase text-[#2f6fb3]">{u.role}</td>
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-3 font-extrabold uppercase text-[#2f6fb3]">{u.role}</td>
+                    <td className="py-3 px-3 whitespace-nowrap">
+                      <div className="flex items-center gap-1.5 bg-[#f0f4f8] px-2 py-1 rounded-md border border-[#d9e4ee]">
+                        <span className="font-mono text-xs font-bold text-[#1c2b3a]">
+                          {visiblePasswords[u.id] ? (u.password || 'ChangeMe123!') : '••••••••'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => togglePasswordVisibility(u.id)}
+                          className="text-[#607286] hover:text-[#12345b] focus:outline-none ml-auto"
+                          title={visiblePasswords[u.id] ? 'Hide password' : 'Show password'}
+                        >
+                          {visiblePasswords[u.id] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                    </td>
+                    <td className="py-3 px-3">
                       <span className={`px-2 py-0.5 rounded-full font-bold text-[11px] ${
                         u.status === 'Active' ? 'bg-[#d4eee9] text-[#145f57]' : 'bg-[#f7d8d5] text-[#8d251d]'
                       }`}>
                         {u.status}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-right">
+                    <td className="py-3 px-3 text-right">
                       <button
                         onClick={() => handleToggleStatus(u.id)}
-                        className="px-2.5 py-1 bg-[#edf4fa] hover:bg-[#d6e7f4] text-[#102f52] font-bold text-xs rounded-lg"
+                        className="px-2.5 py-1 bg-[#edf4fa] hover:bg-[#d6e7f4] text-[#102f52] font-bold text-xs rounded-lg whitespace-nowrap"
                       >
                         Toggle Status
                       </button>

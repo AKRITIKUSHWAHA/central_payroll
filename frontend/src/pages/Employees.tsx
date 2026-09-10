@@ -15,21 +15,29 @@ export const Employees: React.FC = () => {
   const navigate = useNavigate();
   const { showToast } = useToast();
 
-  const [newEmp, setNewEmp] = useState({
+  const initialNewEmp = {
     firstName: '',
     lastName: '',
     position: 'Dispatcher',
     department: 'Dispatch Operations',
-    payRate: 18.00,
-    holidayRate: 27.00,
+    payRate: '',
+    holidayRate: '',
     employmentType: 'Full-Time' as const,
     payType: 'Hourly' as const,
-  });
+  };
+
+  const [newEmp, setNewEmp] = useState(initialNewEmp);
 
   const handleAddEmployee = (e: React.FormEvent) => {
     e.preventDefault();
-    const created = employeeService.saveEmployee(newEmp);
+    const rate = parseFloat(String(newEmp.payRate)) || 0;
+    const created = employeeService.saveEmployee({
+      ...newEmp,
+      payRate: rate,
+      holidayRate: rate * 1.5,
+    });
     setEmployees(employeeService.getEmployees());
+    setNewEmp(initialNewEmp);
     setShowAddModal(false);
     showToast(`Employee ${created.displayName} added successfully.`);
   };
@@ -236,9 +244,11 @@ export const Employees: React.FC = () => {
                   <input
                     type="number"
                     step="0.5"
+                    min="0"
                     required
+                    placeholder="e.g. 18.00"
                     value={newEmp.payRate}
-                    onChange={e => setNewEmp({ ...newEmp, payRate: parseFloat(e.target.value) || 0 })}
+                    onChange={e => setNewEmp({ ...newEmp, payRate: e.target.value })}
                     className="w-full px-3 py-2 border border-[#bdcbd9] rounded-xl text-sm focus:border-[#2f6fb3]"
                   />
                 </div>

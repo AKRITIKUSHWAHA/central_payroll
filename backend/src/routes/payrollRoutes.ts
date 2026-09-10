@@ -8,7 +8,60 @@ const router = Router();
 // GET all payroll periods
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const periods = await mySQLDb.getPayrollPeriods();
+    let periods = await mySQLDb.getPayrollPeriods();
+    if (periods.length === 0) {
+      const employees = await mySQLDb.getEmployees();
+      const today = new Date();
+      const periodStart = today.toISOString().split('T')[0];
+      const nextWeek = new Date(today.getTime() + 6 * 24 * 60 * 60 * 1000);
+      const periodEnd = nextWeek.toISOString().split('T')[0];
+      const payDate = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+      const initialDraft: PayrollPeriod = {
+        id: `pay-${Date.now()}`,
+        periodStart,
+        periodEnd,
+        payDate,
+        status: 'Draft',
+        totalHours: 0,
+        totalGrossPayroll: 0,
+        totalDeductions: 0,
+        totalNetPayroll: 0,
+        createdBy: 'Super Admin',
+        createdAt: today.toISOString().split('T')[0],
+        items: employees.map(emp => ({
+          employeeId: emp.id || emp.employeeId,
+          employeeName: emp.displayName,
+          position: emp.position,
+          department: emp.department,
+          regularRate: emp.payRate || 0,
+          regularHours: 40,
+          regularPay: (emp.payRate || 0) * 40,
+          holidayRate: emp.holidayRate || (emp.payRate || 0) * 1.5,
+          holidayHours: 0,
+          holidayPay: 0,
+          otherPay: 0,
+          deductions: 0,
+          totalHours: 40,
+          grossPay: (emp.payRate || 0) * 40,
+          netPay: (emp.payRate || 0) * 40,
+          status: 'Incomplete'
+        }))
+      };
+
+      const totals = initialDraft.items.reduce((acc, i) => ({
+        hours: acc.hours + i.totalHours,
+        gross: acc.gross + i.grossPay,
+        net: acc.net + i.netPay
+      }), { hours: 0, gross: 0, net: 0 });
+
+      initialDraft.totalHours = totals.hours;
+      initialDraft.totalGrossPayroll = totals.gross;
+      initialDraft.totalNetPayroll = totals.net;
+
+      await mySQLDb.savePayrollPeriod(initialDraft);
+      periods = [initialDraft];
+    }
     res.json({ success: true, periods });
   } catch (err) {
     const periods = db.getPayrollPeriods();
@@ -47,7 +100,7 @@ router.post('/', async (req: Request, res: Response) => {
   try {
     const employees = await mySQLDb.getEmployees();
     const newPeriod: PayrollPeriod = {
-      id: `pay-${periodEnd}`,
+      id: `pay-${Date.now()}`,
       periodStart,
       periodEnd,
       payDate,
@@ -59,7 +112,7 @@ router.post('/', async (req: Request, res: Response) => {
       createdBy: createdBy || 'System User',
       createdAt: new Date().toISOString(),
       items: employees.map(emp => ({
-        employeeId: emp.employeeId,
+        employeeId: emp.id || emp.employeeId,
         employeeName: emp.displayName,
         position: emp.position,
         department: emp.department,
@@ -83,7 +136,7 @@ router.post('/', async (req: Request, res: Response) => {
     const employees = db.getEmployees();
     const periods = db.getPayrollPeriods();
     const newPeriod: PayrollPeriod = {
-      id: `pay-${periodEnd}`,
+      id: `pay-${Date.now()}`,
       periodStart,
       periodEnd,
       payDate,
@@ -95,7 +148,7 @@ router.post('/', async (req: Request, res: Response) => {
       createdBy: createdBy || 'System User',
       createdAt: new Date().toISOString(),
       items: employees.map(emp => ({
-        employeeId: emp.employeeId,
+        employeeId: emp.id || emp.employeeId,
         employeeName: emp.displayName,
         position: emp.position,
         department: emp.department,
@@ -122,14 +175,29 @@ router.post('/', async (req: Request, res: Response) => {
 // PATCH update payroll period status
 router.patch('/:id/status', async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { status, approvedBy } = req.body;
+  const { status, approvedBy, period: fallbackPeriod } = req.body;
 
   try {
     const periods = await mySQLDb.getPayrollPeriods();
-    const period = periods.find(p => p.id === id);
+    let period = periods.find(p => p.id === id);
+
     if (!period) {
-      return res.status(404).json({ success: false, error: 'Payroll period not found' });
+      period = fallbackPeriod || {
+        id,
+        periodStart: new Date().toISOString().split('T')[0],
+        periodEnd: new Date(Date.now() + 6 * 86400000).toISOString().split('T')[0],
+        payDate: new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
+        status: status || 'Draft',
+        totalHours: 0,
+        totalGrossPayroll: 0,
+        totalDeductions: 0,
+        totalNetPayroll: 0,
+        createdBy: approvedBy || 'Admin',
+        createdAt: new Date().toISOString(),
+        items: []
+      };
     }
+
     period.status = status;
     const now = new Date().toISOString();
 
@@ -138,13 +206,15 @@ router.patch('/:id/status', async (req: Request, res: Response) => {
       period.approvedAt = now;
     } else if (status === 'Paid') {
       period.paidAt = now;
-      period.items.forEach(item => { item.status = 'Paid'; });
+      if (period.items) {
+        period.items.forEach(item => { item.status = 'Paid'; });
+      }
     }
     await mySQLDb.savePayrollPeriod(period);
     res.json({ success: true, period });
   } catch (err) {
     const periods = db.getPayrollPeriods();
-    const period = periods.find(p => p.id === id);
+    let period = periods.find(p => p.id === id);
     if (period) {
       period.status = status;
       db.setPayrollPeriods(periods);
@@ -156,14 +226,29 @@ router.patch('/:id/status', async (req: Request, res: Response) => {
 // PUT update items in a payroll period
 router.put('/:id/items', async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { items } = req.body;
+  const { items, periodStart, periodEnd, payDate, status } = req.body;
 
   try {
     const periods = await mySQLDb.getPayrollPeriods();
-    const period = periods.find(p => p.id === id);
+    let period = periods.find(p => p.id === id);
+
     if (!period) {
-      return res.status(404).json({ success: false, error: 'Payroll period not found' });
+      period = {
+        id,
+        periodStart: periodStart || new Date().toISOString().split('T')[0],
+        periodEnd: periodEnd || new Date(Date.now() + 6 * 86400000).toISOString().split('T')[0],
+        payDate: payDate || new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
+        status: status || 'Draft',
+        totalHours: 0,
+        totalGrossPayroll: 0,
+        totalDeductions: 0,
+        totalNetPayroll: 0,
+        createdBy: 'System User',
+        createdAt: new Date().toISOString(),
+        items: Array.isArray(items) ? items : []
+      };
     }
+
     if (Array.isArray(items)) {
       period.items = items;
       period.totalHours = items.reduce((acc, item) => acc + (item.totalHours || 0), 0);
@@ -175,7 +260,7 @@ router.put('/:id/items', async (req: Request, res: Response) => {
     res.json({ success: true, period });
   } catch (err) {
     const periods = db.getPayrollPeriods();
-    const period = periods.find(p => p.id === id);
+    let period = periods.find(p => p.id === id);
     if (period && Array.isArray(items)) {
       period.items = items;
       db.setPayrollPeriods(periods);

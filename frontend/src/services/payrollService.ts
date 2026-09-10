@@ -202,7 +202,13 @@ class PayrollService {
     // Sync PUT items to backend
     apiFetch(`/payroll/${updated.id}/items`, {
       method: 'PUT',
-      body: JSON.stringify({ items: updated.items })
+      body: JSON.stringify({
+        items: updated.items,
+        periodStart: updated.periodStart,
+        periodEnd: updated.periodEnd,
+        payDate: updated.payDate,
+        status: updated.status
+      })
     });
 
     return updated;
@@ -225,7 +231,7 @@ class PayrollService {
       // Sync PATCH status to backend
       apiFetch(`/payroll/${periodId}/status`, {
         method: 'PATCH',
-        body: JSON.stringify({ status, approvedBy: user })
+        body: JSON.stringify({ status, approvedBy: user, period })
       });
 
       return period;

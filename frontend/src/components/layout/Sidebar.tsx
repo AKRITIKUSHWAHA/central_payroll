@@ -86,11 +86,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       )}
 
       <aside
-        className={`sidebar-container bg-white border-r border-[#dde6ee] flex flex-col justify-between transition-transform md:transition-all duration-300 z-50 md:z-30 h-screen sticky top-0 overflow-hidden flex-shrink-0 ${
+        className={`sidebar-container bg-white border-r border-[#dde6ee] flex flex-col justify-between transition-transform md:transition-all duration-300 z-50 md:z-30 h-screen fixed top-0 left-0 overflow-hidden flex-shrink-0 ${
           /* Mobile layout positioning */
           mobileOpen
-            ? 'fixed inset-y-0 left-0 w-[260px] p-4 translate-x-0 shadow-2xl md:shadow-none'
-            : 'fixed inset-y-0 left-0 -translate-x-full md:translate-x-0 md:sticky md:top-0'
+            ? 'w-[260px] p-4 translate-x-0 shadow-2xl md:shadow-none'
+            : '-translate-x-full md:translate-x-0'
         } ${
           /* Desktop collapsed sizing */
           collapsed ? 'md:w-[72px] md:p-3' : 'md:w-[250px] md:p-4'

@@ -16,22 +16,35 @@ import {
   ChevronLeft,
   ChevronRight,
   PieChart,
-  ClipboardList
+  ClipboardList,
+  X
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 interface SidebarProps {
   collapsed: boolean;
   onToggleCollapse: () => void;
+  mobileOpen?: boolean;
+  onCloseMobile?: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggleCollapse }) => {
+export const Sidebar: React.FC<SidebarProps> = ({
+  collapsed,
+  onToggleCollapse,
+  mobileOpen = false,
+  onCloseMobile
+}) => {
   const { currentUser, logout, permissions } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {
+    if (onCloseMobile) onCloseMobile();
     logout();
     navigate('/login');
+  };
+
+  const handleNavClick = () => {
+    if (onCloseMobile) onCloseMobile();
   };
 
   const getRoleLabel = (role?: string) => {
@@ -62,129 +75,157 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggleCollapse })
   ];
 
   return (
-    <aside
-      className={`sidebar-container bg-white border-r border-[#dde6ee] flex flex-col justify-between transition-all duration-300 relative h-screen sticky top-0 z-30 ${
-        collapsed ? 'w-[72px] p-3' : 'w-[250px] p-4'
-      }`}
-    >
-      {/* Collapse Toggle Button */}
-      <button
-        onClick={onToggleCollapse}
-        className="absolute -right-3 top-6 bg-white border border-[#c9d7e6] text-[#456078] hover:text-[#12345b] p-1 rounded-full shadow-sm z-40 transition-transform hover:scale-105"
-        title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+    <>
+      {/* Mobile Backdrop Overlay */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-40 md:hidden transition-opacity"
+          onClick={onCloseMobile}
+          aria-hidden="true"
+        />
+      )}
+
+      <aside
+        className={`sidebar-container bg-white border-r border-[#dde6ee] flex flex-col justify-between transition-transform md:transition-all duration-300 z-50 md:z-30 h-screen sticky top-0 ${
+          /* Mobile layout positioning */
+          mobileOpen
+            ? 'fixed inset-y-0 left-0 w-[260px] p-4 translate-x-0 shadow-2xl md:shadow-none'
+            : 'fixed inset-y-0 left-0 -translate-x-full md:translate-x-0 md:sticky'
+        } ${
+          /* Desktop collapsed sizing */
+          collapsed ? 'md:w-[72px] md:p-3' : 'md:w-[250px] md:p-4'
+        }`}
       >
-        {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-      </button>
+        {/* Mobile Close Button */}
+        <button
+          onClick={onCloseMobile}
+          className="md:hidden absolute right-3 top-4 text-[#607286] hover:text-[#12345b] p-1.5 rounded-lg bg-[#f4f7fb]"
+          aria-label="Close sidebar"
+        >
+          <X className="w-5 h-5" />
+        </button>
 
-      <div>
-        {/* Brand Header */}
-        <div className={`flex items-center gap-2.5 pb-4 mb-2 border-b border-[#f0f4f8] ${collapsed ? 'justify-center' : 'px-1'}`}>
-          <div className="w-7 h-7 rounded-full bg-[#0b7895] text-white flex items-center justify-center font-black text-xs shadow-sm flex-shrink-0">
-            ▶
-          </div>
-          {!collapsed && (
-            <span className="font-extrabold text-[#25384b] text-lg tracking-tight">
-              Central Dispatch
-            </span>
-          )}
-        </div>
+        {/* Desktop Collapse Toggle Button */}
+        <button
+          onClick={onToggleCollapse}
+          className="hidden md:flex absolute -right-3 top-6 bg-white border border-[#c9d7e6] text-[#456078] hover:text-[#12345b] p-1 rounded-full shadow-sm z-40 transition-transform hover:scale-105"
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+        </button>
 
-        {/* Navigation Links */}
-        <div className="space-y-4 overflow-y-auto max-h-[calc(100vh-210px)] pr-1">
-          {/* WORKSPACE Category */}
-          <div>
-            {!collapsed && (
-              <div className="text-[11px] font-extrabold tracking-wider text-[#8292a3] uppercase px-3 py-1.5 mb-1">
-                WORKSPACE
-              </div>
+        <div>
+          {/* Brand Header */}
+          <div className={`flex items-center gap-2.5 pb-4 mb-2 border-b border-[#f0f4f8] ${collapsed ? 'md:justify-center' : 'px-1'}`}>
+            <div className="w-7 h-7 rounded-full bg-[#0b7895] text-white flex items-center justify-center font-black text-xs shadow-sm flex-shrink-0">
+              ▶
+            </div>
+            {(!collapsed || mobileOpen) && (
+              <span className="font-extrabold text-[#25384b] text-lg tracking-tight">
+                Central Dispatch
+              </span>
             )}
-            <nav className="space-y-0.5">
-              {workspaceNavItems.filter(item => item.visible).map(item => {
-                const Icon = item.icon;
-                return (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    className={({ isActive }) =>
-                      `flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold text-sm transition-all ${
-                        isActive
-                          ? 'bg-[#e6e8ea] text-[#20262d] font-bold shadow-sm'
-                          : 'text-[#4b5563] hover:bg-[#f0f4f7] hover:text-[#12345b]'
-                      } ${collapsed ? 'justify-center px-0' : ''}`
-                    }
-                    title={collapsed ? item.label : undefined}
-                  >
-                    <Icon className="w-4 h-4 flex-shrink-0 text-[#2f6fb3]" />
-                    {!collapsed && <span className="truncate">{item.label}</span>}
-                  </NavLink>
-                );
-              })}
-            </nav>
           </div>
 
-          {/* ADMINISTRATION Category */}
-          {adminNavItems.some(i => i.visible) && (
+          {/* Navigation Links */}
+          <div className="space-y-4 overflow-y-auto max-h-[calc(100vh-210px)] pr-1">
+            {/* WORKSPACE Category */}
             <div>
-              {!collapsed && (
+              {(!collapsed || mobileOpen) && (
                 <div className="text-[11px] font-extrabold tracking-wider text-[#8292a3] uppercase px-3 py-1.5 mb-1">
-                  ADMINISTRATION
+                  WORKSPACE
                 </div>
               )}
               <nav className="space-y-0.5">
-                {adminNavItems.filter(item => item.visible).map(item => {
+                {workspaceNavItems.filter(item => item.visible).map(item => {
                   const Icon = item.icon;
                   return (
                     <NavLink
                       key={item.to}
                       to={item.to}
+                      onClick={handleNavClick}
                       className={({ isActive }) =>
                         `flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold text-sm transition-all ${
                           isActive
                             ? 'bg-[#e6e8ea] text-[#20262d] font-bold shadow-sm'
                             : 'text-[#4b5563] hover:bg-[#f0f4f7] hover:text-[#12345b]'
-                        } ${collapsed ? 'justify-center px-0' : ''}`
+                        } ${collapsed && !mobileOpen ? 'md:justify-center md:px-0' : ''}`
                       }
-                      title={collapsed ? item.label : undefined}
+                      title={collapsed && !mobileOpen ? item.label : undefined}
                     >
                       <Icon className="w-4 h-4 flex-shrink-0 text-[#2f6fb3]" />
-                      {!collapsed && <span className="truncate">{item.label}</span>}
+                      {(!collapsed || mobileOpen) && <span className="truncate">{item.label}</span>}
                     </NavLink>
                   );
                 })}
               </nav>
             </div>
-          )}
-        </div>
-      </div>
 
-      {/* User Chip Section */}
-      <div className={`border-t border-[#d7e2ec] pt-3 ${collapsed ? 'text-center' : 'px-1'}`}>
-        {!collapsed ? (
-          <div>
-            <div className="font-extrabold text-[#12345b] text-sm truncate">
-              {currentUser?.displayName || currentUser?.username || 'Not signed in'}
+            {/* ADMINISTRATION Category */}
+            {adminNavItems.some(i => i.visible) && (
+              <div>
+                {(!collapsed || mobileOpen) && (
+                  <div className="text-[11px] font-extrabold tracking-wider text-[#8292a3] uppercase px-3 py-1.5 mb-1">
+                    ADMINISTRATION
+                  </div>
+                )}
+                <nav className="space-y-0.5">
+                  {adminNavItems.filter(item => item.visible).map(item => {
+                    const Icon = item.icon;
+                    return (
+                      <NavLink
+                        key={item.to}
+                        to={item.to}
+                        onClick={handleNavClick}
+                        className={({ isActive }) =>
+                          `flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold text-sm transition-all ${
+                            isActive
+                              ? 'bg-[#e6e8ea] text-[#20262d] font-bold shadow-sm'
+                              : 'text-[#4b5563] hover:bg-[#f0f4f7] hover:text-[#12345b]'
+                          } ${collapsed && !mobileOpen ? 'md:justify-center md:px-0' : ''}`
+                        }
+                        title={collapsed && !mobileOpen ? item.label : undefined}
+                      >
+                        <Icon className="w-4 h-4 flex-shrink-0 text-[#2f6fb3]" />
+                        {(!collapsed || mobileOpen) && <span className="truncate">{item.label}</span>}
+                      </NavLink>
+                    );
+                  })}
+                </nav>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* User Chip Section */}
+        <div className={`border-t border-[#d7e2ec] pt-3 ${collapsed && !mobileOpen ? 'md:text-center' : 'px-1'}`}>
+          {!collapsed || mobileOpen ? (
+            <div>
+              <div className="font-extrabold text-[#12345b] text-sm truncate">
+                {currentUser?.displayName || currentUser?.username || 'Not signed in'}
+              </div>
+              <div className="text-xs font-semibold text-[#607286] mb-3">
+                {getRoleLabel(currentUser?.role)}
+              </div>
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-white border border-[#d7e2ec] hover:bg-[#edf5fb] hover:border-[#2f6fb3] text-[#12345b] font-bold text-xs rounded-xl transition-all shadow-sm"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Sign Out</span>
+              </button>
             </div>
-            <div className="text-xs font-semibold text-[#607286] mb-3">
-              {getRoleLabel(currentUser?.role)}
-            </div>
+          ) : (
             <button
               onClick={handleLogout}
-              className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-white border border-[#d7e2ec] hover:bg-[#edf5fb] hover:border-[#2f6fb3] text-[#12345b] font-bold text-xs rounded-xl transition-all shadow-sm"
+              className="w-full p-2.5 bg-white border border-[#d7e2ec] hover:bg-[#edf5fb] text-[#12345b] rounded-xl flex items-center justify-center transition-all"
+              title="Sign Out"
             >
-              <LogOut className="w-3.5 h-3.5" />
-              <span>Sign Out</span>
+              <LogOut className="w-4 h-4" />
             </button>
-          </div>
-        ) : (
-          <button
-            onClick={handleLogout}
-            className="w-full p-2.5 bg-white border border-[#d7e2ec] hover:bg-[#edf5fb] text-[#12345b] rounded-xl flex items-center justify-center transition-all"
-            title="Sign Out"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
-        )}
-      </div>
-    </aside>
+          )}
+        </div>
+      </aside>
+    </>
   );
 };

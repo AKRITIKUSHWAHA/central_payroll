@@ -139,8 +139,8 @@ export const WeeklySchedules: React.FC = () => {
           </div>
         </div>
 
-        {/* Schedule Matrix Table */}
-        <div className="overflow-x-auto p-4">
+        {/* Schedule Matrix Table for Desktop */}
+        <div className="hidden md:block overflow-x-auto p-4">
           <table className="w-full text-left text-xs border-collapse min-w-[900px]">
             <thead>
               <tr className="bg-[#12345b] text-white">
@@ -184,6 +184,42 @@ export const WeeklySchedules: React.FC = () => {
               })}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Stacked Card View */}
+        <div className="block md:hidden p-4 space-y-4">
+          {employees.map((emp) => {
+            const empShifts = gridData[emp.id] || {};
+            const hours = calculateRowHours(empShifts);
+
+            return (
+              <div key={emp.id} className="bg-white border border-[#dde7f0] rounded-xl p-4 shadow-sm space-y-3">
+                <div className="flex items-center justify-between border-b border-[#edf4fa] pb-2">
+                  <div>
+                    <h3 className="font-extrabold text-[#183a61] text-sm">{emp.displayName}</h3>
+                    <p className="text-xs font-semibold text-[#607286]">{emp.position}</p>
+                  </div>
+                  <span className="px-2.5 py-1 bg-[#eaf4fb] text-[#12345b] rounded-lg font-black text-xs">
+                    {hours.toFixed(1)} hrs
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                  {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
+                    <div key={day} className="bg-[#f8fbfd] p-2 rounded-lg border border-[#e8eff5] flex flex-col items-center">
+                      <span className="font-extrabold text-[#2f6fb3] mb-1">{day}</span>
+                      <input
+                        type="text"
+                        value={empShifts[day] || 'OFF'}
+                        onChange={e => handleCellChange(emp.id, day, e.target.value)}
+                        className="w-full text-center p-1 border border-[#bdcbd9] rounded font-bold text-[#1c2b3a] bg-white text-xs"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         {/* Schedule Footer Actions & Instructions */}

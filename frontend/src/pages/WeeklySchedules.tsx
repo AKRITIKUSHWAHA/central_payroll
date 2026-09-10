@@ -64,7 +64,8 @@ export const WeeklySchedules: React.FC = () => {
 
     scheduleService.saveWeeklySchedules(weekStart, schedulesToSave);
     scheduleService.saveScheduleNotes(weekStart, notes);
-    showToast('Weekly staff schedule and notes saved successfully to database (schedules).');
+    showToast('Weekly staff schedule and notes saved successfully.');
+    setNotes('');
   };
 
   const handleClear = () => {

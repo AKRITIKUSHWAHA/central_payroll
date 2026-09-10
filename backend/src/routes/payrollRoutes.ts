@@ -198,20 +198,24 @@ router.patch('/:id/status', async (req: Request, res: Response) => {
       };
     }
 
-    period.status = status;
-    const now = new Date().toISOString();
+    if (period) {
+      period.status = status;
+      const now = new Date().toISOString();
 
-    if (status === 'Approved') {
-      period.approvedBy = approvedBy || 'Admin';
-      period.approvedAt = now;
-    } else if (status === 'Paid') {
-      period.paidAt = now;
-      if (period.items) {
-        period.items.forEach(item => { item.status = 'Paid'; });
+      if (status === 'Approved') {
+        period.approvedBy = approvedBy || 'Admin';
+        period.approvedAt = now;
+      } else if (status === 'Paid') {
+        period.paidAt = now;
+        if (period.items) {
+          period.items.forEach(item => { item.status = 'Paid'; });
+        }
       }
+      await mySQLDb.savePayrollPeriod(period);
+      res.json({ success: true, period });
+    } else {
+      res.status(404).json({ success: false, error: 'Period not found' });
     }
-    await mySQLDb.savePayrollPeriod(period);
-    res.json({ success: true, period });
   } catch (err) {
     const periods = db.getPayrollPeriods();
     let period = periods.find(p => p.id === id);
@@ -234,7 +238,7 @@ router.put('/:id/items', async (req: Request, res: Response) => {
 
     if (!period) {
       period = {
-        id,
+        id: String(id),
         periodStart: periodStart || new Date().toISOString().split('T')[0],
         periodEnd: periodEnd || new Date(Date.now() + 6 * 86400000).toISOString().split('T')[0],
         payDate: payDate || new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
@@ -249,14 +253,16 @@ router.put('/:id/items', async (req: Request, res: Response) => {
       };
     }
 
-    if (Array.isArray(items)) {
+    if (period && Array.isArray(items)) {
       period.items = items;
       period.totalHours = items.reduce((acc, item) => acc + (item.totalHours || 0), 0);
       period.totalGrossPayroll = items.reduce((acc, item) => acc + (item.grossPay || 0), 0);
       period.totalDeductions = items.reduce((acc, item) => acc + (item.deductions || 0), 0);
       period.totalNetPayroll = items.reduce((acc, item) => acc + (item.netPay || 0), 0);
     }
-    await mySQLDb.savePayrollPeriod(period);
+    if (period) {
+      await mySQLDb.savePayrollPeriod(period);
+    }
     res.json({ success: true, period });
   } catch (err) {
     const periods = db.getPayrollPeriods();

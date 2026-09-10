@@ -1,11 +1,12 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 import { UserAccount, PermissionMatrix } from '../types';
 import { userService } from '../services/userService';
+import { apiFetch } from '../services/api';
 
 interface AuthContextType {
   currentUser: UserAccount | null;
   permissions: PermissionMatrix;
-  login: (username: string, pass: string) => boolean;
+  login: (username: string, pass: string) => Promise<boolean>;
   logout: () => void;
   isAuthenticated: boolean;
 }
@@ -29,9 +30,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const permissions = userService.getPermissions(currentUser?.role || 'superadmin');
 
-  const login = (username: string, pass: string): boolean => {
+  const login = async (username: string, pass: string): Promise<boolean> => {
     const cleanUsername = username.trim();
-    const found = userService.getUserByUsername(cleanUsername);
+
+    // 1. Try API login with backend MySQL database
+    try {
+      const res = await apiFetch<{ success: boolean; user: UserAccount; error?: string }>('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ username: cleanUsername, password: pass })
+      });
+      if (res && res.success && res.user) {
+        setCurrentUser(res.user);
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(res.user));
+        return true;
+      }
+    } catch (err) {
+      console.warn('API login failed, checking local fallback:', err);
+    }
+
+    // 2. Check LocalStorage fallback
+    const users = userService.getUsers();
+    const found = users.find(u => u.username.toLowerCase() === cleanUsername.toLowerCase());
     if (found) {
       if (found.status !== 'Active') {
         return false;
@@ -43,15 +62,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return true;
       }
     }
-    // Fallback for default superadmin account
+
+    // Default superadmin account fallback
     if (cleanUsername.toLowerCase() === 'superadmin' && pass === 'ChangeMe123!') {
-      const superAdminUser = userService.getUsers().find(u => u.username === 'superadmin') || userService.getUsers()[0];
-      if (superAdminUser && superAdminUser.status === 'Active') {
-        setCurrentUser(superAdminUser);
-        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(superAdminUser));
-        return true;
-      }
+      const superAdminUser = users.find(u => u.username.toLowerCase() === 'superadmin') || {
+        id: 'usr-2',
+        username: 'superadmin',
+        displayName: 'Super Admin',
+        email: 'admin@centraldispatch.bm',
+        role: 'superadmin' as const,
+        status: 'Active' as const,
+        createdAt: '2026-01-01'
+      };
+      setCurrentUser(superAdminUser);
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(superAdminUser));
+      return true;
     }
+
     return false;
   };
 

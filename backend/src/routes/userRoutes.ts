@@ -38,17 +38,18 @@ router.get('/:username', async (req: Request, res: Response) => {
 
 // POST create new user
 router.post('/', async (req: Request, res: Response) => {
-  const { username, displayName, email, role, status } = req.body;
+  const { id, username, displayName, email, role, status, password } = req.body;
 
   if (!username || !displayName || !email || !role) {
     return res.status(400).json({ success: false, error: 'Missing required fields' });
   }
 
   const newUser: UserAccount = {
-    id: `usr-${Date.now()}`,
+    id: id || `usr-${Date.now()}`,
     username,
     displayName,
     email,
+    password: password || 'ChangeMe123!',
     role: role || 'staff',
     status: status || 'Active',
     createdAt: new Date().toISOString().split('T')[0]

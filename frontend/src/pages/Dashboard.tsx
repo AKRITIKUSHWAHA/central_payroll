@@ -61,41 +61,41 @@ export const Dashboard: React.FC = () => {
       {/* KPI Cards Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Primary Blue Filled Card */}
-        <div className="bg-gradient-to-br from-[#3157d4] to-[#273f9c] text-white rounded-2xl p-5 shadow-cdCard flex flex-col justify-between min-h-[120px]">
-          <div className="text-sm font-extrabold text-white/90">
+        <div className="bg-gradient-to-br from-[#3157d4] to-[#273f9c] text-white rounded-2xl p-5 shadow-cdCard flex flex-col justify-between min-h-[120px] min-w-0 overflow-hidden">
+          <div className="text-sm font-extrabold text-white/90 truncate">
             Employees
           </div>
-          <div className="text-3xl sm:text-4xl font-black tracking-tight mt-3">
+          <div className="text-2xl sm:text-3xl font-black tracking-tight mt-3 truncate">
             {employees.filter(e => e.status === 'Active').length}
           </div>
         </div>
 
         {/* Card 2: Total Hours */}
-        <div className="bg-white border border-[#dce4eb] rounded-2xl p-5 shadow-cdCard flex flex-col justify-between min-h-[120px]">
-          <div className="text-sm font-extrabold text-[#3157d4]">
+        <div className="bg-white border border-[#dce4eb] rounded-2xl p-5 shadow-cdCard flex flex-col justify-between min-h-[120px] min-w-0 overflow-hidden">
+          <div className="text-sm font-extrabold text-[#3157d4] truncate">
             Total Hours
           </div>
-          <div className="text-3xl sm:text-4xl font-black text-[#12345b] tracking-tight mt-3 tabular-nums">
+          <div className="text-xl sm:text-2xl lg:text-xl xl:text-2xl font-black text-[#12345b] tracking-tight mt-3 tabular-nums truncate" title={currentDraft?.totalHours.toFixed(2) || '0.00'}>
             {currentDraft?.totalHours.toFixed(2) || '0.00'}
           </div>
         </div>
 
         {/* Card 3: Gross Payroll */}
-        <div className="bg-white border border-[#dce4eb] rounded-2xl p-5 shadow-cdCard flex flex-col justify-between min-h-[120px]">
-          <div className="text-sm font-extrabold text-[#5d9e14]">
+        <div className="bg-white border border-[#dce4eb] rounded-2xl p-5 shadow-cdCard flex flex-col justify-between min-h-[120px] min-w-0 overflow-hidden">
+          <div className="text-sm font-extrabold text-[#5d9e14] truncate">
             Gross Payroll
           </div>
-          <div className="text-3xl sm:text-4xl font-black text-[#12345b] tracking-tight mt-3 tabular-nums">
+          <div className="text-xl sm:text-2xl lg:text-xl xl:text-2xl font-black text-[#12345b] tracking-tight mt-3 tabular-nums truncate" title={`$${currentDraft?.totalGrossPayroll.toFixed(2) || '0.00'}`}>
             ${currentDraft?.totalGrossPayroll.toFixed(2) || '0.00'}
           </div>
         </div>
 
         {/* Card 4: Payroll To Pay */}
-        <div className="bg-white border border-[#dce4eb] rounded-2xl p-5 shadow-cdCard flex flex-col justify-between min-h-[120px]">
-          <div className="text-sm font-extrabold text-[#ef7217]">
+        <div className="bg-white border border-[#dce4eb] rounded-2xl p-5 shadow-cdCard flex flex-col justify-between min-h-[120px] min-w-0 overflow-hidden">
+          <div className="text-sm font-extrabold text-[#ef7217] truncate">
             Payroll To Pay
           </div>
-          <div className="text-3xl sm:text-4xl font-black text-[#12345b] tracking-tight mt-3 tabular-nums">
+          <div className="text-xl sm:text-2xl lg:text-xl xl:text-2xl font-black text-[#12345b] tracking-tight mt-3 tabular-nums truncate" title={`$${currentDraft?.totalNetPayroll.toFixed(2) || '0.00'}`}>
             ${currentDraft?.totalNetPayroll.toFixed(2) || '0.00'}
           </div>
         </div>

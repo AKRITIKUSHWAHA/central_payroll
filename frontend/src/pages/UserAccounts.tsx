@@ -28,6 +28,7 @@ export const UserAccounts: React.FC = () => {
       email: `${username}@centraldispatch.bm`,
       role,
       status: 'Active',
+      password: tempPassword || 'ChangeMe123!',
     });
     setUsers([...userService.getUsers()]);
     setUsername('');

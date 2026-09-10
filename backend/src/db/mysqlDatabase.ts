@@ -30,12 +30,18 @@ export class MySQLDatabase {
           username VARCHAR(100) NOT NULL UNIQUE,
           displayName VARCHAR(150) NOT NULL,
           email VARCHAR(150) NOT NULL,
+          password VARCHAR(255),
           role ENUM('superadmin', 'admin', 'staff') NOT NULL DEFAULT 'staff',
           status ENUM('Active', 'Inactive') NOT NULL DEFAULT 'Active',
           lastLogin VARCHAR(100),
           createdAt DATE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
       `);
+      try {
+        await connection.query(`ALTER TABLE users ADD COLUMN password VARCHAR(255);`);
+      } catch (e) {
+        // Column may already exist
+      }
 
       // 2. Create Employees Table
       await connection.query(`
@@ -259,8 +265,8 @@ export class MySQLDatabase {
 
   public async saveUser(user: UserAccount) {
     await pool.query(
-      'INSERT INTO users (id, username, displayName, email, role, status, lastLogin, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE displayName = VALUES(displayName), role = VALUES(role), status = VALUES(status), lastLogin = VALUES(lastLogin)',
-      [user.id, user.username, user.displayName, user.email, user.role, user.status, user.lastLogin || null, user.createdAt]
+      'INSERT INTO users (id, username, displayName, email, password, role, status, lastLogin, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE displayName = VALUES(displayName), password = VALUES(password), role = VALUES(role), status = VALUES(status), lastLogin = VALUES(lastLogin)',
+      [user.id, user.username, user.displayName, user.email, user.password || 'ChangeMe123!', user.role, user.status, user.lastLogin || null, user.createdAt]
     );
   }
 

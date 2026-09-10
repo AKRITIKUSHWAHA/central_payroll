@@ -25,6 +25,12 @@ router.post('/login', async (req: Request, res: Response) => {
     return res.status(401).json({ success: false, error: 'Invalid username or password' });
   }
 
+  // Validate Password
+  const expectedPassword = user.password || 'ChangeMe123!';
+  if (password !== expectedPassword) {
+    return res.status(401).json({ success: false, error: 'Invalid username or password' });
+  }
+
   if (user.status === 'Inactive') {
     return res.status(403).json({ success: false, error: 'Account is deactivated. Contact Super Admin.' });
   }

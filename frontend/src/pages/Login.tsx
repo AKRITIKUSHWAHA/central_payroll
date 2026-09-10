@@ -4,8 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import { Shield, KeyRound, UserCheck, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 
 export const Login: React.FC = () => {
-  const [username, setUsername] = useState('prashant');
-  const [password, setPassword] = useState('ChangeMe123!');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const { login } = useAuth();
@@ -18,15 +18,8 @@ export const Login: React.FC = () => {
     if (success) {
       navigate('/dashboard');
     } else {
-      setError('Invalid username or password. Use superadmin / ChangeMe123! or prashant.');
+      setError('Invalid username or password.');
     }
-  };
-
-  const handleQuickLogin = (roleUser: string) => {
-    setUsername(roleUser);
-    setPassword('ChangeMe123!');
-    login(roleUser, 'ChangeMe123!');
-    navigate('/dashboard');
   };
 
   return (
@@ -42,7 +35,7 @@ export const Login: React.FC = () => {
         </div>
         
         <p className="text-sm text-[#607286] font-medium mb-6 leading-relaxed">
-          Secure Bermuda workspace sign-in for Super Admin, Admin, and Staff members.
+          Sign in to your account using your username and password.
         </p>
 
         {error && (
@@ -102,40 +95,6 @@ export const Login: React.FC = () => {
             <span>Sign In</span>
           </button>
         </form>
-
-        {/* Quick Role Selection Buttons for Demonstration */}
-        <div className="mt-6 pt-5 border-t border-[#e1e8ef]">
-          <div className="text-xs font-extrabold text-[#607286] mb-2 uppercase tracking-wider">
-            Quick Sign-In Presets:
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              onClick={() => handleQuickLogin('prashant')}
-              className="py-1.5 px-2 bg-[#eaf4fb] hover:bg-[#d6e7f4] text-[#12345b] text-xs font-bold rounded-lg border border-[#c9def6] flex items-center justify-center gap-1"
-            >
-              <Shield className="w-3 h-3 text-[#2f6fb3]" />
-              <span>Prashant</span>
-            </button>
-            <button
-              onClick={() => handleQuickLogin('alesia')}
-              className="py-1.5 px-2 bg-[#f0f4f7] hover:bg-[#e2e8ee] text-[#12345b] text-xs font-bold rounded-lg border border-[#dde6ee] flex items-center justify-center gap-1"
-            >
-              <UserCheck className="w-3 h-3 text-[#0f766e]" />
-              <span>Alesia</span>
-            </button>
-            <button
-              onClick={() => handleQuickLogin('staff_assistant')}
-              className="py-1.5 px-2 bg-[#fff8c7] hover:bg-[#f5ebaa] text-[#6e5a00] text-xs font-bold rounded-lg border border-[#eadc64] flex items-center justify-center gap-1"
-            >
-              <span>Staff</span>
-            </button>
-          </div>
-        </div>
-
-        <div className="mt-5 p-3.5 bg-[#fff8d7] border border-[#eadb83] rounded-xl text-xs text-[#675600] leading-relaxed">
-          <strong className="block mb-1 font-bold">First-time setup:</strong>
-          Sign in with username <strong>superadmin</strong> and temporary password <strong>ChangeMe123!</strong>, or select Prashant (Super Admin).
-        </div>
       </div>
     </div>
   );

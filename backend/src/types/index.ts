@@ -7,6 +7,7 @@ export interface UserAccount {
   email: string;
   role: UserRole;
   status: 'Active' | 'Inactive';
+  password?: string;
   lastLogin?: string;
   createdAt: string;
 }

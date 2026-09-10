@@ -30,18 +30,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const permissions = userService.getPermissions(currentUser?.role || 'superadmin');
 
   const login = (username: string, pass: string): boolean => {
-    const found = userService.getUserByUsername(username);
-    if (found && found.status === 'Active') {
-      setCurrentUser(found);
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(found));
-      return true;
+    const cleanUsername = username.trim();
+    const found = userService.getUserByUsername(cleanUsername);
+    if (found) {
+      if (found.status !== 'Active') {
+        return false;
+      }
+      const expectedPassword = found.password || 'ChangeMe123!';
+      if (pass === expectedPassword) {
+        setCurrentUser(found);
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(found));
+        return true;
+      }
     }
-    // Fallback for default temporary password check
-    if (username.toLowerCase() === 'superadmin' && pass === 'ChangeMe123!') {
+    // Fallback for default superadmin account
+    if (cleanUsername.toLowerCase() === 'superadmin' && pass === 'ChangeMe123!') {
       const superAdminUser = userService.getUsers().find(u => u.username === 'superadmin') || userService.getUsers()[0];
-      setCurrentUser(superAdminUser);
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(superAdminUser));
-      return true;
+      if (superAdminUser && superAdminUser.status === 'Active') {
+        setCurrentUser(superAdminUser);
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(superAdminUser));
+        return true;
+      }
     }
     return false;
   };

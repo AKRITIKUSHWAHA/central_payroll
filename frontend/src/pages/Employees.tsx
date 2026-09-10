@@ -20,10 +20,22 @@ export const Employees: React.FC = () => {
     lastName: '',
     position: 'Dispatcher',
     department: 'Dispatch Operations',
+    employmentType: 'Full-Time' as 'Full-Time' | 'Part-Time' | 'Contract',
+    payType: 'Hourly' as 'Hourly' | 'Salaried',
     payRate: '',
     holidayRate: '',
-    employmentType: 'Full-Time' as const,
-    payType: 'Hourly' as const,
+    email: '',
+    startDate: new Date().toISOString().split('T')[0],
+    dateOfBirth: '',
+    personalPhone: '',
+    workPhone: '',
+    address: '',
+    emergencyContactName: '',
+    emergencyContactPhone: '',
+    emergencyContactRelation: '',
+    paymentMethod: 'Direct Deposit' as 'Direct Deposit' | 'Check' | 'Cash',
+    bankName: 'Butterfield Bank Bermuda',
+    bankAccountMasked: '',
   };
 
   const [newEmp, setNewEmp] = useState(initialNewEmp);
@@ -31,10 +43,22 @@ export const Employees: React.FC = () => {
   const handleAddEmployee = (e: React.FormEvent) => {
     e.preventDefault();
     const rate = parseFloat(String(newEmp.payRate)) || 0;
+    const holRate = parseFloat(String(newEmp.holidayRate)) || (rate * 1.5);
     const created = employeeService.saveEmployee({
       ...newEmp,
       payRate: rate,
-      holidayRate: rate * 1.5,
+      holidayRate: holRate,
+      displayName: `${newEmp.firstName} ${newEmp.lastName}`.trim(),
+      email: newEmp.email || `${newEmp.firstName.toLowerCase()}.${newEmp.lastName.toLowerCase()}@centraldispatch.bm`,
+      dateOfBirth: newEmp.dateOfBirth || '1995-01-01',
+      personalPhone: newEmp.personalPhone || '(441) 555-0000',
+      workPhone: newEmp.workPhone || '(441) 292-1234',
+      address: newEmp.address || 'Hamilton, Bermuda',
+      emergencyContactName: newEmp.emergencyContactName || 'Family Contact',
+      emergencyContactPhone: newEmp.emergencyContactPhone || '(441) 555-0000',
+      emergencyContactRelation: newEmp.emergencyContactRelation || 'Relative',
+      bankName: newEmp.bankName || 'Butterfield Bank Bermuda',
+      bankAccountMasked: newEmp.bankAccountMasked ? `••••••••${newEmp.bankAccountMasked.slice(-4)}` : '••••••••1234',
     });
     setEmployees(employeeService.getEmployees());
     setNewEmp(initialNewEmp);
@@ -186,75 +210,283 @@ export const Employees: React.FC = () => {
       {/* Add Employee Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-[#0b1d31]/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-[#d7e2ec] rounded-2xl max-w-lg w-full p-6 shadow-cdModal space-y-4">
-            <div className="flex items-center justify-between border-b border-[#e1e8ef] pb-3">
-              <h3 className="text-lg font-black text-[#12345b]">
-                Add New Staff Member
-              </h3>
-              <button onClick={() => setShowAddModal(false)} className="text-[#607286] hover:text-[#12345b]">✕</button>
+          <div className="bg-white border border-[#d7e2ec] rounded-2xl max-w-2xl w-full p-6 shadow-cdModal space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-[#e1e8ef] pb-3 sticky top-0 bg-white z-10">
+              <div>
+                <h3 className="text-lg font-black text-[#12345b]">
+                  Add New Staff Member
+                </h3>
+                <p className="text-xs text-[#607286] font-semibold">Enter complete employee profile & payroll information</p>
+              </div>
+              <button onClick={() => setShowAddModal(false)} className="text-[#607286] hover:text-[#12345b] p-1 rounded-lg">✕</button>
             </div>
 
-            <form onSubmit={handleAddEmployee} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-[#38516b] mb-1">First Name</label>
-                  <input
-                    type="text"
-                    required
-                    value={newEmp.firstName}
-                    onChange={e => setNewEmp({ ...newEmp, firstName: e.target.value })}
-                    className="w-full px-3 py-2 border border-[#bdcbd9] rounded-xl text-sm focus:border-[#2f6fb3]"
-                  />
+            <form onSubmit={handleAddEmployee} className="space-y-6">
+              {/* Section 1: Basic Information */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-black uppercase tracking-wider text-[#2f6fb3] border-b border-[#edf4fa] pb-1">
+                  1. Basic Information
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-[#38516b] mb-1">First Name *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. John"
+                      value={newEmp.firstName}
+                      onChange={e => setNewEmp({ ...newEmp, firstName: e.target.value })}
+                      className="w-full px-3 py-2 border border-[#bdcbd9] rounded-xl text-sm focus:border-[#2f6fb3]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-[#38516b] mb-1">Last Name *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Smith"
+                      value={newEmp.lastName}
+                      onChange={e => setNewEmp({ ...newEmp, lastName: e.target.value })}
+                      className="w-full px-3 py-2 border border-[#bdcbd9] rounded-xl text-sm focus:border-[#2f6fb3]"
+                    />
+                  </div>
                 </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-[#38516b] mb-1">Position / Title *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Dispatcher"
+                      value={newEmp.position}
+                      onChange={e => setNewEmp({ ...newEmp, position: e.target.value })}
+                      className="w-full px-3 py-2 border border-[#bdcbd9] rounded-xl text-sm focus:border-[#2f6fb3]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-[#38516b] mb-1">Department</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Dispatch Operations"
+                      value={newEmp.department}
+                      onChange={e => setNewEmp({ ...newEmp, department: e.target.value })}
+                      className="w-full px-3 py-2 border border-[#bdcbd9] rounded-xl text-sm focus:border-[#2f6fb3]"
+                    />
+                  </div>
+                </div>
+
                 <div>
-                  <label className="block text-xs font-bold text-[#38516b] mb-1">Last Name</label>
+                  <label className="block text-xs font-bold text-[#38516b] mb-1">Email Address</label>
                   <input
-                    type="text"
-                    required
-                    value={newEmp.lastName}
-                    onChange={e => setNewEmp({ ...newEmp, lastName: e.target.value })}
+                    type="email"
+                    placeholder="e.g. john.smith@centraldispatch.bm"
+                    value={newEmp.email}
+                    onChange={e => setNewEmp({ ...newEmp, email: e.target.value })}
                     className="w-full px-3 py-2 border border-[#bdcbd9] rounded-xl text-sm focus:border-[#2f6fb3]"
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-[#38516b] mb-1">Position / Title</label>
-                <input
-                  type="text"
-                  required
-                  value={newEmp.position}
-                  onChange={e => setNewEmp({ ...newEmp, position: e.target.value })}
-                  className="w-full px-3 py-2 border border-[#bdcbd9] rounded-xl text-sm focus:border-[#2f6fb3]"
-                />
+              {/* Section 2: Employment & Compensation */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-black uppercase tracking-wider text-[#2f6fb3] border-b border-[#edf4fa] pb-1">
+                  2. Employment & Compensation
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-[#38516b] mb-1">Employment Type</label>
+                    <select
+                      value={newEmp.employmentType}
+                      onChange={e => setNewEmp({ ...newEmp, employmentType: e.target.value as any })}
+                      className="w-full px-3 py-2 border border-[#bdcbd9] rounded-xl text-sm font-semibold focus:border-[#2f6fb3]"
+                    >
+                      <option value="Full-Time">Full-Time</option>
+                      <option value="Part-Time">Part-Time</option>
+                      <option value="Contract">Contract</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-[#38516b] mb-1">Pay Type</label>
+                    <select
+                      value={newEmp.payType}
+                      onChange={e => setNewEmp({ ...newEmp, payType: e.target.value as any })}
+                      className="w-full px-3 py-2 border border-[#bdcbd9] rounded-xl text-sm font-semibold focus:border-[#2f6fb3]"
+                    >
+                      <option value="Hourly">Hourly</option>
+                      <option value="Salaried">Salaried</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-[#38516b] mb-1">Regular Rate ($/hr) *</label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      min="0"
+                      required
+                      placeholder="e.g. 18.00"
+                      value={newEmp.payRate}
+                      onChange={e => setNewEmp({ ...newEmp, payRate: e.target.value })}
+                      className="w-full px-3 py-2 border border-[#bdcbd9] rounded-xl text-sm focus:border-[#2f6fb3]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-[#38516b] mb-1">Holiday Rate ($/hr)</label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      min="0"
+                      placeholder="e.g. 27.00"
+                      value={newEmp.holidayRate}
+                      onChange={e => setNewEmp({ ...newEmp, holidayRate: e.target.value })}
+                      className="w-full px-3 py-2 border border-[#bdcbd9] rounded-xl text-sm focus:border-[#2f6fb3]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-[#38516b] mb-1">Start Date</label>
+                    <input
+                      type="date"
+                      value={newEmp.startDate}
+                      onChange={e => setNewEmp({ ...newEmp, startDate: e.target.value })}
+                      className="w-full px-3 py-2 border border-[#bdcbd9] rounded-xl text-sm focus:border-[#2f6fb3]"
+                    />
+                  </div>
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              {/* Section 3: Personal & Contact Details */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-black uppercase tracking-wider text-[#2f6fb3] border-b border-[#edf4fa] pb-1">
+                  3. Personal & Contact Details
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-[#38516b] mb-1">Date of Birth</label>
+                    <input
+                      type="date"
+                      value={newEmp.dateOfBirth}
+                      onChange={e => setNewEmp({ ...newEmp, dateOfBirth: e.target.value })}
+                      className="w-full px-3 py-2 border border-[#bdcbd9] rounded-xl text-sm focus:border-[#2f6fb3]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-[#38516b] mb-1">Personal Phone</label>
+                    <input
+                      type="text"
+                      placeholder="(441) 555-0101"
+                      value={newEmp.personalPhone}
+                      onChange={e => setNewEmp({ ...newEmp, personalPhone: e.target.value })}
+                      className="w-full px-3 py-2 border border-[#bdcbd9] rounded-xl text-sm focus:border-[#2f6fb3]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-[#38516b] mb-1">Work Phone</label>
+                    <input
+                      type="text"
+                      placeholder="(441) 292-1234"
+                      value={newEmp.workPhone}
+                      onChange={e => setNewEmp({ ...newEmp, workPhone: e.target.value })}
+                      className="w-full px-3 py-2 border border-[#bdcbd9] rounded-xl text-sm focus:border-[#2f6fb3]"
+                    />
+                  </div>
+                </div>
+
                 <div>
-                  <label className="block text-xs font-bold text-[#38516b] mb-1">Department</label>
+                  <label className="block text-xs font-bold text-[#38516b] mb-1">Residential Address</label>
                   <input
                     type="text"
-                    value={newEmp.department}
-                    onChange={e => setNewEmp({ ...newEmp, department: e.target.value })}
-                    className="w-full px-3 py-2 border border-[#bdcbd9] rounded-xl text-sm focus:border-[#2f6fb3]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-[#38516b] mb-1">Pay Rate ($/hr)</label>
-                  <input
-                    type="number"
-                    step="0.5"
-                    min="0"
-                    required
-                    placeholder="e.g. 18.00"
-                    value={newEmp.payRate}
-                    onChange={e => setNewEmp({ ...newEmp, payRate: e.target.value })}
+                    placeholder="e.g. Hamilton, Bermuda"
+                    value={newEmp.address}
+                    onChange={e => setNewEmp({ ...newEmp, address: e.target.value })}
                     className="w-full px-3 py-2 border border-[#bdcbd9] rounded-xl text-sm focus:border-[#2f6fb3]"
                   />
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-3">
+              {/* Section 4: Emergency Contact */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-black uppercase tracking-wider text-[#2f6fb3] border-b border-[#edf4fa] pb-1">
+                  4. Emergency Contact
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-[#38516b] mb-1">Contact Name</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Jane Smith"
+                      value={newEmp.emergencyContactName}
+                      onChange={e => setNewEmp({ ...newEmp, emergencyContactName: e.target.value })}
+                      className="w-full px-3 py-2 border border-[#bdcbd9] rounded-xl text-sm focus:border-[#2f6fb3]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-[#38516b] mb-1">Emergency Phone</label>
+                    <input
+                      type="text"
+                      placeholder="(441) 555-0102"
+                      value={newEmp.emergencyContactPhone}
+                      onChange={e => setNewEmp({ ...newEmp, emergencyContactPhone: e.target.value })}
+                      className="w-full px-3 py-2 border border-[#bdcbd9] rounded-xl text-sm focus:border-[#2f6fb3]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-[#38516b] mb-1">Relationship</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Spouse / Parent"
+                      value={newEmp.emergencyContactRelation}
+                      onChange={e => setNewEmp({ ...newEmp, emergencyContactRelation: e.target.value })}
+                      className="w-full px-3 py-2 border border-[#bdcbd9] rounded-xl text-sm focus:border-[#2f6fb3]"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 5: Bank & Payroll Setup */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-black uppercase tracking-wider text-[#2f6fb3] border-b border-[#edf4fa] pb-1">
+                  5. Bank & Payroll Details
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-[#38516b] mb-1">Payment Method</label>
+                    <select
+                      value={newEmp.paymentMethod}
+                      onChange={e => setNewEmp({ ...newEmp, paymentMethod: e.target.value as any })}
+                      className="w-full px-3 py-2 border border-[#bdcbd9] rounded-xl text-sm font-semibold focus:border-[#2f6fb3]"
+                    >
+                      <option value="Direct Deposit">Direct Deposit</option>
+                      <option value="Check">Check / Cheque</option>
+                      <option value="Cash">Cash</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-[#38516b] mb-1">Bank Name</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Butterfield Bank"
+                      value={newEmp.bankName}
+                      onChange={e => setNewEmp({ ...newEmp, bankName: e.target.value })}
+                      className="w-full px-3 py-2 border border-[#bdcbd9] rounded-xl text-sm focus:border-[#2f6fb3]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-[#38516b] mb-1">Account Number</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 123456789"
+                      value={newEmp.bankAccountMasked}
+                      onChange={e => setNewEmp({ ...newEmp, bankAccountMasked: e.target.value })}
+                      className="w-full px-3 py-2 border border-[#bdcbd9] rounded-xl text-sm focus:border-[#2f6fb3]"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3 border-t border-[#e1e8ef] sticky bottom-0 bg-white z-10">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
@@ -264,7 +496,7 @@ export const Employees: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-[#2f6fb3] hover:bg-[#245a96] text-white font-extrabold text-xs rounded-xl"
+                  className="px-6 py-2.5 bg-[#2f6fb3] hover:bg-[#245a96] text-white font-extrabold text-xs rounded-xl shadow-md"
                 >
                   Save Employee
                 </button>

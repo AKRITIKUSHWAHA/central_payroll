@@ -347,9 +347,19 @@ export class MySQLDatabase {
 
   public async saveLeave(leave: LeaveRecord) {
     await pool.query(
-      'INSERT INTO leave_records (id, employeeId, employeeName, leaveType, startDate, endDate, daysCount, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE status = VALUES(status)',
-      [leave.id, leave.employeeId, leave.employeeName, leave.leaveType, leave.startDate, leave.endDate, leave.daysCount, leave.status, leave.notes || '']
+      'INSERT INTO leave_records (id, employeeId, employeeName, leaveType, startDate, endDate, daysCount, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE status = VALUES(status), leaveType = VALUES(leaveType), startDate = VALUES(startDate), endDate = VALUES(endDate)',
+      [leave.id, leave.employeeId, leave.employeeName, leave.leaveType, leave.startDate, leave.endDate, leave.daysCount, leave.status || 'Approved', leave.notes || '']
     );
+  }
+
+  public async syncEmployeeLeaves(employeeId: string, leaves: LeaveRecord[]) {
+    await pool.query('DELETE FROM leave_records WHERE employeeId = ?', [employeeId]);
+    for (const leave of leaves) {
+      await pool.query(
+        'INSERT INTO leave_records (id, employeeId, employeeName, leaveType, startDate, endDate, daysCount, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [leave.id, leave.employeeId, leave.employeeName, leave.leaveType, leave.startDate, leave.endDate, leave.daysCount, leave.status || 'Approved', leave.notes || '']
+      );
+    }
   }
 
   public async getSchedules(weekStartDate?: string): Promise<EmployeeSchedule[]> {

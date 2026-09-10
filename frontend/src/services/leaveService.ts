@@ -73,6 +73,19 @@ class LeaveService {
     return undefined;
   }
 
+  public syncEmployeeLeaves(employeeId: string, leavesForEmployee: LeaveRecord[]) {
+    const allLeaves = this.getStorage();
+    const otherLeaves = allLeaves.filter(l => l.employeeId !== employeeId);
+    const updated = [...otherLeaves, ...leavesForEmployee];
+    this.saveStorage(updated);
+
+    // Sync PUT to backend
+    apiFetch(`/leave/employee/${employeeId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ leaves: leavesForEmployee })
+    });
+  }
+
   public deleteLeave(leaveId: string): boolean {
     const leaves = this.getStorage();
     const filtered = leaves.filter(l => l.id !== leaveId);

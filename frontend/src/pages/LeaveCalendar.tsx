@@ -32,51 +32,6 @@ export const LeaveCalendar: React.FC = () => {
   const daysInMonth = Array.from({ length: 30 }, (_, i) => i + 1);
   const leadingBlanks = 2; // Sept 1 2026 is Tuesday -> 2 blanks (Sun, Mon)
 
-  const saveCurrentLeaves = (newSick: string[], newHoliday: string[], message?: string) => {
-    if (!selectedEmployee) return;
-    const empId = selectedEmployee.id || selectedEmployee.employeeId;
-
-    // Clear existing leaves for this employee for this month to sync
-    const allLeaves = leaveService.getLeaves();
-    const otherLeaves = allLeaves.filter(l => l.employeeId !== empId);
-    
-    const updatedRecords: LeaveRecord[] = [...otherLeaves];
-
-    newSick.forEach(date => {
-      updatedRecords.push({
-        id: `leave-sick-${empId}-${date}`,
-        employeeId: empId,
-        employeeName: selectedEmployee.displayName,
-        leaveType: 'Sick',
-        startDate: date,
-        endDate: date,
-        daysCount: 1,
-        status: 'Approved',
-        notes: 'Sick leave recorded from calendar'
-      });
-    });
-
-    newHoliday.forEach(date => {
-      updatedRecords.push({
-        id: `leave-hol-${empId}-${date}`,
-        employeeId: empId,
-        employeeName: selectedEmployee.displayName,
-        leaveType: 'Vacation',
-        startDate: date,
-        endDate: date,
-        daysCount: 1,
-        status: 'Approved',
-        notes: 'Holiday leave recorded from calendar'
-      });
-    });
-
-    localStorage.setItem('cdl_leave_records', JSON.stringify(updatedRecords));
-
-    if (message) {
-      showToast(message);
-    }
-  };
-
   const toggleSickDate = (day: number) => {
     if (!selectedEmployee) return;
     const dateStr = `${calendarMonth}-${String(day).padStart(2, '0')}`;
@@ -89,15 +44,12 @@ export const LeaveCalendar: React.FC = () => {
 
     if (updatedSick.includes(dateStr)) {
       updatedSick = updatedSick.filter(d => d !== dateStr);
-      showToast(`Removed sick day for ${selectedEmployee.displayName}`, 'info');
     } else {
       updatedSick.push(dateStr);
-      showToast(`Recorded sick day for ${selectedEmployee.displayName}`);
     }
 
     setSickDates(updatedSick);
     setHolidayDates(updatedHoliday);
-    saveCurrentLeaves(updatedSick, updatedHoliday);
   };
 
   const toggleHolidayDate = (day: number) => {
@@ -112,19 +64,50 @@ export const LeaveCalendar: React.FC = () => {
 
     if (updatedHoliday.includes(dateStr)) {
       updatedHoliday = updatedHoliday.filter(d => d !== dateStr);
-      showToast(`Removed holiday for ${selectedEmployee.displayName}`, 'info');
     } else {
       updatedHoliday.push(dateStr);
-      showToast(`Recorded holiday for ${selectedEmployee.displayName}`);
     }
 
     setSickDates(updatedSick);
     setHolidayDates(updatedHoliday);
-    saveCurrentLeaves(updatedSick, updatedHoliday);
   };
 
   const handleExplicitSave = () => {
-    saveCurrentLeaves(sickDates, holidayDates, `Leave records saved successfully for ${selectedEmployee?.displayName || 'employee'}!`);
+    if (!selectedEmployee) return;
+    const empId = selectedEmployee.id || selectedEmployee.employeeId;
+
+    const records: LeaveRecord[] = [];
+
+    sickDates.forEach(date => {
+      records.push({
+        id: `leave-sick-${empId}-${date}`,
+        employeeId: empId,
+        employeeName: selectedEmployee.displayName,
+        leaveType: 'Sick',
+        startDate: date,
+        endDate: date,
+        daysCount: 1,
+        status: 'Approved',
+        notes: 'Sick leave recorded from calendar'
+      });
+    });
+
+    holidayDates.forEach(date => {
+      records.push({
+        id: `leave-hol-${empId}-${date}`,
+        employeeId: empId,
+        employeeName: selectedEmployee.displayName,
+        leaveType: 'Vacation',
+        startDate: date,
+        endDate: date,
+        daysCount: 1,
+        status: 'Approved',
+        notes: 'Holiday leave recorded from calendar'
+      });
+    });
+
+    leaveService.syncEmployeeLeaves(empId, records);
+    showToast(`Leave records saved successfully to database (leave_records) for ${selectedEmployee.displayName}!`);
   };
 
   return (

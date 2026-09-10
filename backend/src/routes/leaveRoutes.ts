@@ -76,4 +76,24 @@ router.patch('/:id/status', async (req: Request, res: Response) => {
   }
 });
 
+// PUT sync all leave records for an employee
+router.put('/employee/:employeeId', async (req: Request, res: Response) => {
+  const { employeeId } = req.params;
+  const { leaves } = req.body;
+
+  try {
+    if (Array.isArray(leaves)) {
+      await mySQLDb.syncEmployeeLeaves(employeeId, leaves);
+    }
+    res.json({ success: true, count: leaves ? leaves.length : 0 });
+  } catch (err) {
+    const currentLeaves = db.getLeaves().filter(l => l.employeeId !== employeeId);
+    if (Array.isArray(leaves)) {
+      currentLeaves.push(...leaves);
+      db.setLeaves(currentLeaves);
+    }
+    res.json({ success: true });
+  }
+});
+
 export default router;

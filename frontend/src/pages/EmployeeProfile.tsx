@@ -18,6 +18,14 @@ export const EmployeeProfile: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'Overview' | 'Personal' | 'Contact' | 'Employment' | 'Payroll' | 'Schedule' | 'Leave' | 'Payslips'>('Overview');
   const [showSensitive, setShowSensitive] = useState(false);
 
+  const cleanDateDisplay = (val?: string): string => {
+    if (!val) return 'N/A';
+    if (val.includes('T')) {
+      return val.split('T')[0];
+    }
+    return val;
+  };
+
   if (!employee) {
     return (
       <div className="p-8 text-center text-[#607286]">
@@ -71,7 +79,7 @@ export const EmployeeProfile: React.FC = () => {
               {employee.position} • <span className="text-[#2f6fb3]">{employee.department}</span>
             </p>
             <p className="text-xs font-semibold text-[#8292a3] mt-1 tabular-nums">
-              ID: {employee.employeeId} • Joined: {employee.startDate}
+              ID: {employee.employeeId} • Joined: {cleanDateDisplay(employee.startDate)}
             </p>
           </div>
         </div>
@@ -123,7 +131,7 @@ export const EmployeeProfile: React.FC = () => {
                   </div>
                   <div className="flex justify-between py-1 border-b border-[#f0f4f8]">
                     <span className="font-semibold text-[#607286]">Date of Birth:</span>
-                    <span className="font-extrabold text-[#1c2b3a]">{showSensitive ? employee.dateOfBirth : '••••••••'}</span>
+                    <span className="font-extrabold text-[#1c2b3a]">{showSensitive ? cleanDateDisplay(employee.dateOfBirth) : '••••••••'}</span>
                   </div>
                   <div className="flex justify-between py-1 border-b border-[#f0f4f8]">
                     <span className="font-semibold text-[#607286]">Phone:</span>
@@ -168,7 +176,7 @@ export const EmployeeProfile: React.FC = () => {
               <h3 className="text-base font-extrabold text-[#12345b]">Personal Details</h3>
               <div className="bg-[#f8fbfd] p-4 rounded-xl border border-[#dde7f0] space-y-3 text-sm">
                 <div><span className="font-bold text-[#607286]">Address:</span> {employee.address}</div>
-                <div><span className="font-bold text-[#607286]">Date of Birth:</span> {showSensitive ? employee.dateOfBirth : '••••••••'}</div>
+                <div><span className="font-bold text-[#607286]">Date of Birth:</span> {showSensitive ? cleanDateDisplay(employee.dateOfBirth) : '••••••••'}</div>
                 <div><span className="font-bold text-[#607286]">Employee ID:</span> {employee.employeeId}</div>
               </div>
             </div>

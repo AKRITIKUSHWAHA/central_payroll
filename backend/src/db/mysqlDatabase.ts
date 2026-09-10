@@ -190,11 +190,25 @@ export class MySQLDatabase {
     }
   }
 
+  private formatDateStr(val: any): string {
+    if (!val) return '';
+    if (val instanceof Date) {
+      const year = val.getFullYear();
+      const month = String(val.getMonth() + 1).padStart(2, '0');
+      const day = String(val.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+    const s = String(val);
+    return s.includes('T') ? s.split('T')[0] : s;
+  }
+
   // --- GETTERS & WRITERS FOR MYSQL ---
   public async getEmployees(): Promise<Employee[]> {
     const [rows]: any = await pool.query('SELECT * FROM employees ORDER BY employeeId ASC');
     return rows.map((r: any) => ({
       ...r,
+      startDate: this.formatDateStr(r.startDate),
+      dateOfBirth: this.formatDateStr(r.dateOfBirth),
       payRate: Number(r.payRate),
       holidayRate: Number(r.holidayRate)
     }));
@@ -206,6 +220,8 @@ export class MySQLDatabase {
     const r = rows[0];
     return {
       ...r,
+      startDate: this.formatDateStr(r.startDate),
+      dateOfBirth: this.formatDateStr(r.dateOfBirth),
       payRate: Number(r.payRate),
       holidayRate: Number(r.holidayRate)
     };

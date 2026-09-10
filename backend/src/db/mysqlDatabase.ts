@@ -169,87 +169,16 @@ export class MySQLDatabase {
 
   private async seedInitialData() {
     try {
-      // Check & Seed Users
+      // Check & Seed Super Admin User if table is completely empty
       const [usersRows]: any = await pool.query('SELECT COUNT(*) as count FROM users');
       if (usersRows[0].count === 0) {
-        console.log('🌱 Seeding initial Users into MySQL...');
-        for (const user of initialUsers) {
-          await pool.query(
-            'INSERT INTO users (id, username, displayName, email, role, status, lastLogin, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-            [user.id, user.username, user.displayName, user.email, user.role, user.status, user.lastLogin || null, user.createdAt]
-          );
-        }
+        console.log('🌱 Seeding Super Admin user into MySQL...');
+        await pool.query(
+          'INSERT INTO users (id, username, displayName, email, role, status, lastLogin, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+          ['usr-2', 'superadmin', 'Super Admin', 'admin@centraldispatch.bm', 'superadmin', 'Active', '2026-09-10 12:00 PM', '2026-01-01']
+        );
       }
-
-      // Check & Seed Employees
-      const [empRows]: any = await pool.query('SELECT COUNT(*) as count FROM employees');
-      if (empRows[0].count === 0) {
-        console.log('🌱 Seeding initial Employees into MySQL...');
-        for (const emp of initialEmployees) {
-          await pool.query(
-            `INSERT INTO employees (
-              id, employeeId, firstName, middleInitial, lastName, displayName, position, department,
-              status, employmentType, payType, payRate, holidayRate, startDate, dateOfBirth,
-              personalPhone, workPhone, email, address, emergencyContactName, emergencyContactPhone,
-              emergencyContactRelation, paymentMethod, bankName, bankAccountMasked
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-              emp.id, emp.employeeId, emp.firstName, emp.middleInitial || null, emp.lastName, emp.displayName,
-              emp.position, emp.department, emp.status, emp.employmentType, emp.payType, emp.payRate,
-              emp.holidayRate, emp.startDate, emp.dateOfBirth, emp.personalPhone, emp.workPhone,
-              emp.email, emp.address, emp.emergencyContactName, emp.emergencyContactPhone,
-              emp.emergencyContactRelation, emp.paymentMethod, emp.bankName || null, emp.bankAccountMasked || null
-            ]
-          );
-        }
-      }
-
-      // Check & Seed Payroll Periods
-      const [payRows]: any = await pool.query('SELECT COUNT(*) as count FROM payroll_periods');
-      if (payRows[0].count === 0) {
-        console.log('🌱 Seeding initial Payroll Periods into MySQL...');
-        for (const p of initialPayrollPeriods) {
-          await pool.query(
-            `INSERT INTO payroll_periods (id, periodStart, periodEnd, payDate, status, totalHours, totalGrossPayroll, totalDeductions, totalNetPayroll, createdBy, createdAt, approvedBy, approvedAt, paidAt)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [p.id, p.periodStart, p.periodEnd, p.payDate, p.status, p.totalHours, p.totalGrossPayroll, p.totalDeductions, p.totalNetPayroll, p.createdBy, p.createdAt, p.approvedBy || null, p.approvedAt || null, p.paidAt || null]
-          );
-
-          for (const item of p.items) {
-            await pool.query(
-              `INSERT INTO employee_payroll_items (periodId, employeeId, employeeName, position, department, regularRate, regularHours, regularPay, holidayRate, holidayHours, holidayPay, otherPay, deductions, totalHours, grossPay, netPay, status)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-              [p.id, item.employeeId, item.employeeName, item.position, item.department, item.regularRate, item.regularHours, item.regularPay, item.holidayRate, item.holidayHours, item.holidayPay, item.otherPay, item.deductions, item.totalHours, item.grossPay, item.netPay, item.status]
-            );
-          }
-        }
-      }
-
-      // Check & Seed Leave Records
-      const [leaveRows]: any = await pool.query('SELECT COUNT(*) as count FROM leave_records');
-      if (leaveRows[0].count === 0) {
-        console.log('🌱 Seeding initial Leave Records into MySQL...');
-        for (const l of initialLeaves) {
-          await pool.query(
-            'INSERT INTO leave_records (id, employeeId, employeeName, leaveType, startDate, endDate, daysCount, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [l.id, l.employeeId, l.employeeName, l.leaveType, l.startDate, l.endDate, l.daysCount, l.status, l.notes || '']
-          );
-        }
-      }
-
-      // Check & Seed Audit Logs
-      const [auditRows]: any = await pool.query('SELECT COUNT(*) as count FROM audit_logs');
-      if (auditRows[0].count === 0) {
-        console.log('🌱 Seeding initial Audit Logs into MySQL...');
-        for (const a of initialAuditLogs) {
-          await pool.query(
-            'INSERT INTO audit_logs (id, action, module, user, role, timestamp, details) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [a.id, a.action, a.module, a.user, a.role, a.timestamp, a.details]
-          );
-        }
-      }
-
-      console.log('✅ Initial seed data sync to MySQL complete!');
+      console.log('✅ MySQL initial verification complete!');
     } catch (err) {
       console.error('❌ Error seeding MySQL data:', err);
     }

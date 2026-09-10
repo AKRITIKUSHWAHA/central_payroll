@@ -8,13 +8,13 @@ class LeaveService {
   private getStorage(): LeaveRecord[] {
     const data = localStorage.getItem(STORAGE_KEY);
     if (!data) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(initialLeaves));
-      return initialLeaves;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
+      return [];
     }
     try {
       return JSON.parse(data);
     } catch {
-      return initialLeaves;
+      return [];
     }
   }
 

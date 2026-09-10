@@ -30,34 +30,38 @@ class JSONDatabase {
   }
 
   private loadData(): DatabaseSchema {
+    const cleanSeed: DatabaseSchema = {
+      employees: [],
+      payrollPeriods: [],
+      leaves: [],
+      users: [
+        {
+          id: 'usr-2',
+          username: 'superadmin',
+          displayName: 'Super Admin',
+          email: 'admin@centraldispatch.bm',
+          role: 'superadmin',
+          status: 'Active',
+          lastLogin: '2026-09-10 12:00 PM',
+          createdAt: '2026-01-01'
+        }
+      ],
+      auditLogs: [],
+      schedules: []
+    };
+
     if (!fs.existsSync(DB_FILE)) {
-      const initialData: DatabaseSchema = {
-        employees: initialEmployees,
-        payrollPeriods: initialPayrollPeriods,
-        leaves: initialLeaves,
-        users: initialUsers,
-        auditLogs: initialAuditLogs,
-        schedules: initialSchedules
-      };
-      this.saveData(initialData);
-      return initialData;
+      this.saveData(cleanSeed);
+      return cleanSeed;
     }
 
     try {
       const content = fs.readFileSync(DB_FILE, 'utf-8');
       return JSON.parse(content);
     } catch (err) {
-      console.error('Error reading db.json, resetting to seed data:', err);
-      const seed: DatabaseSchema = {
-        employees: initialEmployees,
-        payrollPeriods: initialPayrollPeriods,
-        leaves: initialLeaves,
-        users: initialUsers,
-        auditLogs: initialAuditLogs,
-        schedules: initialSchedules
-      };
-      this.saveData(seed);
-      return seed;
+      console.error('Error reading db.json, resetting database:', err);
+      this.saveData(cleanSeed);
+      return cleanSeed;
     }
   }
 

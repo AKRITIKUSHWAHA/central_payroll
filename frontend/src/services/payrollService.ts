@@ -8,13 +8,13 @@ class PayrollService {
   private getStorage(): PayrollPeriod[] {
     const data = localStorage.getItem(STORAGE_KEY);
     if (!data) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(initialPayrollPeriods));
-      return initialPayrollPeriods;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
+      return [];
     }
     try {
       return JSON.parse(data);
     } catch {
-      return initialPayrollPeriods;
+      return [];
     }
   }
 

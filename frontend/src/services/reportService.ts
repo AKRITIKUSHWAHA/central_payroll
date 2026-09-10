@@ -8,13 +8,13 @@ class ReportService {
   private getAuditStorage(): AuditLogItem[] {
     const data = localStorage.getItem(AUDIT_STORAGE_KEY);
     if (!data) {
-      localStorage.setItem(AUDIT_STORAGE_KEY, JSON.stringify(initialAuditLogs));
-      return initialAuditLogs;
+      localStorage.setItem(AUDIT_STORAGE_KEY, JSON.stringify([]));
+      return [];
     }
     try {
       return JSON.parse(data);
     } catch {
-      return initialAuditLogs;
+      return [];
     }
   }
 

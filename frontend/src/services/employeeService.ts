@@ -8,13 +8,13 @@ class EmployeeService {
   private getStorage(): Employee[] {
     const data = localStorage.getItem(STORAGE_KEY);
     if (!data) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(initialEmployees));
-      return initialEmployees;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
+      return [];
     }
     try {
       return JSON.parse(data);
     } catch {
-      return initialEmployees;
+      return [];
     }
   }
 

@@ -37,14 +37,26 @@ export const staffPermissions: PermissionMatrix = {
 class UserService {
   private getStorage(): UserAccount[] {
     const data = localStorage.getItem(STORAGE_KEY);
+    const defaultSuperAdmin: UserAccount[] = [
+      {
+        id: 'usr-2',
+        username: 'superadmin',
+        displayName: 'Super Admin',
+        email: 'admin@centraldispatch.bm',
+        role: 'superadmin',
+        status: 'Active',
+        createdAt: '2026-01-01'
+      }
+    ];
     if (!data) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(initialUsers));
-      return initialUsers;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultSuperAdmin));
+      return defaultSuperAdmin;
     }
     try {
-      return JSON.parse(data);
+      const parsed = JSON.parse(data);
+      return Array.isArray(parsed) && parsed.length > 0 ? parsed : defaultSuperAdmin;
     } catch {
-      return initialUsers;
+      return defaultSuperAdmin;
     }
   }
 

@@ -18,6 +18,12 @@ import { AuditReports } from './pages/AuditReports';
 import { PermissionsView } from './pages/PermissionsView';
 import { UserAccounts } from './pages/UserAccounts';
 import { SettingsView } from './pages/SettingsView';
+import { AccountsOverview } from './pages/AccountsOverview';
+import { CustomersView } from './pages/CustomersView';
+import { InvoicesView } from './pages/InvoicesView';
+import { PaymentsView } from './pages/PaymentsView';
+import { AgingView } from './pages/AgingView';
+import { GeneralLedgerView } from './pages/GeneralLedgerView';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated } = useAuth();
@@ -55,6 +61,15 @@ export const App: React.FC = () => {
               <Route path="payslips" element={<PayslipsView />} />
               <Route path="reports" element={<PayrollReports />} />
               <Route path="reports/audit" element={<AuditReports />} />
+              
+              {/* Customers & Accounting Routes */}
+              <Route path="accounts" element={<AccountsOverview />} />
+              <Route path="customers" element={<CustomersView />} />
+              <Route path="invoices" element={<InvoicesView />} />
+              <Route path="payments" element={<PaymentsView />} />
+              <Route path="aging" element={<AgingView />} />
+              <Route path="ledger" element={<GeneralLedgerView />} />
+
               <Route path="permissions" element={<PermissionsView />} />
               <Route path="users" element={<UserAccounts />} />
               <Route path="settings" element={<SettingsView />} />

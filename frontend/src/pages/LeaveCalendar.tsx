@@ -123,13 +123,6 @@ export const LeaveCalendar: React.FC = () => {
               Sick time and holidays are saved with each employee
             </span>
           </div>
-          <button
-            onClick={handleExplicitSave}
-            className="px-4 py-2 bg-[#0f766e] hover:bg-[#0c5e58] text-white font-black text-xs rounded-xl shadow-sm flex items-center gap-1.5 self-start sm:self-auto"
-          >
-            <Save className="w-4 h-4" />
-            <span>Save Leave Records</span>
-          </button>
         </div>
 
         {/* Tools row */}

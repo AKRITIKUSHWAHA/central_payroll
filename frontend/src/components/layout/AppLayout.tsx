@@ -15,11 +15,11 @@ export const AppLayout: React.FC = () => {
         mobileOpen={mobileOpen}
         onCloseMobile={() => setMobileOpen(false)}
       />
-      <div className={`flex-1 flex flex-col min-w-0 w-full transition-all duration-300 ${
+      <div className={`flex-1 flex flex-col min-w-0 w-full overflow-x-hidden transition-all duration-300 ${
         sidebarCollapsed ? 'md:ml-[72px]' : 'md:ml-[250px]'
       }`}>
         <Topbar onOpenMobile={() => setMobileOpen(true)} />
-        <main className="main-content flex-1 p-3 sm:p-6 md:p-8 max-w-[1600px] w-full mx-auto">
+        <main className="main-content flex-1 p-3 sm:p-5 md:p-6 w-full max-w-full overflow-x-hidden">
           <Outlet />
         </main>
       </div>

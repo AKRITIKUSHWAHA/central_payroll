@@ -9,8 +9,15 @@ interface TopbarProps {
 export const Topbar: React.FC<TopbarProps> = ({ onOpenMobile }) => {
   const { currentUser } = useAuth();
   
-  // Format current Bermuda date (Thursday, 10 Sept 2026 style)
-  const todayStr = 'Thursday, 10 Sept 2026';
+  // Dynamic Bermuda date (e.g. Friday, 11 Sept 2026 style)
+  const todayStr = (() => {
+    const now = new Date();
+    const weekday = now.toLocaleDateString('en-US', { weekday: 'long' });
+    const day = now.getDate();
+    const month = now.toLocaleDateString('en-US', { month: 'short' });
+    const year = now.getFullYear();
+    return `${weekday}, ${day} ${month} ${year}`;
+  })();
 
   return (
     <header className="no-print bg-white/90 backdrop-blur-md border-b border-[#dde6ee] px-3 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between sticky top-0 z-20 shadow-sm w-full">

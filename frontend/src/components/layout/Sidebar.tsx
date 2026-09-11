@@ -68,6 +68,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { to: '/payslips', label: 'Payslips', icon: PieChart, visible: permissions.payslips.view },
   ];
 
+  const customersNavItems = [
+    { to: '/accounts', label: 'Accounts Overview', icon: LayoutDashboard, visible: true },
+    { to: '/customers', label: 'Customers & Ledgers', icon: Users, visible: true },
+    { to: '/invoices', label: 'Create Invoice', icon: FileSpreadsheet, visible: true },
+    { to: '/payments', label: 'Record Payment', icon: DollarSign, visible: true },
+    { to: '/aging', label: 'A/R Aging', icon: CalendarDays, visible: true },
+    { to: '/ledger', label: 'General Ledger', icon: FileText, visible: true },
+  ];
+
   const adminNavItems = [
     { to: '/permissions', label: 'Permissions', icon: ShieldCheck, visible: permissions.permissions.view },
     { to: '/users', label: 'User Accounts', icon: UserCog, visible: permissions.userAccounts.view },
@@ -137,6 +146,38 @@ export const Sidebar: React.FC<SidebarProps> = ({
             )}
             <nav className="space-y-0.5">
               {workspaceNavItems.filter(item => item.visible).map(item => {
+                const Icon = item.icon;
+                return (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    onClick={handleNavClick}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold text-sm transition-all ${
+                        isActive
+                          ? 'bg-[#e6e8ea] text-[#20262d] font-bold shadow-sm'
+                          : 'text-[#4b5563] hover:bg-[#f0f4f7] hover:text-[#12345b]'
+                      } ${collapsed && !mobileOpen ? 'md:justify-center md:px-0' : ''}`
+                    }
+                    title={collapsed && !mobileOpen ? item.label : undefined}
+                  >
+                    <Icon className="w-4 h-4 flex-shrink-0 text-[#2f6fb3]" />
+                    {(!collapsed || mobileOpen) && <span className="truncate">{item.label}</span>}
+                  </NavLink>
+                );
+              })}
+            </nav>
+          </div>
+
+          {/* CUSTOMERS & ACCOUNTS Category */}
+          <div>
+            {(!collapsed || mobileOpen) && (
+              <div className="text-[11px] font-extrabold tracking-wider text-[#8292a3] uppercase px-3 py-1.5 mb-1">
+                CUSTOMERS &amp; ACCOUNTS
+              </div>
+            )}
+            <nav className="space-y-0.5">
+              {customersNavItems.filter(item => item.visible).map(item => {
                 const Icon = item.icon;
                 return (
                   <NavLink

@@ -13,14 +13,26 @@ class PayrollService {
       return [];
     }
     try {
-      return JSON.parse(data);
+      const parsed: PayrollPeriod[] = JSON.parse(data);
+      return parsed.map(p => ({
+        ...p,
+        periodStart: this.sanitizeDate(p.periodStart),
+        periodEnd: this.sanitizeDate(p.periodEnd),
+        payDate: this.sanitizeDate(p.payDate),
+      }));
     } catch {
       return [];
     }
   }
 
   private saveStorage(periods: PayrollPeriod[]) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(periods));
+    const sanitized = periods.map(p => ({
+      ...p,
+      periodStart: this.sanitizeDate(p.periodStart),
+      periodEnd: this.sanitizeDate(p.periodEnd),
+      payDate: this.sanitizeDate(p.payDate),
+    }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(sanitized));
   }
 
   public createNewDraft(): PayrollPeriod {
@@ -151,6 +163,13 @@ class PayrollService {
     return this.syncItemsWithEmployees(draft);
   }
 
+  private sanitizeDate(d: any): string {
+    if (!d) return '';
+    if (d instanceof Date) return d.toISOString().split('T')[0];
+    const s = String(d);
+    return s.includes('T') ? s.split('T')[0] : s;
+  }
+
   public calculateTotals(items: EmployeePayrollItem[]) {
     let totalHours = 0;
     let totalGrossPayroll = 0;
@@ -158,15 +177,29 @@ class PayrollService {
     let totalNetPayroll = 0;
 
     items.forEach(item => {
-      item.regularPay = Math.round(item.regularRate * item.regularHours * 100) / 100;
-      item.holidayPay = Math.round(item.holidayRate * item.holidayHours * 100) / 100;
-      item.totalHours = Number((item.regularHours + item.holidayHours).toFixed(2));
-      item.grossPay = Math.round((item.regularPay + item.holidayPay + (item.otherPay || 0)) * 100) / 100;
-      item.netPay = Math.round((item.grossPay - (item.deductions || 0)) * 100) / 100;
+      const regRate = Number(item.regularRate) || 0;
+      const regHours = Number(item.regularHours) || 0;
+      const holRate = Number(item.holidayRate) || 0;
+      const holHours = Number(item.holidayHours) || 0;
+      const otherPay = Number(item.otherPay) || 0;
+      const deductions = Number(item.deductions) || 0;
+
+      item.regularRate = regRate;
+      item.regularHours = regHours;
+      item.holidayRate = holRate;
+      item.holidayHours = holHours;
+      item.otherPay = otherPay;
+      item.deductions = deductions;
+
+      item.regularPay = Math.round(regRate * regHours * 100) / 100;
+      item.holidayPay = Math.round(holRate * holHours * 100) / 100;
+      item.totalHours = Number((regHours + holHours).toFixed(2));
+      item.grossPay = Math.round((item.regularPay + item.holidayPay + otherPay) * 100) / 100;
+      item.netPay = Math.round((item.grossPay - deductions) * 100) / 100;
 
       totalHours += item.totalHours;
       totalGrossPayroll += item.grossPay;
-      totalDeductions += (item.deductions || 0);
+      totalDeductions += deductions;
       totalNetPayroll += item.netPay;
     });
 

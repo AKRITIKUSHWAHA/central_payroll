@@ -109,30 +109,30 @@ export const Dashboard: React.FC = () => {
   const isSuperAdmin = currentUser?.role === 'superadmin';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6 max-w-7xl mx-auto pb-12 w-full">
       {/* Workspace Greeting Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-[#111827] tracking-tight">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-[#111827] tracking-tight">
             Hello, {greetingName}
           </h1>
-          <p className="text-sm font-extrabold text-[#2f6fb3] mt-1">
+          <p className="text-xs sm:text-sm font-extrabold text-[#2f6fb3] mt-0.5">
             {dynamicGreetingDate}
           </p>
         </div>
-        <div className="bg-white border border-[#d9e2ea] rounded-xl px-4 py-2 text-xs font-extrabold text-[#12345b] shadow-sm self-start sm:self-auto">
+        <div className="bg-white border border-[#d9e2ea] rounded-xl px-3.5 py-1.5 text-xs font-extrabold text-[#12345b] shadow-xs self-start sm:self-auto">
           Current pay period
         </div>
       </div>
 
       {/* TOP HOME LAUNCHER (Balanced 2x2 Category Grid with Zero Uneven Gaps) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 w-full">
         {/* Box 1: Customers */}
-        <div className="bg-white border border-[#d8e3ec] rounded-2xl p-5 shadow-cdCard relative flex flex-col justify-between">
-          <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-[#e5efff] text-[#12345b] text-xs font-black px-5 py-1 rounded-full shadow-xs border border-[#c9def6]">
+        <div className="bg-white border border-[#d8e3ec] rounded-2xl p-4 sm:p-5 shadow-cdCard relative flex flex-col justify-between">
+          <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-[#e5efff] text-[#12345b] text-xs font-black px-4 py-0.5 rounded-full shadow-xs border border-[#c9def6] whitespace-nowrap">
             Customers
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 pt-2">
             <button
               type="button"
               onClick={() => navigate('/customers')}
@@ -290,11 +290,11 @@ export const Dashboard: React.FC = () => {
         </div>
 
         {/* Box 3: Employees & Operations / Payroll */}
-        <div className="bg-white border border-[#d8e3ec] rounded-2xl p-5 shadow-cdCard relative flex flex-col justify-between">
-          <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-[#e5efff] text-[#12345b] text-xs font-black px-5 py-1 rounded-full shadow-xs border border-[#c9def6]">
+        <div className="bg-white border border-[#d8e3ec] rounded-2xl p-4 sm:p-5 shadow-cdCard relative flex flex-col justify-between">
+          <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-[#e5efff] text-[#12345b] text-xs font-black px-4 py-0.5 rounded-full shadow-xs border border-[#c9def6] whitespace-nowrap">
             {isSuperAdmin ? 'Employees & Payroll' : 'Staff & Operations'}
           </div>
-          <div className={`grid grid-cols-2 ${isSuperAdmin ? 'sm:grid-cols-5' : 'sm:grid-cols-4'} gap-3 pt-2`}>
+          <div className={`grid grid-cols-2 xs:grid-cols-3 ${isSuperAdmin ? 'sm:grid-cols-5' : 'sm:grid-cols-4'} gap-2 sm:gap-3 pt-2`}>
             {isSuperAdmin && (
               <button
                 type="button"
@@ -665,14 +665,14 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* FULL-WIDTH CUSTOMERS PANEL WITH REAL-TIME SEARCH (Matches Screenshot) */}
-      <div className="bg-white border border-[#dde7f0] rounded-2xl shadow-cdCard overflow-hidden">
-        <div className="px-6 py-5 bg-[#edf4fa] border-b border-[#d9e4ee] flex items-center justify-between">
-          <h2 className="text-lg font-black text-[#12345b]">Customers</h2>
+      {/* FULL-WIDTH CUSTOMERS PANEL WITH REAL-TIME SEARCH */}
+      <div className="bg-white border border-[#dde7f0] rounded-2xl shadow-cdCard overflow-hidden w-full max-w-full">
+        <div className="p-4 sm:px-6 sm:py-5 bg-[#edf4fa] border-b border-[#d9e4ee] flex flex-col xs:flex-row xs:items-center justify-between gap-3">
+          <h2 className="text-base sm:text-lg font-black text-[#12345b]">Customers</h2>
           <button
             type="button"
             onClick={() => navigate('/customers')}
-            className="px-4 py-2 bg-white border border-[#aebfd1] hover:bg-[#edf5fb] text-[#173a60] text-xs font-black rounded-xl shadow-sm flex items-center gap-1.5 transition-all"
+            className="px-3.5 py-2 bg-white border border-[#aebfd1] hover:bg-[#edf5fb] text-[#173a60] text-xs font-black rounded-xl shadow-xs flex items-center gap-1.5 transition-all self-start xs:self-auto cursor-pointer"
           >
             <span>Open Customer Ledgers</span>
             <ArrowRight className="w-3.5 h-3.5" />
@@ -680,7 +680,7 @@ export const Dashboard: React.FC = () => {
         </div>
 
         {/* Search Toolbar */}
-        <div className="p-6 border-b border-[#d9e4ee] bg-white space-y-2">
+        <div className="p-4 sm:p-6 border-b border-[#d9e4ee] bg-white space-y-2">
           <div className="flex items-center justify-between">
             <label className="text-xs font-extrabold text-[#38516b]">
               Search all customers
@@ -695,7 +695,7 @@ export const Dashboard: React.FC = () => {
               placeholder="Customer name, phone number, email, or address"
               value={customerSearch}
               onChange={e => setCustomerSearch(e.target.value)}
-              className="w-full px-4 py-2.5 bg-white border border-[#bdcbd9] rounded-xl text-xs font-bold text-[#1c2b3a] focus:outline-none focus:border-[#2f6fb3]"
+              className="w-full px-3.5 py-2 sm:px-4 sm:py-2.5 bg-white border border-[#bdcbd9] rounded-xl text-xs font-bold text-[#1c2b3a] focus:outline-none focus:border-[#2f6fb3]"
             />
           </div>
         </div>
@@ -708,17 +708,17 @@ export const Dashboard: React.FC = () => {
           </span>
         </div>
 
-        {/* Customers Table - Screen-Fitting Table */}
-        <div className="w-full overflow-x-auto max-h-[500px] rounded-b-xl">
-          <table className="w-full text-left border-collapse text-xs table-fixed min-w-[720px] sm:min-w-0">
+        {/* Customers Table - Responsive Container */}
+        <div className="w-full overflow-x-auto max-h-[500px] border-b border-[#e1e9f0]">
+          <table className="w-full text-left border-collapse text-xs min-w-[620px] md:min-w-0 md:table-fixed">
             <thead className="bg-[#12345b] text-white sticky top-0 z-10">
               <tr>
-                <th className="py-3 px-3.5 font-black w-[24%]">Customer Name</th>
-                <th className="py-3 px-3 font-black w-[15%]">Phone Number</th>
-                <th className="py-3 px-3 font-black w-[20%]">Email Address</th>
-                <th className="py-3 px-3 font-black w-[23%]">Billing Address</th>
-                <th className="py-3 px-2 font-black text-center w-[8%]">Status</th>
-                <th className="py-3 px-3.5 font-black text-right w-[10%]">Balance</th>
+                <th className="py-2.5 px-3 font-black md:w-[24%]">Customer Name</th>
+                <th className="py-2.5 px-2.5 font-black md:w-[15%]">Phone Number</th>
+                <th className="py-2.5 px-2.5 font-black md:w-[20%]">Email Address</th>
+                <th className="py-2.5 px-2.5 font-black md:w-[23%]">Billing Address</th>
+                <th className="py-2.5 px-2 font-black text-center md:w-[8%]">Status</th>
+                <th className="py-2.5 px-3 font-black text-right md:w-[10%]">Balance</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#e1e9f0]">
@@ -733,7 +733,7 @@ export const Dashboard: React.FC = () => {
                   const bal = accountingService.getCustomerBalance(c.id);
                   return (
                     <tr key={c.id} className="hover:bg-[#f8fbfd] transition-colors">
-                      <td className="py-2.5 px-3.5">
+                      <td className="py-2.5 px-3">
                         <button
                           type="button"
                           onClick={() => handleSelectCustomer(c.id)}
@@ -748,9 +748,9 @@ export const Dashboard: React.FC = () => {
                           </div>
                         )}
                       </td>
-                      <td className="py-2.5 px-3 text-[#374151] font-semibold whitespace-nowrap truncate" title={c.phone || ''}>{c.phone || '—'}</td>
-                      <td className="py-2.5 px-3 text-[#374151] font-semibold truncate" title={c.email || ''}>{c.email || '—'}</td>
-                      <td className="py-2.5 px-3 text-[#456078] truncate" title={c.billingAddress}>
+                      <td className="py-2.5 px-2.5 text-[#374151] font-semibold whitespace-nowrap truncate" title={c.phone || ''}>{c.phone || '—'}</td>
+                      <td className="py-2.5 px-2.5 text-[#374151] font-semibold truncate" title={c.email || ''}>{c.email || '—'}</td>
+                      <td className="py-2.5 px-2.5 text-[#456078] truncate" title={c.billingAddress}>
                         {c.billingAddress || '—'}
                       </td>
                       <td className="py-2.5 px-2 text-center whitespace-nowrap">
@@ -764,7 +764,7 @@ export const Dashboard: React.FC = () => {
                           {c.status || 'Active'}
                         </span>
                       </td>
-                      <td className="py-2.5 px-3.5 text-right font-black tabular-nums text-[#12345b] whitespace-nowrap">
+                      <td className="py-2.5 px-3 text-right font-black tabular-nums text-[#12345b] whitespace-nowrap">
                         {formatMoney(bal)}
                       </td>
                     </tr>

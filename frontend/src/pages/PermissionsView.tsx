@@ -143,15 +143,7 @@ export const PermissionsView: React.FC = () => {
             <ul className="space-y-2.5 text-xs font-bold text-[#475569] pt-2 border-t border-[#e2e8f0]">
               <li className="flex items-center gap-2 text-[#0f766e]">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#0f766e] flex-shrink-0" />
-                <span>View Weekly Schedules & Rotas</span>
-              </li>
-              <li className="flex items-center gap-2 text-[#0f766e]">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#0f766e] flex-shrink-0" />
-                <span>Write & View Shift / Weekly Notes</span>
-              </li>
-              <li className="flex items-center gap-2 text-slate-400">
-                <span className="w-1.5 h-1.5 rounded-full bg-slate-300 flex-shrink-0" />
-                <span>Clock-in / Clock-out (Disabled)</span>
+                <span>Shift Handover Notes & Remarks</span>
               </li>
               <li className="flex items-center gap-2 text-slate-400">
                 <span className="w-1.5 h-1.5 rounded-full bg-slate-300 flex-shrink-0" />

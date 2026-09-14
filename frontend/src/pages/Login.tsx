@@ -14,7 +14,7 @@ export const Login: React.FC = () => {
 
   // If already authenticated, redirect directly into the app
   if (isAuthenticated && currentUser) {
-    return <Navigate to={currentUser.role === 'staff' ? '/my-time' : '/dashboard'} replace />;
+    return <Navigate to={currentUser.role === 'staff' ? '/schedules' : '/dashboard'} replace />;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -27,7 +27,7 @@ export const Login: React.FC = () => {
         const saved = localStorage.getItem('cdl_current_auth_user');
         const user = saved ? JSON.parse(saved) : null;
         if (user?.role === 'staff' || username.toLowerCase() === 'staff') {
-          navigate('/my-time', { replace: true });
+          navigate('/schedules', { replace: true });
         } else {
           navigate('/dashboard', { replace: true });
         }

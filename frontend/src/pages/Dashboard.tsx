@@ -256,17 +256,17 @@ export const Dashboard: React.FC = () => {
             ) : (
               <button
                 type="button"
-                onClick={() => navigate('/my-time')}
+                onClick={() => navigate('/leave')}
                 className="flex flex-col items-center justify-center p-3 rounded-2xl border border-[#d6e2eb] bg-[#f9fcff] hover:bg-white hover:border-[#2f70b7] hover:shadow-md transition-all text-center min-h-[115px] group"
               >
                 <div className="w-11 h-11 rounded-full bg-[#e8f3f7] flex items-center justify-center text-xl mb-1.5 group-hover:scale-105 transition-transform">
-                  ⏱️
+                  🌴
                 </div>
                 <strong className="text-xs font-black text-[#17324f] leading-tight block truncate w-full">
-                  Time Records
+                  Leave Calendar
                 </strong>
                 <small className="text-[10px] font-semibold text-[#64748b] mt-0.5 truncate w-full">
-                  Staff shift hours
+                  Sick & holiday leaves
                 </small>
               </button>
             )}

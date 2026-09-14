@@ -4,7 +4,12 @@ import { accountingService } from '../services/accountingService';
 import { companyService } from '../services/companyService';
 import { useToast } from '../context/ToastContext';
 import { Customer } from '../types';
-import { X, AlertCircle } from 'lucide-react';
+import { X, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+
+const cleanPhone = (phone?: string): string => {
+  if (!phone) return '';
+  return phone.replace(/^(phone:\s*)+/i, '').trim();
+};
 
 export const CustomersView: React.FC = () => {
   const navigate = useNavigate();
@@ -16,6 +21,10 @@ export const CustomersView: React.FC = () => {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>(() => accountingService.getSelectedCustomerId() || '');
   const [customers, setCustomers] = useState<Customer[]>(() => accountingService.getCustomers());
   
+  // Pagination State
+  const [pageSize, setPageSize] = useState<number>(50);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+
   // Modal States
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -46,10 +55,15 @@ export const CustomersView: React.FC = () => {
     }
   }, [isModalOpen, deleteTarget]);
 
-  // Filtered list
+  // Reset to page 1 on filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, statusFilter, pageSize]);
+
+  // Filtered & A-to-Z Sorted list
   const filteredCustomers = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
-    return customers.filter(c => {
+    const list = customers.filter(c => {
       const matchesStatus = !statusFilter || (c.status || 'Active') === statusFilter;
       if (!matchesStatus) return false;
       if (!q) return true;
@@ -68,7 +82,18 @@ export const CustomersView: React.FC = () => {
         .toLowerCase();
       return haystack.includes(q);
     });
+
+    return list.sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }));
   }, [searchQuery, statusFilter, customers]);
+
+  // Paginated list
+  const paginatedCustomers = useMemo(() => {
+    if (pageSize === 0) return filteredCustomers; // All
+    const start = (currentPage - 1) * pageSize;
+    return filteredCustomers.slice(start, start + pageSize);
+  }, [filteredCustomers, currentPage, pageSize]);
+
+  const totalPages = pageSize === 0 ? 1 : Math.ceil(filteredCustomers.length / pageSize);
 
   // Selected Customer & Ledgers
   const selectedCustomer = useMemo(() => {
@@ -118,7 +143,12 @@ export const CustomersView: React.FC = () => {
     e.preventDefault();
     if (!editingCustomer || !editingCustomer.name.trim()) return;
 
-    const saved = accountingService.saveCustomer(editingCustomer);
+    const cleanedData = {
+      ...editingCustomer,
+      phone: cleanPhone(editingCustomer.phone),
+    };
+
+    const saved = accountingService.saveCustomer(cleanedData);
     setIsModalOpen(false);
     showToast(editingCustomer.id ? `Customer "${saved.name}" updated successfully!` : `New customer "${saved.name}" created!`);
     setSelectedCustomerId(saved.id);
@@ -144,7 +174,7 @@ export const CustomersView: React.FC = () => {
     const headers = ['Customer', 'Phone', 'Email', 'Billing Address', 'Customer Note', 'Status', 'Balance'];
     const rows = filteredCustomers.map(c => [
       c.name,
-      c.phone || '',
+      cleanPhone(c.phone),
       c.email || '',
       c.billingAddress || '',
       c.notes || '',
@@ -193,7 +223,7 @@ export const CustomersView: React.FC = () => {
             Customers &amp; Account Ledgers
           </h1>
           <p className="text-sm font-semibold text-[#1d4ed8] mt-1">
-            Search, add, update, or select a customer to review account activity.
+            Search, add, update, or select a customer to review account activity. (Sorted A-to-Z)
           </p>
         </div>
 
@@ -227,7 +257,7 @@ export const CustomersView: React.FC = () => {
               <input
                 id="customerSearch"
                 type="text"
-                placeholder="Name, phone, email, address, note, or customer code"
+                placeholder="Search name, phone, email, address, note, or customer code..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full px-3.5 py-2 border border-[#cbd5e1] rounded-xl text-sm font-semibold focus:outline-none focus:border-[#1d4ed8] bg-white placeholder-[#94a3b8]"
@@ -235,7 +265,7 @@ export const CustomersView: React.FC = () => {
             </div>
 
             {/* Status Dropdown */}
-            <div className="w-full md:w-48">
+            <div className="w-full md:w-44">
               <label htmlFor="customerStatusFilter" className="block text-xs font-bold text-[#334155] mb-1.5">
                 Status
               </label>
@@ -245,52 +275,72 @@ export const CustomersView: React.FC = () => {
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="w-full px-3.5 py-2 border border-[#cbd5e1] rounded-xl text-sm font-semibold focus:outline-none focus:border-[#1d4ed8] bg-white cursor-pointer"
               >
-                <option value="">All customers</option>
+                <option value="">All statuses</option>
                 <option value="Active">Active</option>
                 <option value="Inactive">Inactive</option>
+              </select>
+            </div>
+
+            {/* Per Page Dropdown */}
+            <div className="w-full md:w-36">
+              <label htmlFor="pageSizeFilter" className="block text-xs font-bold text-[#334155] mb-1.5">
+                Per Page
+              </label>
+              <select
+                id="pageSizeFilter"
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+                className="w-full px-3.5 py-2 border border-[#cbd5e1] rounded-xl text-sm font-semibold focus:outline-none focus:border-[#1d4ed8] bg-white cursor-pointer"
+              >
+                <option value={25}>25 per page</option>
+                <option value={50}>50 per page</option>
+                <option value={100}>100 per page</option>
+                <option value={250}>250 per page</option>
+                <option value={0}>All customers</option>
               </select>
             </div>
           </div>
 
           {/* Count label */}
-          <div className="text-xs font-semibold text-[#64748b] self-end md:self-center whitespace-nowrap">
-            {filteredCustomers.length.toLocaleString()} shown
+          <div className="text-xs font-bold text-[#475569] self-end md:self-center whitespace-nowrap bg-[#f1f5f9] px-3 py-1.5 rounded-lg border border-[#e2e8f0]">
+            {filteredCustomers.length.toLocaleString()} total customers
           </div>
         </div>
 
         {/* Mobile Scroll Hint */}
         <div className="mobile-scroll-hint">
-          <span>👉 Swipe table to view billing address, balance &amp; actions</span>
+          <span>👉 Swipe table to view phone, email, address, balance &amp; actions</span>
           <span className="text-[10px] uppercase bg-white px-2 py-0.5 rounded border border-[#cbd5e1] font-extrabold">
             Customers
           </span>
         </div>
 
         {/* Table Wrap */}
-        <div className="table-responsive-container">
-          <table className="w-full text-left text-sm border-collapse min-w-[900px]">
+        <div className="table-responsive-container overflow-x-auto">
+          <table className="w-full text-left text-sm border-collapse min-w-[980px]">
             <thead>
               <tr className="bg-[#102a43] text-white font-bold text-xs uppercase tracking-wider">
-                <th className="py-3.5 px-4 font-bold">Customer</th>
-                <th className="py-3.5 px-4 font-bold">Phone</th>
-                <th className="py-3.5 px-4 font-bold">Email</th>
-                <th className="py-3.5 px-4 font-bold">Billing Address</th>
-                <th className="py-3.5 px-4 font-bold">Customer Note</th>
-                <th className="py-3.5 px-4 font-bold text-center">Status</th>
-                <th className="py-3.5 px-4 font-bold text-right">Balance</th>
-                <th className="py-3.5 px-4 font-bold text-center">Actions</th>
+                <th className="py-3.5 px-4 font-bold min-w-[220px]">Customer</th>
+                <th className="py-3.5 px-4 font-bold w-[140px]">Phone</th>
+                <th className="py-3.5 px-4 font-bold w-[200px]">Email</th>
+                <th className="py-3.5 px-4 font-bold min-w-[200px]">Billing Address</th>
+                <th className="py-3.5 px-4 font-bold min-w-[160px]">Customer Note</th>
+                <th className="py-3.5 px-4 font-bold text-center w-[90px]">Status</th>
+                <th className="py-3.5 px-4 font-bold text-right w-[120px]">Balance</th>
+                <th className="py-3.5 px-4 font-bold text-center w-[120px]">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#edf2f7]">
-              {filteredCustomers.length === 0 ? (
+              {paginatedCustomers.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="py-10 text-center text-sm font-bold text-[#64748b]">
                     No customers match this search.
                   </td>
                 </tr>
               ) : (
-                filteredCustomers.map((c) => {
+                paginatedCustomers.map((c) => {
                   const bal = accountingService.getCustomerBalance(c.id);
+                  const phoneNum = cleanPhone(c.phone);
                   return (
                     <tr
                       key={c.id}
@@ -302,50 +352,56 @@ export const CustomersView: React.FC = () => {
                       <td className="py-3.5 px-4">
                         <button
                           onClick={() => handleSelectCustomer(c.id)}
-                          className="font-extrabold text-[#0f172a] text-left hover:text-[#1d4ed8] hover:underline"
+                          className="font-extrabold text-[#0f172a] text-left hover:text-[#1d4ed8] hover:underline block"
                         >
                           {c.name}
                         </button>
-                        {(c.customerName || (c.aliases && c.aliases.length > 0)) && (
+                        {(c.customerName && c.customerName !== c.name) && (
                           <div className="text-xs text-[#64748b] mt-0.5">
-                            {c.customerName || c.aliases?.[0]}
+                            {c.customerName}
                           </div>
                         )}
                       </td>
 
                       {/* Phone */}
-                      <td className="py-3.5 px-4 text-xs text-[#334155] whitespace-nowrap">
-                        {c.phone ? `Phone: ${c.phone}` : '—'}
+                      <td className="py-3.5 px-4 text-xs font-semibold text-[#334155] whitespace-nowrap">
+                        {phoneNum ? (
+                          <a href={`tel:${phoneNum}`} className="hover:text-[#1d4ed8]">
+                            {phoneNum}
+                          </a>
+                        ) : (
+                          <span className="text-[#94a3b8]">—</span>
+                        )}
                       </td>
 
                       {/* Email */}
-                      <td className="py-3.5 px-4 text-xs text-[#334155] whitespace-nowrap">
+                      <td className="py-3.5 px-4 text-xs text-[#334155]">
                         {c.email ? (
-                          <a href={`mailto:${c.email}`} className="text-[#0284c7] hover:underline">
+                          <a href={`mailto:${c.email}`} className="text-[#0284c7] hover:underline break-all">
                             {c.email}
                           </a>
                         ) : (
-                          '—'
+                          <span className="text-[#94a3b8]">—</span>
                         )}
                       </td>
 
                       {/* Billing Address */}
-                      <td className="py-3.5 px-4 text-xs text-[#334155] max-w-[240px] truncate" title={c.billingAddress || ''}>
-                        {c.billingAddress || '—'}
+                      <td className="py-3.5 px-4 text-xs text-[#334155] max-w-[220px] truncate" title={c.billingAddress || ''}>
+                        {c.billingAddress || <span className="text-[#94a3b8]">—</span>}
                       </td>
 
                       {/* Customer Note */}
                       <td className="py-3.5 px-4 text-xs text-[#334155] max-w-[180px] truncate" title={c.notes || ''}>
-                        {c.notes || '—'}
+                        {c.notes || <span className="text-[#94a3b8]">—</span>}
                       </td>
 
                       {/* Status */}
                       <td className="py-3.5 px-4 text-center whitespace-nowrap">
                         <span
-                          className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${
+                          className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-bold ${
                             c.status === 'Active'
                               ? 'bg-[#dcfce7] text-[#15803d]'
-                              : 'bg-[#dbeafe] text-[#1e40af]'
+                              : 'bg-[#f1f5f9] text-[#64748b]'
                           }`}
                         >
                           {c.status || 'Active'}
@@ -362,13 +418,13 @@ export const CustomersView: React.FC = () => {
                         <div className="flex flex-col items-center gap-1.5">
                           <button
                             onClick={() => handleOpenEditModal(c)}
-                            className="w-24 px-2.5 py-1 bg-white hover:bg-[#f1f5f9] text-[#1e293b] font-bold text-xs rounded-lg border border-[#cbd5e1] transition-all shadow-xs"
+                            className="w-24 px-2 py-1 bg-white hover:bg-[#f1f5f9] text-[#1e293b] font-bold text-xs rounded-lg border border-[#cbd5e1] transition-all shadow-xs"
                           >
                             Edit / Note
                           </button>
                           <button
                             onClick={() => setDeleteTarget(c)}
-                            className="w-24 px-2.5 py-1 bg-white hover:bg-[#fef2f2] text-[#dc2626] font-bold text-xs rounded-lg border border-[#fecaca] transition-all shadow-xs"
+                            className="w-24 px-2 py-1 bg-white hover:bg-[#fef2f2] text-[#dc2626] font-bold text-xs rounded-lg border border-[#fecaca] transition-all shadow-xs"
                           >
                             Delete
                           </button>
@@ -382,9 +438,42 @@ export const CustomersView: React.FC = () => {
           </table>
         </div>
 
-        {/* Note */}
-        <div className="p-4 border-t border-[#edf2f7] bg-[#fcfdfe] text-xs font-semibold text-[#64748b]">
-          Use Edit to add or change a customer's note. Changes are included in Complete App Backup.
+        {/* Pagination & Footer */}
+        <div className="p-4 border-t border-[#edf2f7] bg-[#fcfdfe] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-semibold text-[#64748b]">
+          <div>
+            Showing{' '}
+            <span className="font-bold text-[#0f172a]">
+              {filteredCustomers.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}
+            </span>{' '}
+            to{' '}
+            <span className="font-bold text-[#0f172a]">
+              {pageSize === 0 ? filteredCustomers.length : Math.min(currentPage * pageSize, filteredCustomers.length)}
+            </span>{' '}
+            of{' '}
+            <span className="font-bold text-[#0f172a]">{filteredCustomers.length.toLocaleString()}</span> customers
+          </div>
+
+          {pageSize > 0 && totalPages > 1 && (
+            <div className="flex items-center gap-2">
+              <button
+                disabled={currentPage <= 1}
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                className="p-1.5 rounded-lg border border-[#cbd5e1] hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed text-[#334155]"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="font-bold text-[#0f172a] px-2">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                className="p-1.5 rounded-lg border border-[#cbd5e1] hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed text-[#334155]"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -447,7 +536,7 @@ export const CustomersView: React.FC = () => {
 
           {/* Contact & Historical Info */}
           <div className="px-5 py-3 bg-[#f8fafc] text-xs font-semibold text-[#64748b] border-b border-[#e2e8f0]">
-            {selectedCustomer.phone ? `Phone: ${selectedCustomer.phone}` : 'No phone'}
+            {cleanPhone(selectedCustomer.phone) ? `Phone: ${cleanPhone(selectedCustomer.phone)}` : 'No phone'}
             {selectedCustomer.email ? ` • Email: ${selectedCustomer.email}` : ' • No email'}
             {selectedCustomer.billingAddress ? ` • Address: ${selectedCustomer.billingAddress}` : ''}
           </div>
@@ -461,7 +550,7 @@ export const CustomersView: React.FC = () => {
           </div>
 
           {/* Customer Ledger Table */}
-          <div className="table-responsive-container">
+          <div className="table-responsive-container overflow-x-auto">
             <table className="w-full text-left text-sm border-collapse min-w-[760px]">
               <thead>
                 <tr className="bg-[#102a43] text-white font-bold text-xs uppercase tracking-wider">

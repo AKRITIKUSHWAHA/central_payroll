@@ -80,7 +80,7 @@ export const Employees: React.FC = () => {
 
     try {
       if (editingEmployee) {
-        const updated = employeeService.saveEmployee({
+        const updated = await employeeService.saveEmployee({
           ...editingEmployee,
           firstName,
           lastName,
@@ -92,7 +92,7 @@ export const Employees: React.FC = () => {
         });
         showToast(`Employee record for ${updated.displayName} updated successfully.`);
       } else {
-        const created = employeeService.saveEmployee({
+        const created = await employeeService.saveEmployee({
           firstName,
           lastName,
           displayName: formData.name.trim(),
@@ -120,7 +120,7 @@ export const Employees: React.FC = () => {
     if (!deleteTarget) return;
     setLoading(true);
     try {
-      employeeService.deleteEmployee(deleteTarget.id);
+      await employeeService.deleteEmployee(deleteTarget.id);
       showToast(`Employee ${deleteTarget.displayName} deleted.`);
       setDeleteTarget(null);
       await loadData();

@@ -7,7 +7,6 @@ import { AppLayout } from './components/layout/AppLayout';
 import { Login } from './pages/Login';
 import { SetPassword } from './pages/SetPassword';
 import { Dashboard } from './pages/Dashboard';
-import { MyTime } from './pages/MyTime';
 import { Employees } from './pages/Employees';
 import { EmployeeProfile } from './pages/EmployeeProfile';
 import { StaffContacts } from './pages/StaffContacts';
@@ -92,9 +91,6 @@ export const App: React.FC = () => {
 
               {/* Weekly Schedules (Accessible by Staff, Admin, Super Admin) */}
               <Route path="schedules" element={<WeeklySchedules />} />
-
-              {/* Time Records (Super Admin & Admin) */}
-              <Route path="my-time" element={<ManagementRoute><MyTime /></ManagementRoute>} />
 
               {/* Workspace Routes (Super Admin & Admin) */}
               <Route path="dashboard" element={<ManagementRoute><Dashboard /></ManagementRoute>} />

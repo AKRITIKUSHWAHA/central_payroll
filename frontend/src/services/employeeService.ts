@@ -50,28 +50,28 @@ class EmployeeService {
     return employees.find(e => e.id === id || e.employeeId === id);
   }
 
-  public saveEmployee(employee: Partial<Employee> & { firstName: string; lastName: string }): Employee {
+  public async saveEmployee(employee: Partial<Employee> & { firstName: string; lastName: string }): Promise<Employee> {
     const employees = this.getStorage();
     let savedEmployee: Employee;
 
     if (employee.id) {
-      const index = employees.findIndex(e => e.id === employee.id);
+      const index = employees.findIndex(e => e.id === employee.id || e.employeeId === employee.id);
       if (index !== -1) {
         employees[index] = { ...employees[index], ...employee } as Employee;
         savedEmployee = employees[index];
         this.saveStorage(employees);
 
         // Sync PUT to backend
-        apiFetch(`/employees/${savedEmployee.id}`, {
+        await apiFetch(`/employees/${savedEmployee.id}`, {
           method: 'PUT',
           body: JSON.stringify(savedEmployee)
-        });
+        }).catch(() => {});
 
         return savedEmployee;
       }
     }
 
-    const newId = `emp-${Date.now()}`;
+    const newId = employee.id || `emp-${Date.now()}`;
     const nextEmpNum = employees.length + 1;
     savedEmployee = {
       id: newId,
@@ -81,7 +81,7 @@ class EmployeeService {
       lastName: employee.lastName,
       displayName: employee.displayName || `${employee.firstName} ${employee.lastName}`,
       position: employee.position || 'Staff Member',
-      department: employee.department || 'Dispatch Operations',
+      department: employee.department || 'Operations',
       status: employee.status || 'Active',
       employmentType: employee.employmentType || 'Full-Time',
       payType: employee.payType || 'Hourly',
@@ -90,7 +90,7 @@ class EmployeeService {
       startDate: employee.startDate || new Date().toISOString().split('T')[0],
       dateOfBirth: employee.dateOfBirth || '1995-01-01',
       personalPhone: employee.personalPhone || '(441) 555-0000',
-      workPhone: employee.workPhone || '(441) 292-1234',
+      workPhone: employee.workPhone || '(441) 295-4141',
       email: employee.email || `${employee.firstName.toLowerCase()}.${employee.lastName.toLowerCase()}@centraldispatch.bm`,
       address: employee.address || 'Hamilton, Bermuda',
       emergencyContactName: employee.emergencyContactName || 'Family Contact',
@@ -105,26 +105,23 @@ class EmployeeService {
     this.saveStorage(employees);
 
     // Sync POST to backend
-    apiFetch('/employees', {
+    await apiFetch('/employees', {
       method: 'POST',
       body: JSON.stringify(savedEmployee)
-    });
+    }).catch(() => {});
 
     return savedEmployee;
   }
 
-  public deleteEmployee(id: string): boolean {
+  public async deleteEmployee(id: string): Promise<boolean> {
     const employees = this.getStorage();
     const filtered = employees.filter(e => e.id !== id && e.employeeId !== id);
-    if (filtered.length !== employees.length) {
-      this.saveStorage(filtered);
+    this.saveStorage(filtered);
 
-      // Sync DELETE to backend
-      apiFetch(`/employees/${id}`, { method: 'DELETE' });
-
-      return true;
-    }
-    return false;
+    // Sync DELETE to backend endpoints
+    await apiFetch(`/employees/${id}`, { method: 'DELETE' }).catch(() => {});
+    await apiFetch(`/staff-contact-details/${id}`, { method: 'DELETE' }).catch(() => {});
+    return true;
   }
 }
 

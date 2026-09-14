@@ -194,25 +194,33 @@ export const GeneralLedgerView: React.FC = () => {
           </div>
 
           {/* Transaction Count */}
-          <div className="text-xs font-semibold text-[#64748b] self-end md:self-center whitespace-nowrap">
+          <div className="text-xs font-semibold text-[#64748b] self-end md:self-center whitespace-nowrap bg-[#f1f5f9] px-3 py-1.5 rounded-lg border border-[#e2e8f0]">
             {filteredEntries.length.toLocaleString()} transactions
           </div>
         </div>
 
+        {/* Mobile Scroll Hint */}
+        <div className="mobile-scroll-hint">
+          <span>👉 Swipe table horizontally to view debit, credit &amp; source</span>
+          <span className="text-[10px] uppercase bg-white px-2 py-0.5 rounded border border-[#cbd5e1] font-extrabold">
+            Ledger
+          </span>
+        </div>
+
         {/* Table Wrap */}
-        <div className="overflow-x-auto w-full">
-          <table className="w-full text-left text-sm border-collapse min-w-[900px]">
+        <div className="table-responsive-container overflow-x-auto w-full">
+          <table className="w-full text-left text-sm border-collapse min-w-[960px]">
             <thead>
               <tr className="bg-[#102a43] text-white font-bold text-xs uppercase tracking-wider">
-                <th className="py-3.5 px-4 font-bold">Date</th>
-                <th className="py-3.5 px-4 font-bold">Type</th>
-                <th className="py-3.5 px-4 font-bold">Number</th>
-                <th className="py-3.5 px-4 font-bold">Name</th>
-                <th className="py-3.5 px-4 font-bold">Memo</th>
-                <th className="py-3.5 px-4 font-bold">Account</th>
-                <th className="py-3.5 px-4 font-bold text-right">Debit</th>
-                <th className="py-3.5 px-4 font-bold text-right">Credit</th>
-                <th className="py-3.5 px-4 font-bold text-center">Source</th>
+                <th className="py-3.5 px-4 font-bold w-[100px]">Date</th>
+                <th className="py-3.5 px-4 font-bold w-[120px]">Type</th>
+                <th className="py-3.5 px-4 font-bold w-[100px]">Number</th>
+                <th className="py-3.5 px-4 font-bold min-w-[180px]">Name</th>
+                <th className="py-3.5 px-4 font-bold min-w-[180px]">Memo</th>
+                <th className="py-3.5 px-4 font-bold min-w-[160px]">Account</th>
+                <th className="py-3.5 px-4 font-bold text-right w-[110px]">Debit</th>
+                <th className="py-3.5 px-4 font-bold text-right w-[110px]">Credit</th>
+                <th className="py-3.5 px-4 font-bold text-center w-[100px]">Source</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#edf2f7]">

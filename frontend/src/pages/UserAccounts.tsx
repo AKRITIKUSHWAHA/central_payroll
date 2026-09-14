@@ -207,13 +207,13 @@ export const UserAccounts: React.FC = () => {
 
             <div className="space-y-4 text-xs leading-relaxed text-[#38516b]">
               <p>
-                <strong className="text-[#12345b] font-extrabold">Super Admin:</strong> full access, including user accounts and permissions.
+                <strong className="text-[#12345b] font-extrabold">Super Admin:</strong> full authority over payroll calculation & approval, user accounts, and permissions.
               </p>
               <p>
-                <strong className="text-[#12345b] font-extrabold">Admin:</strong> payroll, staff, schedules, reports, payslips, and time records; no user-account administration.
+                <strong className="text-[#12345b] font-extrabold">Admin:</strong> staff management, schedules, leave calendars, customer invoices & general ledgers.
               </p>
               <p>
-                <strong className="text-[#12345b] font-extrabold">Staff:</strong> only their own My Time page, where they can clock in/out and export their own hours.
+                <strong className="text-[#12345b] font-extrabold">Staff:</strong> view weekly shift schedules and write operational shift notes.
               </p>
             </div>
           </div>

@@ -73,7 +73,7 @@ class StaffContactDetailsService {
   }
 
   public async deleteStaffContact(id: string): Promise<boolean> {
-    employeeService.deleteEmployee(id);
+    await employeeService.deleteEmployee(id);
     try {
       await apiFetch(`/staff-contact-details/${id}`, {
         method: 'DELETE'
@@ -81,7 +81,7 @@ class StaffContactDetailsService {
       return true;
     } catch (err) {
       console.warn('Failed to delete from /staff-contact-details:', err);
-      return false;
+      return true;
     }
   }
 

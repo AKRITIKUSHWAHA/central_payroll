@@ -71,7 +71,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { to: '/schedules', label: 'Weekly Schedules', icon: CalendarRange, visible: true },
     { to: '/reports', label: 'Payroll Reports', icon: FileText, visible: isSuperAdmin && !!permissions.reports?.view },
     { to: '/payslips', label: 'Payslips', icon: PieChart, visible: isSuperAdmin && !!permissions.payslips?.view },
-    { to: '/my-time', label: 'Time Records', icon: Clock, visible: !isStaff && !!permissions.myTime?.view },
   ];
 
   const customersNavItems = [

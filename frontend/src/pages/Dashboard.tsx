@@ -708,17 +708,17 @@ export const Dashboard: React.FC = () => {
           </span>
         </div>
 
-        {/* Customers Table */}
-        <div className="table-responsive-container max-h-[480px]">
-          <table className="w-full text-left border-collapse text-xs">
+        {/* Customers Table - Screen-Fitting Table */}
+        <div className="w-full overflow-x-auto max-h-[500px] rounded-b-xl">
+          <table className="w-full text-left border-collapse text-xs table-fixed min-w-[720px] sm:min-w-0">
             <thead className="bg-[#12345b] text-white sticky top-0 z-10">
               <tr>
-                <th className="py-3 px-4 font-black">Customer Name</th>
-                <th className="py-3 px-4 font-black">Phone Number</th>
-                <th className="py-3 px-4 font-black">Email Address</th>
-                <th className="py-3 px-4 font-black">Billing Address</th>
-                <th className="py-3 px-4 font-black">Status</th>
-                <th className="py-3 px-4 font-black text-right">Balance</th>
+                <th className="py-3 px-3.5 font-black w-[24%]">Customer Name</th>
+                <th className="py-3 px-3 font-black w-[15%]">Phone Number</th>
+                <th className="py-3 px-3 font-black w-[20%]">Email Address</th>
+                <th className="py-3 px-3 font-black w-[23%]">Billing Address</th>
+                <th className="py-3 px-2 font-black text-center w-[8%]">Status</th>
+                <th className="py-3 px-3.5 font-black text-right w-[10%]">Balance</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#e1e9f0]">
@@ -733,28 +733,29 @@ export const Dashboard: React.FC = () => {
                   const bal = accountingService.getCustomerBalance(c.id);
                   return (
                     <tr key={c.id} className="hover:bg-[#f8fbfd] transition-colors">
-                      <td className="py-3 px-4">
+                      <td className="py-2.5 px-3.5">
                         <button
                           type="button"
                           onClick={() => handleSelectCustomer(c.id)}
-                          className="font-extrabold text-[#183a61] hover:underline text-left block"
+                          className="font-extrabold text-[#183a61] hover:underline text-left block truncate w-full"
+                          title={c.name}
                         >
                           {c.name}
                         </button>
                         {c.aliases && c.aliases.length > 0 && (
-                          <div className="text-[11px] text-[#607286] mt-0.5">
+                          <div className="text-[11px] text-[#607286] mt-0.5 truncate" title={c.aliases.join(' • ')}>
                             {c.aliases.slice(0, 2).join(' • ')}
                           </div>
                         )}
                       </td>
-                      <td className="py-3 px-4 text-[#374151] font-semibold">{c.phone || '—'}</td>
-                      <td className="py-3 px-4 text-[#374151] font-semibold">{c.email || '—'}</td>
-                      <td className="py-3 px-4 text-[#456078] max-w-[240px] truncate" title={c.billingAddress}>
+                      <td className="py-2.5 px-3 text-[#374151] font-semibold whitespace-nowrap truncate" title={c.phone || ''}>{c.phone || '—'}</td>
+                      <td className="py-2.5 px-3 text-[#374151] font-semibold truncate" title={c.email || ''}>{c.email || '—'}</td>
+                      <td className="py-2.5 px-3 text-[#456078] truncate" title={c.billingAddress}>
                         {c.billingAddress || '—'}
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="py-2.5 px-2 text-center whitespace-nowrap">
                         <span
-                          className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black ${
+                          className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-black ${
                             c.status === 'Inactive'
                               ? 'bg-[#f1f5f9] text-[#64748b]'
                               : 'bg-[#dcfce7] text-[#166534]'
@@ -763,7 +764,7 @@ export const Dashboard: React.FC = () => {
                           {c.status || 'Active'}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-right font-black tabular-nums text-[#12345b]">
+                      <td className="py-2.5 px-3.5 text-right font-black tabular-nums text-[#12345b] whitespace-nowrap">
                         {formatMoney(bal)}
                       </td>
                     </tr>

@@ -294,7 +294,7 @@ export const UserAccounts: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Right Actions: Disable/Enable Button + 3-Dot Dropdown */}
+                {/* Right Actions: Disable/Enable Button + Delete Button + 3-Dot Dropdown */}
                 <div className="flex items-center gap-2 self-end sm:self-center">
                   {/* Enable / Disable Button matching prototype */}
                   <button
@@ -308,6 +308,19 @@ export const UserAccounts: React.FC = () => {
                   >
                     {isActive ? 'Disable' : 'Enable'}
                   </button>
+
+                  {/* Direct Delete Button (for non-primary accounts) */}
+                  {!isSelf && (
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteUser(u)}
+                      className="px-3 py-1.5 rounded-xl font-bold text-xs border border-red-200 bg-red-50/50 hover:bg-red-100 text-red-600 hover:text-red-800 transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
+                      title={`Delete user account for ${u.displayName || u.username}`}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Delete</span>
+                    </button>
+                  )}
 
                   {/* 3-Dot Actions Menu Button (Opens Centered Modal) */}
                   <button

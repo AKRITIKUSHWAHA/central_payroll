@@ -334,7 +334,39 @@ export const UserAccounts: React.FC = () => {
                   Account Actions
                 </p>
 
-                {/* Action 1: Copy Set Password Link */}
+                {/* Action 1: Copy Direct Login Link */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const loginUrl = window.location.origin + '/login';
+                    navigator.clipboard.writeText(loginUrl);
+                    setCopiedId(selectedUserForActions.id + '_url');
+                    showToast(`Login Link copied: ${loginUrl}`);
+                    setTimeout(() => setCopiedId(null), 2500);
+                  }}
+                  className="w-full p-3.5 bg-[#f8fbfe] hover:bg-[#edf5fb] border border-[#d6e7f4] hover:border-[#2f6fb3] rounded-xl text-left flex items-center justify-between transition-all group cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-[#e0effa] text-[#2f6fb3] flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
+                      {copiedId === (selectedUserForActions.id + '_url') ? (
+                        <Check className="w-4 h-4 text-emerald-600" />
+                      ) : (
+                        <Copy className="w-4 h-4" />
+                      )}
+                    </div>
+                    <div>
+                      <strong className="block text-xs font-black text-[#12345b]">
+                        {copiedId === (selectedUserForActions.id + '_url') ? 'Login Link Copied!' : 'Copy Direct Login URL'}
+                      </strong>
+                      <span className="block text-[11px] font-semibold text-[#64748b]">
+                        {window.location.origin}/login
+                      </span>
+                    </div>
+                  </div>
+                  <span className="text-xs font-extrabold text-[#2f6fb3]">Copy</span>
+                </button>
+
+                {/* Action 2: Copy Set Password Link */}
                 <button
                   type="button"
                   onClick={() => {
@@ -359,29 +391,29 @@ export const UserAccounts: React.FC = () => {
                         {copiedId === (selectedUserForActions.id + '_setup') ? 'Setup Link Copied!' : 'Copy Set Password Link'}
                       </strong>
                       <span className="block text-[11px] font-semibold text-[#64748b]">
-                        Share setup portal URL directly with staff
+                        Pre-filled portal link for staff to set secret password
                       </span>
                     </div>
                   </div>
                   <span className="text-xs font-extrabold text-[#2f6fb3]">Copy</span>
                 </button>
 
-                {/* Action 2: Copy Login Credentials */}
+                {/* Action 3: Copy WhatsApp / Email Message */}
                 <button
                   type="button"
                   onClick={() => {
                     const loginUrl = window.location.origin + '/login';
-                    const info = `Central Dispatch Portal Login:\nLink: ${loginUrl}\nUsername: ${selectedUserForActions.username}\nPassword: ${selectedUserForActions.password || 'ChangeMe123!'}\nRole: ${selectedUserForActions.role}`;
+                    const info = `Central Dispatch Portal Sign-in Details:\nPortal Link: ${loginUrl}\nUsername: ${selectedUserForActions.username}\nPassword: ${selectedUserForActions.password || 'ChangeMe123!'}\nRole: ${selectedUserForActions.role}`;
                     navigator.clipboard.writeText(info);
-                    setCopiedId(selectedUserForActions.id);
-                    showToast(`Sign-in credentials copied for ${selectedUserForActions.displayName}`);
+                    setCopiedId(selectedUserForActions.id + '_msg');
+                    showToast(`Full message copied for ${selectedUserForActions.displayName}`);
                     setTimeout(() => setCopiedId(null), 2500);
                   }}
                   className="w-full p-3.5 bg-[#f8fbfe] hover:bg-[#edf5fb] border border-[#d6e7f4] hover:border-[#2f6fb3] rounded-xl text-left flex items-center justify-between transition-all group cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-[#e0effa] text-[#2f6fb3] flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
-                      {copiedId === selectedUserForActions.id ? (
+                      {copiedId === (selectedUserForActions.id + '_msg') ? (
                         <Check className="w-4 h-4 text-emerald-600" />
                       ) : (
                         <Copy className="w-4 h-4" />
@@ -389,17 +421,17 @@ export const UserAccounts: React.FC = () => {
                     </div>
                     <div>
                       <strong className="block text-xs font-black text-[#12345b]">
-                        {copiedId === selectedUserForActions.id ? 'Credentials Copied!' : 'Copy Login Details'}
+                        {copiedId === (selectedUserForActions.id + '_msg') ? 'Message Copied!' : 'Copy Full Sign-In Message'}
                       </strong>
                       <span className="block text-[11px] font-semibold text-[#64748b]">
-                        Portal URL, username &amp; temporary password
+                        Complete text to forward on WhatsApp or Email
                       </span>
                     </div>
                   </div>
                   <span className="text-xs font-extrabold text-[#2f6fb3]">Copy</span>
                 </button>
 
-                {/* Action 3: Direct Reset Password */}
+                {/* Action 4: Direct Reset Password */}
                 <button
                   type="button"
                   onClick={() => {
@@ -422,7 +454,6 @@ export const UserAccounts: React.FC = () => {
                       </span>
                     </div>
                   </div>
-                  <span className="text-xs font-extrabold text-amber-700">Open</span>
                 </button>
               </div>
 

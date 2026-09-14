@@ -35,18 +35,24 @@ export const PayrollConsole: React.FC = () => {
   // Payroll History list
   const [history, setHistory] = useState<PayrollPeriod[]>([]);
 
-  // Format date helper
+  // Format date helper (handles ISO strings, UTC dates, YYYY-MM-DD)
   const formatPeriodDate = (val?: string) => {
-    if (!val) return '';
-    const clean = val.includes('T') ? val.split('T')[0] : val;
-    const parts = clean.split('-');
-    if (parts.length === 3) {
-      const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    if (!val) return '—';
+    try {
+      const clean = val.includes('T') ? val.split('T')[0] : val;
+      const parts = clean.split('-');
+      if (parts.length === 3) {
+        const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+        if (!isNaN(d.getTime())) {
+          return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+      }
+      const d = new Date(val);
       if (!isNaN(d.getTime())) {
         return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
       }
-    }
-    return clean;
+    } catch (_) {}
+    return val;
   };
 
   // Format money helper
@@ -658,10 +664,10 @@ export const PayrollConsole: React.FC = () => {
                 history.map((h, i) => (
                   <tr key={h.id || i} className="bg-white hover:bg-[#f8fafc] transition-colors">
                     <td className="py-3.5 px-4 font-bold text-xs text-[#0f172a] whitespace-nowrap">
-                      {h.periodStart || '—'} to {h.periodEnd || '—'}
+                      {formatPeriodDate(h.periodStart)} to {formatPeriodDate(h.periodEnd)}
                     </td>
                     <td className="py-3.5 px-4 font-semibold text-xs text-[#334155] whitespace-nowrap">
-                      {h.payDate || '—'}
+                      {formatPeriodDate(h.payDate)}
                     </td>
                     <td className="py-3.5 px-4 whitespace-nowrap">
                       <span className="px-2.5 py-1 bg-[#dcfce7] text-[#166534] border border-[#bbf7d0] text-[11px] font-extrabold rounded-md inline-block">

@@ -34,6 +34,25 @@ export const PayrollReports: React.FC = () => {
     return `$${Number(val || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
+  const formatPeriodDate = (val?: string) => {
+    if (!val) return '—';
+    try {
+      const clean = val.includes('T') ? val.split('T')[0] : val;
+      const parts = clean.split('-');
+      if (parts.length === 3) {
+        const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+        if (!isNaN(d.getTime())) {
+          return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+      }
+      const d = new Date(val);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      }
+    } catch (_) {}
+    return val;
+  };
+
   const handleExportExcel = () => {
     const period = allPeriods[0];
     if (!period || !period.items || period.items.length === 0) {
@@ -152,10 +171,10 @@ export const PayrollReports: React.FC = () => {
                 periods.map((p) => (
                   <tr key={p.id} className="hover:bg-[#f8fafc] transition-colors">
                     <td className="py-3.5 px-5 font-bold text-[#0f172a] whitespace-nowrap">
-                      {p.periodStart || '—'} to {p.periodEnd || '—'}
+                      {formatPeriodDate(p.periodStart)} to {formatPeriodDate(p.periodEnd)}
                     </td>
                     <td className="py-3.5 px-5 text-xs text-[#334155] whitespace-nowrap">
-                      {p.payDate || '—'}
+                      {formatPeriodDate(p.payDate)}
                     </td>
                     <td className="py-3.5 px-5 whitespace-nowrap">
                       <span className="inline-block px-3 py-1 rounded-full text-xs font-bold bg-[#dcfce7] text-[#15803d]">

@@ -327,19 +327,19 @@ export const CustomersView: React.FC = () => {
         </div>
 
         {/* Table Wrap */}
-        {/* Table Wrap - Screen Fitting */}
-        <div className="table-responsive-container overflow-x-auto rounded-b-2xl">
-          <table className="w-full text-left text-xs sm:text-sm border-collapse table-fixed min-w-[760px] sm:min-w-0">
+        {/* Table Wrap - Responsive Container */}
+        <div className="table-responsive-container overflow-x-auto rounded-b-2xl border-b border-[#e2e8f0]">
+          <table className="w-full text-left text-xs sm:text-sm border-collapse min-w-[880px]">
             <thead>
               <tr className="bg-[#102a43] text-white font-bold text-xs uppercase tracking-wider">
-                <th className="py-3 px-3 font-bold w-[20%]">Customer</th>
-                <th className="py-3 px-2.5 font-bold w-[13%]">Phone</th>
-                <th className="py-3 px-2.5 font-bold w-[17%]">Email</th>
-                <th className="py-3 px-2.5 font-bold w-[20%]">Billing Address</th>
-                <th className="py-3 px-2.5 font-bold w-[14%]">Customer Note</th>
-                <th className="py-3 px-2 font-bold text-center w-[7%]">Status</th>
-                <th className="py-3 px-3 font-bold text-right w-[11%]">Balance</th>
-                <th className="py-3 px-2 font-bold text-center w-[6%]">Actions</th>
+                <th className="py-3 px-3.5 font-bold min-w-[190px]">Customer</th>
+                <th className="py-3 px-3 font-bold min-w-[120px]">Phone</th>
+                <th className="py-3 px-3 font-bold min-w-[170px]">Email</th>
+                <th className="py-3 px-3 font-bold min-w-[180px]">Billing Address</th>
+                <th className="py-3 px-3 font-bold min-w-[140px]">Customer Note</th>
+                <th className="py-3 px-2.5 font-bold text-center min-w-[90px]">Status</th>
+                <th className="py-3 px-3.5 font-bold text-right min-w-[110px]">Balance</th>
+                <th className="py-3 px-2.5 font-bold text-center min-w-[70px]">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#edf2f7]">
@@ -361,23 +361,23 @@ export const CustomersView: React.FC = () => {
                       }`}
                     >
                       {/* Customer Name & Sub-code */}
-                      <td className="py-2.5 px-3">
+                      <td className="py-3 px-3.5">
                         <button
                           onClick={() => handleSelectCustomer(c.id)}
-                          className="font-extrabold text-[#0f172a] text-left hover:text-[#1d4ed8] hover:underline block truncate w-full"
+                          className="font-extrabold text-[#0f172a] text-left hover:text-[#1d4ed8] hover:underline block"
                           title={c.name}
                         >
                           {c.name}
                         </button>
                         {(c.customerName && c.customerName !== c.name) && (
-                          <div className="text-[11px] text-[#64748b] mt-0.5 truncate" title={c.customerName}>
+                          <div className="text-[11px] text-[#64748b] mt-0.5">
                             {c.customerName}
                           </div>
                         )}
                       </td>
 
                       {/* Phone */}
-                      <td className="py-2.5 px-2.5 text-xs font-semibold text-[#334155] whitespace-nowrap truncate" title={phoneNum || ''}>
+                      <td className="py-3 px-3 text-xs font-semibold text-[#334155] whitespace-nowrap">
                         {phoneNum ? (
                           <a href={`tel:${phoneNum}`} className="hover:text-[#1d4ed8]">
                             {phoneNum}
@@ -388,9 +388,9 @@ export const CustomersView: React.FC = () => {
                       </td>
 
                       {/* Email */}
-                      <td className="py-2.5 px-2.5 text-xs font-semibold text-[#334155] truncate" title={c.email || ''}>
+                      <td className="py-3 px-3 text-xs font-semibold text-[#334155]">
                         {c.email ? (
-                          <a href={`mailto:${c.email}`} className="text-[#0284c7] hover:underline truncate block">
+                          <a href={`mailto:${c.email}`} className="text-[#0284c7] hover:underline break-all">
                             {c.email}
                           </a>
                         ) : (
@@ -399,19 +399,19 @@ export const CustomersView: React.FC = () => {
                       </td>
 
                       {/* Billing Address */}
-                      <td className="py-2.5 px-2.5 text-xs text-[#334155] truncate" title={c.billingAddress || ''}>
+                      <td className="py-3 px-3 text-xs text-[#334155]" title={c.billingAddress || ''}>
                         {c.billingAddress || <span className="text-[#94a3b8]">—</span>}
                       </td>
 
                       {/* Customer Note */}
-                      <td className="py-2.5 px-2.5 text-xs text-[#334155] truncate" title={c.notes || ''}>
+                      <td className="py-3 px-3 text-xs text-[#334155]" title={c.notes || ''}>
                         {c.notes || <span className="text-[#94a3b8]">—</span>}
                       </td>
 
                       {/* Status */}
-                      <td className="py-2.5 px-2 text-center whitespace-nowrap">
+                      <td className="py-3 px-2.5 text-center whitespace-nowrap">
                         <span
-                          className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                          className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-bold ${
                             c.status === 'Active'
                               ? 'bg-[#dcfce7] text-[#15803d]'
                               : 'bg-[#f1f5f9] text-[#64748b]'
@@ -422,12 +422,12 @@ export const CustomersView: React.FC = () => {
                       </td>
 
                       {/* Balance */}
-                      <td className="py-2.5 px-3 text-right text-xs font-extrabold text-[#0f172a] whitespace-nowrap">
+                      <td className="py-3 px-3.5 text-right text-xs font-extrabold text-[#0f172a] whitespace-nowrap tabular-nums">
                         {formatMoney(bal)}
                       </td>
 
                       {/* 3-Dot Actions Menu */}
-                      <td className="py-2.5 px-2 text-center whitespace-nowrap relative customer-action-menu" onClick={e => e.stopPropagation()}>
+                      <td className="py-3 px-2.5 text-center whitespace-nowrap relative customer-action-menu" onClick={e => e.stopPropagation()}>
                         <button
                           type="button"
                           onClick={() => setActiveMenuId(activeMenuId === c.id ? null : c.id)}

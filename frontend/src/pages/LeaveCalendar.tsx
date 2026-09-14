@@ -392,7 +392,7 @@ export const LeaveCalendar: React.FC = () => {
         </div>
 
         {/* Leave Note / Staff Record Card (Inside Panel) */}
-        <div className="mx-5 sm:mx-6 mb-5 p-4 sm:p-5 border border-[#d7e3ed] rounded-2xl bg-[#f8fbfd] shadow-xs space-y-3">
+        <div className="mx-5 sm:mx-6 mb-5 p-4 sm:p-5 border border-[#d7e3ed] rounded-2xl bg-[#f8fbfd] shadow-xs space-y-4">
           <div>
             <h2 className="text-base font-extrabold text-[#12345b]">
               Leave Note / Staff Record
@@ -402,17 +402,17 @@ export const LeaveCalendar: React.FC = () => {
             </p>
           </div>
 
-          <form onSubmit={handleSaveStaffRecord} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-            {/* Column 1: Record Type + Save Button below */}
-            <div className="md:col-span-3 space-y-3">
-              <div>
-                <label className="block text-xs font-bold text-[#456078] mb-1">
+          <form onSubmit={handleSaveStaffRecord} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-4 items-start">
+              {/* Field 1: Record Type */}
+              <div className="md:col-span-3">
+                <label className="block text-xs font-bold text-[#456078] mb-1.5">
                   Record Type
                 </label>
                 <select
                   value={recordType}
                   onChange={e => setRecordType(e.target.value as any)}
-                  className="w-full px-3.5 py-2 bg-white border border-[#bdcbd9] rounded-xl text-xs font-semibold text-[#0f172a] focus:outline-none focus:border-[#1d4ed8]"
+                  className="w-full px-3.5 py-2.5 bg-white border border-[#bdcbd9] rounded-xl text-xs font-semibold text-[#0f172a] focus:outline-none focus:border-[#1d4ed8] shadow-2xs cursor-pointer min-h-[42px]"
                 >
                   <option value="sick">Sick Time</option>
                   <option value="vacation">Vacation Time</option>
@@ -420,39 +420,42 @@ export const LeaveCalendar: React.FC = () => {
                 </select>
               </div>
 
+              {/* Field 2: Date Picker */}
+              <div className="md:col-span-3">
+                <label className="block text-xs font-bold text-[#456078] mb-1.5">
+                  Date
+                </label>
+                <input
+                  type="date"
+                  value={recordDate}
+                  onChange={e => setRecordDate(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-white border border-[#bdcbd9] rounded-xl text-xs font-semibold text-[#0f172a] focus:outline-none focus:border-[#1d4ed8] cursor-pointer shadow-2xs min-h-[42px]"
+                />
+              </div>
+
+              {/* Field 3: Note / Details */}
+              <div className="md:col-span-6">
+                <label className="block text-xs font-bold text-[#456078] mb-1.5">
+                  Note / Record Details
+                </label>
+                <input
+                  type="text"
+                  value={recordNote}
+                  onChange={e => setRecordNote(e.target.value)}
+                  placeholder="Enter details for this staff member..."
+                  className="w-full px-3.5 py-2.5 bg-white border border-[#bdcbd9] rounded-xl text-xs font-medium text-[#0f172a] focus:outline-none focus:border-[#1d4ed8] placeholder-[#94a3b8] shadow-2xs min-h-[42px]"
+                />
+              </div>
+            </div>
+
+            {/* Actions Row */}
+            <div className="flex items-center justify-end pt-1">
               <button
                 type="submit"
-                className="w-full px-4 py-2 bg-[#1d4ed8] hover:bg-[#1e40af] text-white text-xs font-extrabold rounded-xl transition-all shadow-sm active:scale-95 text-center cursor-pointer"
+                className="px-6 py-2.5 bg-[#1d4ed8] hover:bg-[#1e40af] text-white text-xs font-extrabold rounded-xl transition-all shadow-sm active:scale-98 text-center cursor-pointer inline-flex items-center gap-2"
               >
-                Save to Staff Record
+                <span>Save to Staff Record</span>
               </button>
-            </div>
-
-            {/* Column 2: Date Picker */}
-            <div className="md:col-span-4">
-              <label className="block text-xs font-bold text-[#456078] mb-1">
-                Date
-              </label>
-              <input
-                type="date"
-                value={recordDate}
-                onChange={e => setRecordDate(e.target.value)}
-                className="w-full px-3.5 py-2 bg-white border border-[#bdcbd9] rounded-xl text-xs font-semibold text-[#0f172a] focus:outline-none focus:border-[#1d4ed8] cursor-pointer"
-              />
-            </div>
-
-            {/* Column 3: Note / Details */}
-            <div className="md:col-span-5">
-              <label className="block text-xs font-bold text-[#456078] mb-1">
-                Note / Record Details
-              </label>
-              <textarea
-                rows={3}
-                value={recordNote}
-                onChange={e => setRecordNote(e.target.value)}
-                placeholder="Enter details for this staff member..."
-                className="w-full px-3.5 py-2 bg-white border border-[#bdcbd9] rounded-xl text-xs font-medium text-[#0f172a] focus:outline-none focus:border-[#1d4ed8] placeholder-[#94a3b8]"
-              />
             </div>
           </form>
         </div>

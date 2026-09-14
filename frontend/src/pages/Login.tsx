@@ -1,19 +1,32 @@
-import React, { useState } from 'react';
-import { useNavigate, Navigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { AlertTriangle, Eye, EyeOff } from 'lucide-react';
+import { AlertTriangle, Eye, EyeOff, UserCheck, LogOut } from 'lucide-react';
 
 export const Login: React.FC = () => {
-  const [username, setUsername] = useState('');
+  const [searchParams] = useSearchParams();
+  const urlUsername = searchParams.get('username') || '';
+  const [username, setUsername] = useState(urlUsername);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login, isAuthenticated, currentUser } = useAuth();
+  const { login, logout, isAuthenticated, currentUser } = useAuth();
   const navigate = useNavigate();
 
-  // If already authenticated, redirect directly into the app
-  if (isAuthenticated && currentUser) {
+  // If query parameter changes, sync username field
+  useEffect(() => {
+    if (urlUsername) {
+      setUsername(urlUsername);
+      // If currently authenticated as a different user, sign out so target user can log in
+      if (currentUser && currentUser.username.toLowerCase() !== urlUsername.toLowerCase()) {
+        logout();
+      }
+    }
+  }, [urlUsername, currentUser, logout]);
+
+  // If already authenticated and no explicit user switch in URL, redirect directly
+  if (isAuthenticated && currentUser && !urlUsername) {
     return <Navigate to={currentUser.role === 'staff' ? '/schedules' : '/dashboard'} replace />;
   }
 
@@ -54,6 +67,25 @@ export const Login: React.FC = () => {
           Secure workspace sign-in for Super Admin, Admin, and Staff.
         </p>
 
+        {urlUsername && (
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 text-[#102f52] text-xs font-semibold rounded-xl flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <UserCheck className="w-4 h-4 text-[#2f6fb3] flex-shrink-0" />
+              <span>Signing in as: <strong className="font-bold text-[#2f6fb3]">@{urlUsername}</strong></span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setUsername('');
+                navigate('/login', { replace: true });
+              }}
+              className="text-[11px] font-bold text-[#64748b] hover:text-red-600 underline cursor-pointer"
+            >
+              Switch User
+            </button>
+          </div>
+        )}
+
         {error && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-xs font-bold rounded-xl flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 flex-shrink-0" />
@@ -70,8 +102,9 @@ export const Login: React.FC = () => {
               type="text"
               value={username}
               onChange={e => setUsername(e.target.value)}
+              placeholder="e.g. tanuvi.patel or superadmin"
               required
-              autoFocus
+              autoFocus={!urlUsername}
               className="w-full px-3.5 py-2.5 min-h-[44px] bg-white border-2 border-black rounded-xl text-sm font-semibold text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-[#2f6fb3]/20"
             />
           </div>
@@ -85,7 +118,9 @@ export const Login: React.FC = () => {
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
+                placeholder="Enter password"
                 required
+                autoFocus={Boolean(urlUsername)}
                 className="w-full pl-3.5 pr-10 py-2.5 min-h-[44px] bg-white border border-[#cbd5e1] rounded-xl text-sm font-semibold text-[#1e293b] focus:outline-none focus:border-black focus:ring-2 focus:ring-[#2f6fb3]/20"
               />
               <button
@@ -108,10 +143,16 @@ export const Login: React.FC = () => {
           </button>
         </form>
 
-        {/* First-time setup yellow callout box */}
-        <div className="mt-5 sm:mt-6 p-3.5 sm:p-4 bg-[#fefce8] border border-[#fef08a] rounded-xl text-[11px] sm:text-xs leading-relaxed text-[#713f12]">
-          <strong>First-time setup:</strong> sign in with username <strong className="font-bold text-[#1e293b]">superadmin</strong> and temporary password <strong className="font-bold text-[#1e293b]">ChangeMe123!</strong>, then immediately create your own Super Admin account/password in User Accounts and disable or change the temporary account.
-        </div>
+        {/* Discreet Setup / Support note */}
+        <details className="mt-5 sm:mt-6 p-3 bg-[#f8fafc] border border-[#e2e8f0] rounded-xl text-[11px] text-[#64748b] cursor-pointer">
+          <summary className="font-bold text-[#475569] hover:text-[#102f52]">
+            Need help signing in or first-time setup?
+          </summary>
+          <div className="mt-2 pt-2 border-t border-[#e2e8f0] space-y-1 leading-relaxed text-[#475569]">
+            <p><strong>Staff Members:</strong> Please enter the username and password provided by your Super Administrator.</p>
+            <p><strong>First-time Super Admin setup:</strong> Sign in with username <strong className="font-bold text-[#1e293b]">superadmin</strong> and password <strong className="font-bold text-[#1e293b]">ChangeMe123!</strong>.</p>
+          </div>
+        </details>
       </div>
     </div>
   );

@@ -338,10 +338,10 @@ export const UserAccounts: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    const loginUrl = window.location.origin + '/login';
+                    const loginUrl = `${window.location.origin}/login?username=${encodeURIComponent(selectedUserForActions.username)}`;
                     navigator.clipboard.writeText(loginUrl);
                     setCopiedId(selectedUserForActions.id + '_url');
-                    showToast(`Login Link copied: ${loginUrl}`);
+                    showToast(`Login Link copied for ${selectedUserForActions.displayName}`);
                     setTimeout(() => setCopiedId(null), 2500);
                   }}
                   className="w-full p-3.5 bg-[#f8fbfe] hover:bg-[#edf5fb] border border-[#d6e7f4] hover:border-[#2f6fb3] rounded-xl text-left flex items-center justify-between transition-all group cursor-pointer"
@@ -356,10 +356,10 @@ export const UserAccounts: React.FC = () => {
                     </div>
                     <div>
                       <strong className="block text-xs font-black text-[#12345b]">
-                        {copiedId === (selectedUserForActions.id + '_url') ? 'Login Link Copied!' : 'Copy Direct Login URL'}
+                        {copiedId === (selectedUserForActions.id + '_url') ? 'Direct Login URL Copied!' : 'Copy Direct Login URL'}
                       </strong>
                       <span className="block text-[11px] font-semibold text-[#64748b]">
-                        {window.location.origin}/login
+                        {window.location.origin}/login?username={selectedUserForActions.username}
                       </span>
                     </div>
                   </div>

@@ -80,11 +80,71 @@ class UserService {
       {
         id: 'usr-3',
         username: 'staff',
-        displayName: 'John Doe (Staff)',
-        email: 'johndoe@centraldispatch.bm',
+        displayName: 'General Staff',
+        email: 'staff@centraldispatch.bm',
         role: 'staff',
         status: 'Active',
         lastLogin: '2026-09-10 08:45 AM',
+        createdAt: '2026-01-01'
+      },
+      {
+        id: 'usr-alesia',
+        username: 'alesia.brangman',
+        displayName: 'Alesia Brangman',
+        email: 'alesia.brangman@centraldispatch.bm',
+        role: 'staff',
+        status: 'Active',
+        lastLogin: '2026-09-12 09:00 AM',
+        createdAt: '2026-01-01'
+      },
+      {
+        id: 'usr-global',
+        username: 'global',
+        displayName: 'Global',
+        email: 'global@centraldispatch.bm',
+        role: 'staff',
+        status: 'Active',
+        lastLogin: '2026-09-12 09:15 AM',
+        createdAt: '2026-01-01'
+      },
+      {
+        id: 'usr-ssh',
+        username: 'ssh',
+        displayName: 'SSH',
+        email: 'ssh@centraldispatch.bm',
+        role: 'staff',
+        status: 'Active',
+        lastLogin: '2026-09-12 09:30 AM',
+        createdAt: '2026-01-01'
+      },
+      {
+        id: 'usr-neli',
+        username: 'neli.outerbridge',
+        displayName: 'Neli Outerbridge',
+        email: 'neli.outerbridge@centraldispatch.bm',
+        role: 'staff',
+        status: 'Active',
+        lastLogin: '2026-09-12 09:45 AM',
+        createdAt: '2026-01-01'
+      },
+      {
+        id: 'usr-ty',
+        username: 'ty.mcgowan',
+        displayName: 'Tyonika McGowan (Ty)',
+        email: 'tyonika.mcgowan@centraldispatch.bm',
+        role: 'staff',
+        status: 'Active',
+        lastLogin: '2026-09-12 10:00 AM',
+        createdAt: '2026-01-01'
+      },
+      {
+        id: 'usr-tanuvi',
+        username: 'tanuvi.patel',
+        displayName: 'Tanuvi Patel',
+        email: 'tanuvi.patel@centraldispatch.bm',
+        role: 'staff',
+        status: 'Active',
+        lastLogin: '2026-09-12 10:15 AM',
         createdAt: '2026-01-01'
       }
     ];

@@ -157,25 +157,7 @@ CREATE TABLE IF NOT EXISTS schedules (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 ```
 
-### 8. `time_records` Table
-```sql
-CREATE TABLE IF NOT EXISTS time_records (
-  id VARCHAR(50) PRIMARY KEY,
-  userId VARCHAR(50) NOT NULL,
-  employeeId VARCHAR(50),
-  employeeName VARCHAR(200) NOT NULL,
-  clockIn VARCHAR(100) NOT NULL,
-  clockOut VARCHAR(100),
-  totalHours DECIMAL(6,2) DEFAULT 0.00,
-  status ENUM('ClockedIn', 'ClockedOut') NOT NULL DEFAULT 'ClockedIn',
-  notes TEXT,
-  createdAt VARCHAR(100),
-  INDEX idx_user_time (userId),
-  INDEX idx_emp_time (employeeId)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-```
-
-### 9. `app_settings` Table
+### 7. `app_settings` Table
 ```sql
 CREATE TABLE IF NOT EXISTS app_settings (
   settingKey VARCHAR(100) PRIMARY KEY,
@@ -186,64 +168,51 @@ CREATE TABLE IF NOT EXISTS app_settings (
 
 ---
 
-## 📡 Menu-Specific API Endpoint Reference (Exact Match with Prototype)
+## 📡 Menu-Specific API Endpoint Reference
 
 | # | Category | Sidebar Menu Name | Frontend Route | Backend API Endpoint | Description |
 | :---: | :--- | :--- | :--- | :--- | :--- |
-| **1** | **WORKSPACE** | **Dashboard** | `/dashboard` | `/api/dashboard` | Dashboard KPI summary, employee stats, charts & customer list |
-| **2** | **WORKSPACE** | **Payroll** | `/payroll` | `/api/payroll` | Weekly payroll computation, calculations & salary processing |
+| **1** | **WORKSPACE** | **Dashboard** | `/dashboard` | `/api/dashboard` | Dashboard KPI summary, employee stats, charts & active status |
+| **2** | **WORKSPACE** | **Payroll** | `/payroll` | `/api/payroll` | 6-Column weekly payroll computation, rate editing & Net Pay calculation |
 | **3** | **WORKSPACE** | **Leave Calendars** | `/leave` | `/api/leave` | Dual-calendar sick/vacation leave records & persistence |
-| **4** | **WORKSPACE** | **Staff Contact Details** | `/contacts` | `/api/contacts` | Phone & email contact directory with quick call/email links |
-| **5** | **WORKSPACE** | **Weekly Schedules** | `/schedules` | `/api/schedules` | Duty shift rotas, weekly hours, & staff time clock |
-| **6** | **WORKSPACE** | **Payroll Reports** | `/reports` | `/api/reports` | 8-Report types summary & historical payroll archive |
+| **4** | **WORKSPACE** | **Staff Contact Details** | `/contacts` | `/api/staff-contact-details` | 6-Staff phone & email directory with working edit/delete |
+| **5** | **WORKSPACE** | **Weekly Schedules** | `/schedules` | `/api/schedules` | Duty shift rotas, weekly hours, & shift notes |
+| **6** | **WORKSPACE** | **Payroll Reports** | `/reports` | `/api/reports` | Summary reports & historical payroll archive |
 | **7** | **WORKSPACE** | **Payslips** | `/payslips` | `/api/payslips` | Printable salary pay slips for individual employees |
-| **8** | **CUSTOMERS & ACCOUNTS** | **Accounts Overview** | `/accounts` | `/api/accounts` | Financial KPIs, complete backup & restore utilities |
-| **9** | **CUSTOMERS & ACCOUNTS** | **Customers & Ledgers** | `/customers` | `/api/customers` | 782 Customers directory, calendar date filter, ledger cards |
-| **10** | **CUSTOMERS & ACCOUNTS** | **Create Invoice** | `/invoices` | `/api/invoices` | Multi-line customer invoicing, email dispatch & pay link |
-| **11** | **CUSTOMERS & ACCOUNTS** | **Record Payment** | `/payments` | `/api/payments` | Customer payments, RideBermuda pay link & ledger balance |
-| **12** | **CUSTOMERS & ACCOUNTS** | **A/R Aging** | `/aging` | `/api/aging` | Receivables aging breakdown (Current, 1-30, 31-60, 61-90, 90+) |
-| **13** | **CUSTOMERS & ACCOUNTS** | **General Ledger** | `/ledger` | `/api/ledger` | 1,927+ Consolidated general ledger transactions with export |
-| **14** | **CUSTOMERS & ACCOUNTS** | **Employee Records** | `/employees` | `/api/employees` | Master staff directory, 5-part registration & pay rates |
-| **15** | **CUSTOMERS & ACCOUNTS** | **Permissions** | `/permissions` | `/api/permissions` | Role-based permission matrix (Super Admin only) |
-| **16** | **CUSTOMERS & ACCOUNTS** | **User Accounts** | `/users` | `/api/users` | Admin & staff login accounts, 3-dot action menu |
+| **8** | **CUSTOMERS & ACCOUNTS** | **Accounts Overview** | `/accounts` | `/api/accounts-overview` | Financial KPIs, complete backup & restore utilities |
+| **9** | **CUSTOMERS & ACCOUNTS** | **Customers & Ledgers** | `/customers` | `/api/customers-and-ledgers` | 784 Customers directory, A-to-Z sorting, pagination & ledger statements |
+| **10** | **CUSTOMERS & ACCOUNTS** | **Create Invoice** | `/invoices` | `/api/create-invoice` | Multi-line customer invoicing, email dispatch & pay link |
+| **11** | **CUSTOMERS & ACCOUNTS** | **Record Payment** | `/payments` | `/api/record-payment` | Customer payments, RideBermuda pay link & ledger balance |
+| **12** | **CUSTOMERS & ACCOUNTS** | **A/R Aging** | `/aging` | `/api/ar-aging` | Receivables aging breakdown (Current, 1-30, 31-60, 61-90, 90+) |
+| **13** | **CUSTOMERS & ACCOUNTS** | **General Ledger** | `/general-ledger` | `/api/general-ledger` | 1,927+ Consolidated general ledger transactions with export & fit layout |
+| **14** | **CUSTOMERS & ACCOUNTS** | **Employee Records** | `/employees` | `/api/employees` | Master staff directory, 6 active staff, real-time edit & delete |
+| **15** | **CUSTOMERS & ACCOUNTS** | **Permissions** | `/permissions` | `/api/permissions` | Role-based permission matrix (Super Admin, Admin, Staff) |
+| **16** | **CUSTOMERS & ACCOUNTS** | **User Accounts** | `/users` | `/api/user-accounts` | Admin & staff login accounts, 3-dot action menu |
 
 ---
 
-## 📅 Development Timeline & Work Log (Date-Wise)
+## 📅 Development Timeline & Revision History
 
-### ✅ Completed: 10 September 2026
-1. **Responsive Mobile/Tablet Optimization**: Responsive layouts across desktop, tablet, and mobile with off-canvas navigation.
-2. **Sidebar Layout & Viewport Lock**: Fixed sidebar positioning with independent internal scroll.
-3. **Audit Logging MySQL Integration**: Created and wired `audit_logs` table.
-4. **Environment Configuration**: Configured `.env` and `.env.example`.
-
----
-
-### ✅ Completed: 11 September 2026 (Customer Accounts & Ledger Integration)
-1. **Database Schema & Data Import**: Seeded 782 Customers and 1,927 General Ledger entries in MySQL.
-2. **Frontend UI Components**: Dashboard launcher, Accounts Overview, Invoices, Payments, A/R Aging, and General Ledger.
-3. **Navigation & Routes**: Added Customers & Accounts section in sidebar.
-
----
-
-### ✅ Completed: 12 September 2026 (Company Settings, Payment Links, Staff Password Change & Security)
-1. **Company Profile & Settings MySQL Persistence (`app_settings` table)**:
-   - Wired `GET /api/settings` and `POST /api/settings` directly to MySQL `app_settings` table.
-   - Company Name, Bermuda Telephone, Office Address, Payroll Contact Email, and Overtime Threshold are dynamically persisted and loaded across reloads.
-2. **RideBermuda Customer Payment Link (`https://ridebermuda-prod.web.app/paylink`)**:
-   - Integrated into System Settings (`/settings`) with instant testing capability.
-   - Added prominent header card on Payments View (`/payments`) with quick "Copy Link" and "Open Link" buttons.
-   - Embedded directly into generated customer email bodies and printable invoice preview dialogues in Invoices View (`/invoices`).
-3. **Staff Self-Service Password Management & User Accounts Directory (`/users`)**:
-   - Built global `ChangePasswordModal` accessible from Topbar and Sidebar for all users (Staff, Admin, Super Admin).
-   - Created backend API `POST /api/user-accounts/change-password` that updates password hashes directly in MySQL `users` table.
-   - Redesigned User Accounts screen with quick statistics pills, 4:8 responsive split, live search filter, and a sleek **3-Dots Actions Menu** (`Copy Login Link & Details`, `Reset Password`, `Activate / Deactivate Account`).
-4. **Customer Date Filter & Added Date Column (`/customers`)**:
-   - Implemented single Calendar Date Picker to instantly locate customers added on any chosen date.
-   - Added "Added Date" column displaying timestamp of creation.
-5. **Role-Based Security & Redirection Rules**:
-   - Enforced strict `SuperAdminRoute` guarding for `/permissions` and `/users`.
-   - Routing: Unauthenticated -> `/login`, Staff -> `/my-time`, Admin/SuperAdmin -> `/dashboard`.
+### ✅ Completed: 14 September 2026 (Client Revision & Cleanup)
+1. **Time Record / Clock-in Removal**:
+   - Dropped `time_records` DB table and removed `/api/my-time` & `/api/time-records` endpoints.
+   - Removed `MyTime.tsx` page, `timeService.ts`, and all clock-in references from UI and permissions.
+2. **Simplified Payroll Console (`/payroll`)**:
+   - Implemented streamlined 6-column structure matching yellow markup: `EMPLOYEE`, `REGULAR RATE`, `HOLIDAY RATE`, `OTHER PAY`, `DEDUCTIONS`, `NET PAY`.
+   - Removed redundant hours and gross columns.
+   - Formatted ISO date strings to human-readable format.
+3. **Staff Roster Cleanup & CRUD Fix (`/employees`, `/contacts`)**:
+   - Removed retired staff (`Tiffany Robinson`, `Shonee Simons`) and test accounts.
+   - Confirmed 6 official staff members in DB seed.
+   - Fixed `DELETE /api/employees/:id` endpoint and made edit/delete fully functional.
+4. **Customers & Ledgers Optimization (`/customers`)**:
+   - Cleaned duplicate `Phone: Phone:` string prefix.
+   - Eliminated wide gap between Phone & Email by setting explicit column widths.
+   - Enabled strict A-to-Z alphabetical sorting and added pagination controls for 784 customers.
+5. **General Ledger Layout (`/general-ledger`)**:
+   - Resolved `SOURCE` column cut-off on standard screen resolutions.
+6. **Git Synchronization**:
+   - Changes committed and pushed to `https://github.com/AKRITIKUSHWAHA/central_payroll.git` (main).
 
 ---
 
@@ -254,4 +223,3 @@ CREATE TABLE IF NOT EXISTS app_settings (
    Backend endpoints auto-create missing records if they do not exist in MySQL yet, preventing 404 response errors.
 3. **Verification**:
    Always run `npx tsc --noEmit` in `frontend` and `backend` directories to ensure strict TypeScript type checking before pushing to Git.
-

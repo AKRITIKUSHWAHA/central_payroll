@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { staffContactDetailsService, StaffRecordItem } from '../services/staffContactDetailsService';
 import { useToast } from '../context/ToastContext';
-import { UserPlus, Trash2, X, Plus } from 'lucide-react';
+import { UserPlus, X, Plus, AlertCircle, Eye, Edit3, Trash2, Phone, Mail, MapPin, ShieldAlert, Calendar } from 'lucide-react';
 
 interface StaffContact {
   id: string;
@@ -172,12 +172,16 @@ const DEFAULT_STAFF: StaffContact[] = [
 
 export const StaffContacts: React.FC = () => {
   const [contacts, setContacts] = useState<StaffContact[]>(DEFAULT_STAFF);
-  const [selectedStaffId, setSelectedStaffId] = useState<string | null>('ali');
+  const [selectedStaffId, setSelectedStaffId] = useState<string | null>('alesia');
   const [records, setRecords] = useState<StaffRecordItem[]>([]);
   const { showToast } = useToast();
 
-  // Add Staff Modal State
+  // Modals State
   const [showAddModal, setShowAddModal] = useState(false);
+  const [viewModalStaff, setViewModalStaff] = useState<StaffContact | null>(null);
+  const [editModalStaff, setEditModalStaff] = useState<StaffContact | null>(null);
+  const [deleteTargetStaff, setDeleteTargetStaff] = useState<StaffContact | null>(null);
+
   const [newStaffForm, setNewStaffForm] = useState({
     firstName: '',
     middleInitial: '',
@@ -232,14 +236,13 @@ export const StaffContacts: React.FC = () => {
       const dbList = await staffContactDetailsService.getStaffContactDetails();
       if (dbList && dbList.length > 0) {
         const mappedDb: StaffContact[] = dbList.map(mapDbToContact);
-        const existingIds = new Set(mappedDb.map(c => (c.id || '').toLowerCase()));
-        const extraDefaults = DEFAULT_STAFF.filter(d => !existingIds.has(d.id.toLowerCase()));
-        const fullList = [...mappedDb, ...extraDefaults];
-        setContacts(fullList);
+        setContacts(mappedDb);
 
-        if (!selectedStaffId && fullList.length > 0) {
-          setSelectedStaffId(fullList[0].id);
+        if (!selectedStaffId && mappedDb.length > 0) {
+          setSelectedStaffId(mappedDb[0].id);
         }
+      } else {
+        setContacts(DEFAULT_STAFF);
       }
     } catch (err) {
       console.warn('Failed to load contacts:', err);
@@ -267,7 +270,7 @@ export const StaffContacts: React.FC = () => {
     }
   }, [selectedStaffId]);
 
-  // Handle contact field change and persist to DB
+  // Handle contact field change in inline panel and persist to DB
   const handleFieldChange = (field: keyof StaffContact, value: string) => {
     if (!selectedStaffId) return;
 
@@ -350,20 +353,38 @@ export const StaffContacts: React.FC = () => {
       emergencyPhone: '',
       emergencyRelation: 'Relative'
     });
+    await loadContacts();
+  };
+
+  // Save edits from Edit Modal
+  const handleSaveEditModal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editModalStaff) return;
+
+    const fullName = `${editModalStaff.firstName || ''} ${editModalStaff.lastName || ''}`.trim() || editModalStaff.displayName || '';
+    const payload: any = {
+      ...editModalStaff,
+      displayName: fullName
+    };
+
+    await staffContactDetailsService.updateStaffContactDetail(editModalStaff.id, payload);
+    setEditModalStaff(null);
+    showToast(`Staff member ${fullName} updated successfully.`);
+    await loadContacts();
   };
 
   // Delete staff member
-  const handleDeleteStaff = async (id: string, name: string) => {
-    if (!window.confirm(`Are you sure you want to delete ${name} from Staff Contact Details?`)) {
-      return;
-    }
+  const handleConfirmDelete = async () => {
+    if (!deleteTargetStaff) return;
 
-    await staffContactDetailsService.deleteStaffContact(id);
-    setContacts(prev => prev.filter(c => c.id !== id));
-    if (selectedStaffId === id) {
+    await staffContactDetailsService.deleteStaffContact(deleteTargetStaff.id);
+    setContacts(prev => prev.filter(c => c.id !== deleteTargetStaff.id));
+    if (selectedStaffId === deleteTargetStaff.id) {
       setSelectedStaffId(null);
     }
-    showToast(`Staff member ${name} removed.`);
+    showToast(`Staff member ${deleteTargetStaff.displayName} deleted.`);
+    setDeleteTargetStaff(null);
+    await loadContacts();
   };
 
   // Select staff member
@@ -491,14 +512,14 @@ export const StaffContacts: React.FC = () => {
 
         {/* Directory Table */}
         <div className="table-responsive-container">
-          <table className="w-full text-left text-sm border-collapse min-w-[700px]">
+          <table className="w-full text-left text-sm border-collapse min-w-[760px]">
             <thead>
               <tr className="bg-[#102a43] text-white font-bold text-xs uppercase tracking-wider">
                 <th className="py-3.5 px-5 font-bold">Staff Member</th>
                 <th className="py-3.5 px-5 font-bold">Email Address</th>
                 <th className="py-3.5 px-5 font-bold">Phone Number</th>
-                <th className="py-3.5 px-5 font-bold text-center w-32">Status</th>
-                <th className="py-3.5 px-5 font-bold text-center w-24">Action</th>
+                <th className="py-3.5 px-5 font-bold text-center w-28">Status</th>
+                <th className="py-3.5 px-5 font-bold text-center w-48">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#edf2f7]">
@@ -511,8 +532,7 @@ export const StaffContacts: React.FC = () => {
                 return (
                   <tr
                     key={staff.id}
-                    onClick={() => handleSelectStaff(staff.id)}
-                    className={`cursor-pointer transition-colors ${
+                    className={`transition-colors ${
                       isSelected
                         ? 'bg-[#eaf4fb]'
                         : idx % 2 === 0
@@ -527,9 +547,12 @@ export const StaffContacts: React.FC = () => {
                           {initial}
                         </div>
                         <div>
-                          <div className={`font-bold text-sm ${isSelected ? 'text-[#1d4ed8]' : 'text-[#0f172a]'}`}>
+                          <button
+                            onClick={() => handleSelectStaff(staff.id)}
+                            className="font-bold text-sm text-[#0f172a] hover:text-[#1d4ed8] text-left block"
+                          >
                             {displayName}
-                          </div>
+                          </button>
                           <div className="text-xs font-semibold text-[#64748b]">
                             {role}
                           </div>
@@ -540,7 +563,7 @@ export const StaffContacts: React.FC = () => {
                     {/* Email */}
                     <td className="py-3.5 px-5 font-semibold text-[#334155] text-sm">
                       {staff.email ? (
-                        <a href={`mailto:${staff.email}`} onClick={e => e.stopPropagation()} className="text-[#1d4ed8] hover:underline">
+                        <a href={`mailto:${staff.email}`} className="text-[#1d4ed8] hover:underline">
                           {staff.email}
                         </a>
                       ) : (
@@ -549,7 +572,7 @@ export const StaffContacts: React.FC = () => {
                     </td>
 
                     {/* Phone */}
-                    <td className="py-3.5 px-5 font-semibold text-[#334155] text-xs sm:text-sm">
+                    <td className="py-3.5 px-5 font-semibold text-[#334155] text-xs sm:text-sm whitespace-nowrap">
                       {staff.personalPhone || staff.phone || staff.workPhone || '—'}
                     </td>
 
@@ -560,16 +583,36 @@ export const StaffContacts: React.FC = () => {
                       </span>
                     </td>
 
-                    {/* Action */}
-                    <td className="py-3.5 px-5 text-center" onClick={e => e.stopPropagation()}>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteStaff(staff.id, displayName)}
-                        title="Delete staff member"
-                        className="p-1.5 text-[#94a3b8] hover:text-[#ef4444] hover:bg-[#fee2e2] rounded-lg transition-colors"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                    {/* Action: View, Edit, Delete */}
+                    <td className="py-3.5 px-5 text-center whitespace-nowrap">
+                      <div className="inline-flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setViewModalStaff(staff)}
+                          className="px-2.5 py-1 bg-white hover:bg-[#f1f5f9] text-[#1e293b] font-bold text-xs rounded-lg border border-[#cbd5e1] transition-all shadow-xs flex items-center gap-1"
+                        >
+                          <Eye size={13} className="text-[#64748b]" />
+                          <span>View</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setEditModalStaff({ ...staff })}
+                          className="px-2.5 py-1 bg-white hover:bg-[#eff6ff] text-[#1d4ed8] font-bold text-xs rounded-lg border border-[#bfdbfe] transition-all shadow-xs flex items-center gap-1"
+                        >
+                          <Edit3 size={13} className="text-[#1d4ed8]" />
+                          <span>Edit</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setDeleteTargetStaff(staff)}
+                          className="px-2.5 py-1 bg-white hover:bg-[#fef2f2] text-[#dc2626] font-bold text-xs rounded-lg border border-[#fecaca] transition-all shadow-xs flex items-center gap-1"
+                        >
+                          <Trash2 size={13} className="text-[#dc2626]" />
+                          <span>Delete</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -806,228 +849,296 @@ export const StaffContacts: React.FC = () => {
                       handleFieldChange('emergencyRelation', e.target.value);
                       handleFieldChange('emergencyContactRelation', e.target.value);
                     }}
-                    placeholder="e.g. Spouse, Parent, Sibling"
+                    placeholder="e.g. Spouse, Brother, Mother"
                     className="w-full px-3.5 py-2 bg-white border border-[#bdcbd9] rounded-xl text-sm font-semibold text-[#0f172a] focus:outline-none focus:border-[#1d4ed8]"
                   />
                 </div>
-                <div className="hidden md:block" />
               </div>
             </div>
 
-            {/* Sub-section: Sick, Vacation & Notes Record */}
-            <div className="border-t border-[#d7e3ed] p-5 sm:p-6 space-y-4">
-              <div>
-                <h3 className="text-base font-extrabold text-[#12345b]">
-                  Sick, Vacation & Notes Record
-                </h3>
-                <p className="text-xs font-semibold text-[#64748b] mt-1">
-                  Records entered here are saved to <strong className="text-[#0f172a]">{selectedContact.displayName}</strong>.
-                </p>
-              </div>
+            {/* Sub-Section: Staff Notes & Records */}
+            <div className="border-t border-[#d7e3ed] bg-[#f8fbfe] p-5 sm:p-6 space-y-4">
+              <h3 className="text-sm font-black text-[#12345b]">
+                Staff Record Log &amp; Notes
+              </h3>
 
-              {/* Record Form */}
-              <form onSubmit={handleAddRecord} className="flex flex-col md:flex-row items-stretch md:items-end gap-3.5">
-                <div className="w-full md:w-48">
-                  <label className="block text-xs font-bold text-[#456078] mb-1.5">
-                    Record Type
-                  </label>
+              <form onSubmit={handleAddRecord} className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3">
+                <div className="w-full sm:w-40">
+                  <label className="block text-xs font-bold text-[#456078] mb-1">Type</label>
                   <select
                     value={recordType}
                     onChange={e => setRecordType(e.target.value as any)}
-                    className="w-full px-3.5 py-2 bg-white border border-[#bdcbd9] rounded-xl text-sm font-semibold text-[#0f172a] focus:outline-none focus:border-[#1d4ed8]"
+                    className="w-full px-3 py-2 bg-white border border-[#bdcbd9] rounded-xl text-xs font-semibold text-[#0f172a]"
                   >
                     <option value="sick">Sick Time</option>
                     <option value="vacation">Vacation Time</option>
-                    <option value="note">Note Only</option>
+                    <option value="note">Staff Note</option>
                   </select>
                 </div>
 
-                <div className="w-full md:w-48">
-                  <label className="block text-xs font-bold text-[#456078] mb-1.5">
-                    Date
-                  </label>
+                <div className="w-full sm:w-44">
+                  <label className="block text-xs font-bold text-[#456078] mb-1">Date</label>
                   <input
                     type="date"
                     value={recordDate}
                     onChange={e => setRecordDate(e.target.value)}
-                    className="w-full px-3.5 py-2 bg-white border border-[#bdcbd9] rounded-xl text-sm font-semibold text-[#0f172a] focus:outline-none focus:border-[#1d4ed8] cursor-pointer"
+                    className="w-full px-3 py-2 bg-white border border-[#bdcbd9] rounded-xl text-xs font-semibold text-[#0f172a]"
                   />
                 </div>
 
                 <div className="flex-1">
-                  <label className="block text-xs font-bold text-[#456078] mb-1.5">
-                    Note / Details
-                  </label>
-                  <textarea
-                    rows={1}
+                  <label className="block text-xs font-bold text-[#456078] mb-1">Note Details</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Called in sick, shift coverage note..."
                     value={recordNote}
                     onChange={e => setRecordNote(e.target.value)}
-                    placeholder="Add a note for this staff member..."
-                    className="w-full px-3.5 py-2 bg-white border border-[#bdcbd9] rounded-xl text-sm font-medium text-[#0f172a] focus:outline-none focus:border-[#1d4ed8] placeholder-[#94a3b8]"
+                    className="w-full px-3.5 py-2 bg-white border border-[#bdcbd9] rounded-xl text-xs font-semibold text-[#0f172a]"
                   />
                 </div>
 
                 <button
                   type="submit"
-                  className="px-5 py-2.5 bg-[#1d4ed8] hover:bg-[#1e40af] text-white text-sm font-extrabold rounded-xl transition-all shadow-md active:scale-95 whitespace-nowrap self-start md:self-auto"
+                  className="px-4 py-2 bg-[#0f766e] hover:bg-[#115e59] text-white text-xs font-extrabold rounded-xl shadow-xs transition-all active:scale-95 whitespace-nowrap"
                 >
-                  Save Record
+                  + Save Record
                 </button>
               </form>
 
-              {/* Records History Table */}
-              <div className="overflow-x-auto w-full mt-3">
-                <table className="w-full text-left text-sm border-collapse min-w-[650px]">
-                  <thead>
-                    <tr className="bg-[#102a43] text-white font-bold text-xs uppercase tracking-wider">
-                      <th className="py-3 px-4 font-bold w-32">Date</th>
-                      <th className="py-3 px-4 font-bold w-36">Type</th>
-                      <th className="py-3 px-4 font-bold">Note / Details</th>
-                      <th className="py-3 px-4 font-bold w-48">Date Stamp</th>
-                      <th className="py-3 px-4 font-bold text-center w-24">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#edf2f7]">
-                    {!records || records.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} className="py-8 px-4 text-center text-xs font-semibold text-[#64748b]">
-                          No sick, vacation or note records saved for this staff member yet.
-                        </td>
-                      </tr>
-                    ) : (
-                      records.map(rec => (
-                        <tr key={rec.id} className="bg-white hover:bg-[#f8fafc] transition-colors">
-                          <td className="py-3 px-4 font-bold text-xs text-[#0f172a] whitespace-nowrap">
-                            {formatDateLabel(rec.date)}
-                          </td>
-                          <td className="py-3 px-4 whitespace-nowrap">
-                            <span className={`px-2.5 py-1 rounded-md text-[11px] font-extrabold inline-block ${getRecordBadgeClass(rec.type)}`}>
-                              {getRecordLabel(rec.type)}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 text-xs font-semibold text-[#334155]">
-                            {rec.note || '—'}
-                          </td>
-                          <td className="py-3 px-4 text-xs font-medium text-[#64748b] whitespace-nowrap">
-                            {formatStamp(rec.createdAt)}
-                          </td>
-                          <td className="py-3 px-4 text-center whitespace-nowrap">
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteRecord(rec.id)}
-                              className="px-3 py-1 bg-[#fee2e2] hover:bg-[#fecaca] text-[#b91c1c] text-xs font-extrabold rounded-lg transition-all"
-                            >
-                              Delete
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+              {/* Records List */}
+              <div className="space-y-2 mt-3">
+                {records.length === 0 ? (
+                  <div className="text-xs font-semibold text-[#64748b] py-3 text-center bg-white rounded-xl border border-[#e2e8f0]">
+                    No recorded notes or sick/vacation entries for this staff member yet.
+                  </div>
+                ) : (
+                  records.map(rec => (
+                    <div
+                      key={rec.id}
+                      className="p-3 bg-white border border-[#e2e8f0] rounded-xl flex items-center justify-between gap-3 text-xs"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className={`px-2 py-0.5 rounded-md font-bold text-[11px] ${getRecordBadgeClass(rec.type)}`}>
+                          {getRecordLabel(rec.type)}
+                        </span>
+                        <span className="font-bold text-[#0f172a]">
+                          {formatDateLabel(rec.date)}
+                        </span>
+                        <span className="text-[#475569]">
+                          {rec.note || 'No note details'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-semibold text-[#94a3b8] hidden md:inline">
+                          {formatStamp(rec.createdAt)}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteRecord(rec.id)}
+                          className="p-1 text-[#94a3b8] hover:text-[#dc2626] rounded-lg"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>
         )}
-
-        {/* Bottom Notice Hint */}
-        <div className="p-4 sm:p-5 border-t border-[#e2e8f0] text-xs font-semibold text-[#64748b]">
-          Staff roster is fully dynamic and backed by MySQL database. Add as many staff members as required. Contact details are included in payroll reports and system backup data.
-        </div>
       </div>
 
-      {/* Add Staff Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-[#dde7f0] max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-4 border-b border-[#e2e8f0]">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 bg-[#e0f2fe] text-[#0369a1] rounded-xl">
-                  <UserPlus size={20} />
+      {/* VIEW MODAL */}
+      {viewModalStaff && (
+        <div className="fixed inset-0 bg-[#0b1d31]/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-[#d7e2ec] rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto animate-fadeIn">
+            {/* Header */}
+            <div className="flex items-start justify-between border-b border-[#e2e8f0] pb-4">
+              <div className="flex items-center gap-3.5">
+                <div className="w-12 h-12 rounded-full bg-[#12345b] text-white font-black text-lg flex items-center justify-center shadow-sm">
+                  {(viewModalStaff.displayName?.charAt(0) || 'S').toUpperCase()}
                 </div>
                 <div>
-                  <h3 className="text-lg font-extrabold text-[#12345b]">
-                    Add New Staff Member
+                  <h3 className="text-xl font-black text-[#12345b]">
+                    {viewModalStaff.displayName}
                   </h3>
-                  <p className="text-xs font-semibold text-[#64748b]">
-                    Enter contact and emergency details for the new staff member
-                  </p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-xs font-bold text-[#64748b]">
+                      {viewModalStaff.role || viewModalStaff.position || 'Staff Member'}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[#dcfce7] text-[#15803d]">
+                      {viewModalStaff.status || 'Active'}
+                    </span>
+                  </div>
                 </div>
               </div>
               <button
-                type="button"
-                onClick={() => setShowAddModal(false)}
-                className="p-1.5 text-[#64748b] hover:text-[#0f172a] hover:bg-[#f1f5f9] rounded-lg"
+                onClick={() => setViewModalStaff(null)}
+                className="text-[#64748b] hover:text-[#12345b] p-1.5 rounded-lg"
               >
                 <X size={20} />
               </button>
             </div>
 
-            <form onSubmit={handleCreateStaff} className="mt-5 space-y-4">
-              {/* Row 1: Name */}
+            {/* Profile Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              <div className="p-3 bg-[#f8fafc] rounded-xl border border-[#e2e8f0]">
+                <div className="flex items-center gap-1.5 text-[#64748b] font-bold mb-1">
+                  <Phone size={13} />
+                  <span>Personal Phone</span>
+                </div>
+                <div className="text-sm font-black text-[#0f172a]">
+                  {viewModalStaff.personalPhone || viewModalStaff.phone || '—'}
+                </div>
+              </div>
+
+              <div className="p-3 bg-[#f8fafc] rounded-xl border border-[#e2e8f0]">
+                <div className="flex items-center gap-1.5 text-[#64748b] font-bold mb-1">
+                  <Phone size={13} />
+                  <span>Work Phone</span>
+                </div>
+                <div className="text-sm font-black text-[#0f172a]">
+                  {viewModalStaff.workPhone || '(441) 295-4141'}
+                </div>
+              </div>
+
+              <div className="p-3 bg-[#f8fafc] rounded-xl border border-[#e2e8f0]">
+                <div className="flex items-center gap-1.5 text-[#64748b] font-bold mb-1">
+                  <Mail size={13} />
+                  <span>Work Email</span>
+                </div>
+                <div className="text-sm font-black text-[#1d4ed8] break-all">
+                  {viewModalStaff.email || '—'}
+                </div>
+              </div>
+
+              <div className="p-3 bg-[#f8fafc] rounded-xl border border-[#e2e8f0]">
+                <div className="flex items-center gap-1.5 text-[#64748b] font-bold mb-1">
+                  <Calendar size={13} />
+                  <span>Hire Date</span>
+                </div>
+                <div className="text-sm font-black text-[#0f172a]">
+                  {formatDateLabel(viewModalStaff.hireDate || viewModalStaff.startDate || '')}
+                </div>
+              </div>
+
+              <div className="sm:col-span-2 p-3 bg-[#f8fafc] rounded-xl border border-[#e2e8f0]">
+                <div className="flex items-center gap-1.5 text-[#64748b] font-bold mb-1">
+                  <MapPin size={13} />
+                  <span>Physical Address</span>
+                </div>
+                <div className="text-sm font-semibold text-[#0f172a]">
+                  {viewModalStaff.address || '—'}
+                </div>
+              </div>
+
+              <div className="sm:col-span-2 p-3 bg-[#fff7ed] rounded-xl border border-[#ffedd5]">
+                <div className="flex items-center gap-1.5 text-[#c2410c] font-bold mb-1">
+                  <ShieldAlert size={13} />
+                  <span>Emergency Contact</span>
+                </div>
+                <div className="text-sm font-bold text-[#7c2d12]">
+                  {viewModalStaff.emergencyName || viewModalStaff.emergencyContactName || '—'}{' '}
+                  {viewModalStaff.emergencyRelation && `(${viewModalStaff.emergencyRelation})`}
+                </div>
+                <div className="text-xs text-[#9a3412] mt-0.5">
+                  Phone: {viewModalStaff.emergencyPhone || viewModalStaff.emergencyContactPhone || '—'}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#e2e8f0]">
+              <button
+                type="button"
+                onClick={() => {
+                  const s = viewModalStaff;
+                  setViewModalStaff(null);
+                  setEditModalStaff({ ...s });
+                }}
+                className="px-4 py-2 bg-[#1d4ed8] hover:bg-[#1e40af] text-white text-xs font-extrabold rounded-xl shadow-sm transition-all"
+              >
+                Edit Staff Details
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewModalStaff(null)}
+                className="px-4 py-2 border border-[#cbd5e1] text-[#475569] text-xs font-bold rounded-xl hover:bg-[#f8fafc]"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT MODAL */}
+      {editModalStaff && (
+        <div className="fixed inset-0 bg-[#0b1d31]/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-[#d7e2ec] rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto animate-fadeIn">
+            <div className="flex items-center justify-between border-b border-[#e2e8f0] pb-3">
+              <h3 className="text-lg font-black text-[#12345b]">
+                Edit Staff Member
+              </h3>
+              <button
+                onClick={() => setEditModalStaff(null)}
+                className="text-[#64748b] hover:text-[#12345b] p-1 rounded-lg"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditModal} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-[#456078] mb-1">
-                    First Name *
-                  </label>
+                  <label className="block text-xs font-bold text-[#334155] mb-1">First Name *</label>
                   <input
                     type="text"
                     required
-                    value={newStaffForm.firstName}
-                    onChange={e => setNewStaffForm({ ...newStaffForm, firstName: e.target.value })}
-                    placeholder="First name"
-                    className="w-full px-3.5 py-2 bg-white border border-[#bdcbd9] rounded-xl text-sm font-semibold text-[#0f172a] focus:outline-none focus:border-[#1d4ed8]"
+                    value={editModalStaff.firstName || ''}
+                    onChange={e => setEditModalStaff({ ...editModalStaff, firstName: e.target.value })}
+                    className="w-full px-3 py-2 border border-[#cbd5e1] rounded-xl text-xs font-semibold focus:outline-none focus:border-[#1d4ed8]"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-[#456078] mb-1">
-                    Middle Initial
-                  </label>
+                  <label className="block text-xs font-bold text-[#334155] mb-1">Middle Initial</label>
                   <input
                     type="text"
                     maxLength={3}
-                    value={newStaffForm.middleInitial}
-                    onChange={e => setNewStaffForm({ ...newStaffForm, middleInitial: e.target.value })}
-                    placeholder="M.I."
-                    className="w-full px-3.5 py-2 bg-white border border-[#bdcbd9] rounded-xl text-sm font-semibold text-[#0f172a] focus:outline-none focus:border-[#1d4ed8]"
+                    value={editModalStaff.middleInitial || ''}
+                    onChange={e => setEditModalStaff({ ...editModalStaff, middleInitial: e.target.value })}
+                    className="w-full px-3 py-2 border border-[#cbd5e1] rounded-xl text-xs font-semibold focus:outline-none focus:border-[#1d4ed8]"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-[#456078] mb-1">
-                    Last Name
-                  </label>
+                  <label className="block text-xs font-bold text-[#334155] mb-1">Last Name</label>
                   <input
                     type="text"
-                    value={newStaffForm.lastName}
-                    onChange={e => setNewStaffForm({ ...newStaffForm, lastName: e.target.value })}
-                    placeholder="Last name"
-                    className="w-full px-3.5 py-2 bg-white border border-[#bdcbd9] rounded-xl text-sm font-semibold text-[#0f172a] focus:outline-none focus:border-[#1d4ed8]"
+                    value={editModalStaff.lastName || ''}
+                    onChange={e => setEditModalStaff({ ...editModalStaff, lastName: e.target.value })}
+                    className="w-full px-3 py-2 border border-[#cbd5e1] rounded-xl text-xs font-semibold focus:outline-none focus:border-[#1d4ed8]"
                   />
                 </div>
               </div>
 
-              {/* Row 2: Role, Status, Hire Date */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-[#456078] mb-1">
-                    Job Title / Role
-                  </label>
+                  <label className="block text-xs font-bold text-[#334155] mb-1">Job Role / Position</label>
                   <input
                     type="text"
-                    value={newStaffForm.role}
-                    onChange={e => setNewStaffForm({ ...newStaffForm, role: e.target.value })}
-                    placeholder="e.g. Dispatcher"
-                    className="w-full px-3.5 py-2 bg-white border border-[#bdcbd9] rounded-xl text-sm font-semibold text-[#0f172a] focus:outline-none focus:border-[#1d4ed8]"
+                    value={editModalStaff.role || editModalStaff.position || ''}
+                    onChange={e => setEditModalStaff({ ...editModalStaff, role: e.target.value, position: e.target.value })}
+                    className="w-full px-3 py-2 border border-[#cbd5e1] rounded-xl text-xs font-semibold focus:outline-none focus:border-[#1d4ed8]"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-[#456078] mb-1">
-                    Status
-                  </label>
+                  <label className="block text-xs font-bold text-[#334155] mb-1">Status</label>
                   <select
-                    value={newStaffForm.status}
-                    onChange={e => setNewStaffForm({ ...newStaffForm, status: e.target.value })}
-                    className="w-full px-3.5 py-2 bg-white border border-[#bdcbd9] rounded-xl text-sm font-semibold text-[#0f172a] focus:outline-none focus:border-[#1d4ed8]"
+                    value={editModalStaff.status || 'Active'}
+                    onChange={e => setEditModalStaff({ ...editModalStaff, status: e.target.value })}
+                    className="w-full px-3 py-2 border border-[#cbd5e1] rounded-xl text-xs font-semibold focus:outline-none focus:border-[#1d4ed8] bg-white"
                   >
                     <option value="Active">Active</option>
                     <option value="On Leave">On Leave</option>
@@ -1035,125 +1146,323 @@ export const StaffContacts: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-[#456078] mb-1">
-                    Hire Date
-                  </label>
+                  <label className="block text-xs font-bold text-[#334155] mb-1">Hire Date</label>
                   <input
                     type="date"
-                    value={newStaffForm.hireDate}
-                    onChange={e => setNewStaffForm({ ...newStaffForm, hireDate: e.target.value })}
-                    className="w-full px-3.5 py-2 bg-white border border-[#bdcbd9] rounded-xl text-sm font-semibold text-[#0f172a] focus:outline-none focus:border-[#1d4ed8]"
+                    value={editModalStaff.hireDate || editModalStaff.startDate || ''}
+                    onChange={e => setEditModalStaff({ ...editModalStaff, hireDate: e.target.value, startDate: e.target.value })}
+                    className="w-full px-3 py-2 border border-[#cbd5e1] rounded-xl text-xs font-semibold focus:outline-none focus:border-[#1d4ed8]"
                   />
                 </div>
               </div>
 
-              {/* Row 3: Phones & Email */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-[#456078] mb-1">
-                    Personal Phone
-                  </label>
+                  <label className="block text-xs font-bold text-[#334155] mb-1">Personal Phone</label>
                   <input
                     type="tel"
-                    value={newStaffForm.personalPhone}
-                    onChange={e => setNewStaffForm({ ...newStaffForm, personalPhone: e.target.value })}
+                    value={editModalStaff.personalPhone || editModalStaff.phone || ''}
+                    onChange={e => setEditModalStaff({ ...editModalStaff, personalPhone: e.target.value, phone: e.target.value })}
                     placeholder="(441) 500-0000"
-                    className="w-full px-3.5 py-2 bg-white border border-[#bdcbd9] rounded-xl text-sm font-semibold text-[#0f172a] focus:outline-none focus:border-[#1d4ed8]"
+                    className="w-full px-3 py-2 border border-[#cbd5e1] rounded-xl text-xs font-semibold focus:outline-none focus:border-[#1d4ed8]"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-[#456078] mb-1">
-                    Work Phone
-                  </label>
+                  <label className="block text-xs font-bold text-[#334155] mb-1">Work Phone</label>
                   <input
                     type="tel"
-                    value={newStaffForm.workPhone}
-                    onChange={e => setNewStaffForm({ ...newStaffForm, workPhone: e.target.value })}
-                    placeholder="(441) 295-4141"
-                    className="w-full px-3.5 py-2 bg-white border border-[#bdcbd9] rounded-xl text-sm font-semibold text-[#0f172a] focus:outline-none focus:border-[#1d4ed8]"
+                    value={editModalStaff.workPhone || '(441) 295-4141'}
+                    onChange={e => setEditModalStaff({ ...editModalStaff, workPhone: e.target.value })}
+                    className="w-full px-3 py-2 border border-[#cbd5e1] rounded-xl text-xs font-semibold focus:outline-none focus:border-[#1d4ed8]"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-[#456078] mb-1">
-                    Work Email
-                  </label>
+                  <label className="block text-xs font-bold text-[#334155] mb-1">Email</label>
                   <input
                     type="email"
-                    value={newStaffForm.email}
-                    onChange={e => setNewStaffForm({ ...newStaffForm, email: e.target.value })}
-                    placeholder="name@centraldispatch.bm"
-                    className="w-full px-3.5 py-2 bg-white border border-[#bdcbd9] rounded-xl text-sm font-semibold text-[#0f172a] focus:outline-none focus:border-[#1d4ed8]"
+                    value={editModalStaff.email || ''}
+                    onChange={e => setEditModalStaff({ ...editModalStaff, email: e.target.value })}
+                    className="w-full px-3 py-2 border border-[#cbd5e1] rounded-xl text-xs font-semibold focus:outline-none focus:border-[#1d4ed8]"
                   />
                 </div>
               </div>
 
-              {/* Row 4: Address */}
               <div>
-                <label className="block text-xs font-bold text-[#456078] mb-1">
-                  Physical / Mailing Address
-                </label>
+                <label className="block text-xs font-bold text-[#334155] mb-1">Address</label>
                 <input
                   type="text"
-                  value={newStaffForm.address}
-                  onChange={e => setNewStaffForm({ ...newStaffForm, address: e.target.value })}
-                  placeholder="3 Laffan Street, Pembroke HM09, Bermuda"
-                  className="w-full px-3.5 py-2 bg-white border border-[#bdcbd9] rounded-xl text-sm font-semibold text-[#0f172a] focus:outline-none focus:border-[#1d4ed8]"
+                  value={editModalStaff.address || ''}
+                  onChange={e => setEditModalStaff({ ...editModalStaff, address: e.target.value })}
+                  placeholder="Address, Parish, Bermuda"
+                  className="w-full px-3 py-2 border border-[#cbd5e1] rounded-xl text-xs font-semibold focus:outline-none focus:border-[#1d4ed8]"
                 />
               </div>
 
-              {/* Row 5: Emergency Contacts */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-[#456078] mb-1">
-                    Emergency Contact Name
-                  </label>
+                  <label className="block text-xs font-bold text-[#334155] mb-1">Emergency Name</label>
                   <input
                     type="text"
-                    value={newStaffForm.emergencyName}
-                    onChange={e => setNewStaffForm({ ...newStaffForm, emergencyName: e.target.value })}
-                    placeholder="Full name"
-                    className="w-full px-3.5 py-2 bg-white border border-[#bdcbd9] rounded-xl text-sm font-semibold text-[#0f172a] focus:outline-none focus:border-[#1d4ed8]"
+                    value={editModalStaff.emergencyName || editModalStaff.emergencyContactName || ''}
+                    onChange={e => setEditModalStaff({ ...editModalStaff, emergencyName: e.target.value, emergencyContactName: e.target.value })}
+                    className="w-full px-3 py-2 border border-[#cbd5e1] rounded-xl text-xs font-semibold focus:outline-none focus:border-[#1d4ed8]"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-[#456078] mb-1">
-                    Emergency Phone
-                  </label>
+                  <label className="block text-xs font-bold text-[#334155] mb-1">Emergency Phone</label>
                   <input
                     type="tel"
-                    value={newStaffForm.emergencyPhone}
-                    onChange={e => setNewStaffForm({ ...newStaffForm, emergencyPhone: e.target.value })}
-                    placeholder="(441) 500-0000"
-                    className="w-full px-3.5 py-2 bg-white border border-[#bdcbd9] rounded-xl text-sm font-semibold text-[#0f172a] focus:outline-none focus:border-[#1d4ed8]"
+                    value={editModalStaff.emergencyPhone || editModalStaff.emergencyContactPhone || ''}
+                    onChange={e => setEditModalStaff({ ...editModalStaff, emergencyPhone: e.target.value, emergencyContactPhone: e.target.value })}
+                    className="w-full px-3 py-2 border border-[#cbd5e1] rounded-xl text-xs font-semibold focus:outline-none focus:border-[#1d4ed8]"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-[#456078] mb-1">
-                    Relationship
-                  </label>
+                  <label className="block text-xs font-bold text-[#334155] mb-1">Relationship</label>
                   <input
                     type="text"
-                    value={newStaffForm.emergencyRelation}
-                    onChange={e => setNewStaffForm({ ...newStaffForm, emergencyRelation: e.target.value })}
-                    placeholder="Spouse / Parent / Sibling"
-                    className="w-full px-3.5 py-2 bg-white border border-[#bdcbd9] rounded-xl text-sm font-semibold text-[#0f172a] focus:outline-none focus:border-[#1d4ed8]"
+                    value={editModalStaff.emergencyRelation || editModalStaff.emergencyContactRelation || ''}
+                    onChange={e => setEditModalStaff({ ...editModalStaff, emergencyRelation: e.target.value, emergencyContactRelation: e.target.value })}
+                    className="w-full px-3 py-2 border border-[#cbd5e1] rounded-xl text-xs font-semibold focus:outline-none focus:border-[#1d4ed8]"
                   />
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#e2e8f0]">
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#e2e8f0]">
                 <button
                   type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 text-sm font-bold text-[#64748b] hover:text-[#0f172a] hover:bg-[#f1f5f9] rounded-xl"
+                  onClick={() => setEditModalStaff(null)}
+                  className="px-4 py-2 border border-[#cbd5e1] text-[#475569] text-xs font-bold rounded-xl hover:bg-[#f8fafc]"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 bg-[#1d4ed8] hover:bg-[#1e40af] text-white text-sm font-extrabold rounded-xl shadow-md transition-all active:scale-95"
+                  className="px-5 py-2 bg-[#1d4ed8] hover:bg-[#1e40af] text-white text-xs font-extrabold rounded-xl shadow-md active:scale-95"
                 >
-                  Save Staff Member
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE CONFIRMATION MODAL */}
+      {deleteTargetStaff && (
+        <div className="fixed inset-0 bg-[#0b1d31]/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-[#d7e2ec] rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-fadeIn">
+            <div className="flex items-center gap-3 text-[#dc2626]">
+              <div className="w-10 h-10 rounded-full bg-[#fef2f2] flex items-center justify-center flex-shrink-0">
+                <AlertCircle className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-[#12345b]">
+                  Delete Staff Member?
+                </h3>
+                <p className="text-xs text-[#64748b]">This action will delete the staff record from MySQL database.</p>
+              </div>
+            </div>
+
+            <p className="text-sm font-semibold text-[#334155]">
+              Are you sure you want to delete{' '}
+              <span className="font-extrabold text-[#0f172a]">{deleteTargetStaff.displayName}</span>?
+            </p>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteTargetStaff(null)}
+                className="px-4 py-2 border border-[#cbd5e1] text-[#475569] font-bold text-sm rounded-xl hover:bg-[#f8fafc]"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                className="px-5 py-2 bg-[#dc2626] hover:bg-[#b91c1c] text-white font-bold text-sm rounded-xl shadow-md active:scale-95"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ADD STAFF MODAL */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-[#0b1d31]/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-[#d7e2ec] rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto animate-fadeIn">
+            <div className="flex items-center justify-between border-b border-[#e2e8f0] pb-3">
+              <h3 className="text-lg font-black text-[#12345b]">
+                Add New Staff Member
+              </h3>
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="text-[#64748b] hover:text-[#12345b] p-1 rounded-lg"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateStaff} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-[#334155] mb-1">First Name *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="First name"
+                    value={newStaffForm.firstName}
+                    onChange={e => setNewStaffForm({ ...newStaffForm, firstName: e.target.value })}
+                    className="w-full px-3 py-2 border border-[#cbd5e1] rounded-xl text-xs font-semibold focus:outline-none focus:border-[#1d4ed8]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-[#334155] mb-1">Middle Initial</label>
+                  <input
+                    type="text"
+                    maxLength={3}
+                    placeholder="M.I."
+                    value={newStaffForm.middleInitial}
+                    onChange={e => setNewStaffForm({ ...newStaffForm, middleInitial: e.target.value })}
+                    className="w-full px-3 py-2 border border-[#cbd5e1] rounded-xl text-xs font-semibold focus:outline-none focus:border-[#1d4ed8]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-[#334155] mb-1">Last Name</label>
+                  <input
+                    type="text"
+                    placeholder="Last name"
+                    value={newStaffForm.lastName}
+                    onChange={e => setNewStaffForm({ ...newStaffForm, lastName: e.target.value })}
+                    className="w-full px-3 py-2 border border-[#cbd5e1] rounded-xl text-xs font-semibold focus:outline-none focus:border-[#1d4ed8]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-[#334155] mb-1">Job Role / Position</label>
+                  <input
+                    type="text"
+                    value={newStaffForm.role}
+                    onChange={e => setNewStaffForm({ ...newStaffForm, role: e.target.value })}
+                    className="w-full px-3 py-2 border border-[#cbd5e1] rounded-xl text-xs font-semibold focus:outline-none focus:border-[#1d4ed8]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-[#334155] mb-1">Status</label>
+                  <select
+                    value={newStaffForm.status}
+                    onChange={e => setNewStaffForm({ ...newStaffForm, status: e.target.value })}
+                    className="w-full px-3 py-2 border border-[#cbd5e1] rounded-xl text-xs font-semibold focus:outline-none focus:border-[#1d4ed8] bg-white"
+                  >
+                    <option value="Active">Active</option>
+                    <option value="On Leave">On Leave</option>
+                    <option value="Inactive">Inactive</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-[#334155] mb-1">Hire Date</label>
+                  <input
+                    type="date"
+                    value={newStaffForm.hireDate}
+                    onChange={e => setNewStaffForm({ ...newStaffForm, hireDate: e.target.value })}
+                    className="w-full px-3 py-2 border border-[#cbd5e1] rounded-xl text-xs font-semibold focus:outline-none focus:border-[#1d4ed8]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-[#334155] mb-1">Personal Phone</label>
+                  <input
+                    type="tel"
+                    placeholder="(441) 500-0000"
+                    value={newStaffForm.personalPhone}
+                    onChange={e => setNewStaffForm({ ...newStaffForm, personalPhone: e.target.value })}
+                    className="w-full px-3 py-2 border border-[#cbd5e1] rounded-xl text-xs font-semibold focus:outline-none focus:border-[#1d4ed8]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-[#334155] mb-1">Work Phone</label>
+                  <input
+                    type="tel"
+                    value={newStaffForm.workPhone}
+                    onChange={e => setNewStaffForm({ ...newStaffForm, workPhone: e.target.value })}
+                    className="w-full px-3 py-2 border border-[#cbd5e1] rounded-xl text-xs font-semibold focus:outline-none focus:border-[#1d4ed8]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-[#334155] mb-1">Email</label>
+                  <input
+                    type="email"
+                    placeholder="email@centraldispatch.bm"
+                    value={newStaffForm.email}
+                    onChange={e => setNewStaffForm({ ...newStaffForm, email: e.target.value })}
+                    className="w-full px-3 py-2 border border-[#cbd5e1] rounded-xl text-xs font-semibold focus:outline-none focus:border-[#1d4ed8]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#334155] mb-1">Address</label>
+                <input
+                  type="text"
+                  placeholder="Address, Parish, Bermuda"
+                  value={newStaffForm.address}
+                  onChange={e => setNewStaffForm({ ...newStaffForm, address: e.target.value })}
+                  className="w-full px-3 py-2 border border-[#cbd5e1] rounded-xl text-xs font-semibold focus:outline-none focus:border-[#1d4ed8]"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-[#334155] mb-1">Emergency Name</label>
+                  <input
+                    type="text"
+                    placeholder="Full name"
+                    value={newStaffForm.emergencyName}
+                    onChange={e => setNewStaffForm({ ...newStaffForm, emergencyName: e.target.value })}
+                    className="w-full px-3 py-2 border border-[#cbd5e1] rounded-xl text-xs font-semibold focus:outline-none focus:border-[#1d4ed8]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-[#334155] mb-1">Emergency Phone</label>
+                  <input
+                    type="tel"
+                    placeholder="(441) 500-0000"
+                    value={newStaffForm.emergencyPhone}
+                    onChange={e => setNewStaffForm({ ...newStaffForm, emergencyPhone: e.target.value })}
+                    className="w-full px-3 py-2 border border-[#cbd5e1] rounded-xl text-xs font-semibold focus:outline-none focus:border-[#1d4ed8]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-[#334155] mb-1">Relationship</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Spouse"
+                    value={newStaffForm.emergencyRelation}
+                    onChange={e => setNewStaffForm({ ...newStaffForm, emergencyRelation: e.target.value })}
+                    className="w-full px-3 py-2 border border-[#cbd5e1] rounded-xl text-xs font-semibold focus:outline-none focus:border-[#1d4ed8]"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#e2e8f0]">
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="px-4 py-2 border border-[#cbd5e1] text-[#475569] text-xs font-bold rounded-xl hover:bg-[#f8fafc]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-[#1d4ed8] hover:bg-[#1e40af] text-white text-xs font-extrabold rounded-xl shadow-md active:scale-95"
+                >
+                  Create Staff Member
                 </button>
               </div>
             </form>
@@ -1163,4 +1472,3 @@ export const StaffContacts: React.FC = () => {
     </div>
   );
 };
-

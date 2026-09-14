@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { employeeService } from '../services/employeeService';
 import { useToast } from '../context/ToastContext';
 import { Employee } from '../types';
-import { AlertCircle, X, Eye, Edit3, Trash2, Phone, Mail, MapPin, Calendar, ShieldAlert } from 'lucide-react';
+import { AlertCircle, X, Eye, Edit3, Trash2, Phone, Mail, MapPin, Calendar, ShieldAlert, MoreVertical } from 'lucide-react';
 
 interface EmployeeFormData {
   id?: string;
@@ -27,9 +27,20 @@ export const Employees: React.FC = () => {
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [viewModalEmployee, setViewModalEmployee] = useState<Employee | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null);
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [formData, setFormData] = useState<EmployeeFormData>(emptyForm);
   const [loading, setLoading] = useState(false);
   const { showToast } = useToast();
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest('.employee-action-menu')) {
+        setActiveMenuId(null);
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
 
   const loadData = async () => {
     try {
@@ -165,7 +176,7 @@ export const Employees: React.FC = () => {
                 <th className="py-3.5 px-5 font-bold">Email</th>
                 <th className="py-3.5 px-5 font-bold">Address</th>
                 <th className="py-3.5 px-5 font-bold text-center">Status</th>
-                <th className="py-3.5 px-5 font-bold text-center w-48">Actions</th>
+                <th className="py-3.5 px-5 font-bold text-center w-20">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#edf2f7]">
@@ -220,36 +231,59 @@ export const Employees: React.FC = () => {
                       </span>
                     </td>
 
-                    {/* Actions: View, Edit & Delete */}
-                    <td className="py-3.5 px-5 text-center whitespace-nowrap">
-                      <div className="inline-flex items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => setViewModalEmployee(emp)}
-                          className="px-2.5 py-1 bg-white hover:bg-[#f1f5f9] text-[#1e293b] font-bold text-xs rounded-lg border border-[#cbd5e1] transition-all shadow-xs flex items-center gap-1"
-                        >
-                          <Eye size={13} className="text-[#64748b]" />
-                          <span>View</span>
-                        </button>
+                    {/* 3-Dot Actions Menu */}
+                    <td className="py-3.5 px-5 text-center relative employee-action-menu" onClick={e => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        onClick={() => setActiveMenuId(activeMenuId === emp.id ? null : emp.id)}
+                        className="p-2 rounded-xl border border-[#cbd5e1] bg-white hover:bg-[#f1f5f9] text-[#1e293b] hover:text-[#1d4ed8] transition-all shadow-2xs inline-flex items-center justify-center cursor-pointer"
+                        title="Options"
+                      >
+                        <MoreVertical className="w-4 h-4" />
+                      </button>
 
-                        <button
-                          type="button"
-                          onClick={() => openEditModal(emp)}
-                          className="px-2.5 py-1 bg-white hover:bg-[#eff6ff] text-[#1d4ed8] font-bold text-xs rounded-lg border border-[#bfdbfe] transition-all shadow-xs flex items-center gap-1"
-                        >
-                          <Edit3 size={13} className="text-[#1d4ed8]" />
-                          <span>Edit</span>
-                        </button>
+                      {/* Dropdown Menu */}
+                      {activeMenuId === emp.id && (
+                        <div className="absolute right-6 top-12 w-44 bg-white border border-[#d7e2ec] rounded-xl shadow-xl py-1.5 z-30 animate-fadeIn text-left">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveMenuId(null);
+                              setViewModalEmployee(emp);
+                            }}
+                            className="w-full px-3.5 py-2 text-xs font-bold text-[#334155] hover:bg-[#f1f5f9] hover:text-[#12345b] flex items-center gap-2.5 transition-colors"
+                          >
+                            <Eye className="w-3.5 h-3.5 text-[#64748b]" />
+                            <span>View Details</span>
+                          </button>
 
-                        <button
-                          type="button"
-                          onClick={() => setDeleteTarget(emp)}
-                          className="px-2.5 py-1 bg-white hover:bg-[#fef2f2] text-[#dc2626] font-bold text-xs rounded-lg border border-[#fecaca] transition-all shadow-xs flex items-center gap-1"
-                        >
-                          <Trash2 size={13} className="text-[#dc2626]" />
-                          <span>Delete</span>
-                        </button>
-                      </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveMenuId(null);
+                              openEditModal(emp);
+                            }}
+                            className="w-full px-3.5 py-2 text-xs font-bold text-[#1d4ed8] hover:bg-[#eff6ff] flex items-center gap-2.5 transition-colors"
+                          >
+                            <Edit3 className="w-3.5 h-3.5 text-[#1d4ed8]" />
+                            <span>Edit Record</span>
+                          </button>
+
+                          <div className="my-1 border-t border-[#edf2f7]" />
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveMenuId(null);
+                              setDeleteTarget(emp);
+                            }}
+                            className="w-full px-3.5 py-2 text-xs font-bold text-[#dc2626] hover:bg-[#fef2f2] flex items-center gap-2.5 transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-[#dc2626]" />
+                            <span>Delete Employee</span>
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))

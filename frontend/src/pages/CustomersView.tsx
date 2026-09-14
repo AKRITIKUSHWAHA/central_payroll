@@ -4,7 +4,7 @@ import { accountingService } from '../services/accountingService';
 import { companyService } from '../services/companyService';
 import { useToast } from '../context/ToastContext';
 import { Customer } from '../types';
-import { X, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, AlertCircle, ChevronLeft, ChevronRight, MoreVertical, Eye, Edit3, Trash2 } from 'lucide-react';
 
 const cleanPhone = (phone?: string): string => {
   if (!phone) return '';
@@ -20,6 +20,7 @@ export const CustomersView: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>(() => accountingService.getSelectedCustomerId() || '');
   const [customers, setCustomers] = useState<Customer[]>(() => accountingService.getCustomers());
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   
   // Pagination State
   const [pageSize, setPageSize] = useState<number>(50);
@@ -31,6 +32,16 @@ export const CustomersView: React.FC = () => {
   const [deleteTarget, setDeleteTarget] = useState<Customer | null>(null);
 
   const ledgerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest('.customer-action-menu')) {
+        setActiveMenuId(null);
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
 
   // Load customers from backend
   const loadCustomers = async () => {
@@ -327,7 +338,7 @@ export const CustomersView: React.FC = () => {
                 <th className="py-3.5 px-4 font-bold min-w-[160px]">Customer Note</th>
                 <th className="py-3.5 px-4 font-bold text-center w-[90px]">Status</th>
                 <th className="py-3.5 px-4 font-bold text-right w-[120px]">Balance</th>
-                <th className="py-3.5 px-4 font-bold text-center w-[120px]">Actions</th>
+                <th className="py-3.5 px-4 font-bold text-center w-[80px]">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#edf2f7]">
@@ -375,9 +386,9 @@ export const CustomersView: React.FC = () => {
                       </td>
 
                       {/* Email */}
-                      <td className="py-3.5 px-4 text-xs text-[#334155]">
+                      <td className="py-3.5 px-4 text-xs font-semibold text-[#334155] whitespace-nowrap">
                         {c.email ? (
-                          <a href={`mailto:${c.email}`} className="text-[#0284c7] hover:underline break-all">
+                          <a href={`mailto:${c.email}`} className="text-[#0284c7] hover:underline">
                             {c.email}
                           </a>
                         ) : (
@@ -413,22 +424,59 @@ export const CustomersView: React.FC = () => {
                         {formatMoney(bal)}
                       </td>
 
-                      {/* Stacked Action Buttons */}
-                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                        <div className="flex flex-col items-center gap-1.5">
-                          <button
-                            onClick={() => handleOpenEditModal(c)}
-                            className="w-24 px-2 py-1 bg-white hover:bg-[#f1f5f9] text-[#1e293b] font-bold text-xs rounded-lg border border-[#cbd5e1] transition-all shadow-xs"
-                          >
-                            Edit / Note
-                          </button>
-                          <button
-                            onClick={() => setDeleteTarget(c)}
-                            className="w-24 px-2 py-1 bg-white hover:bg-[#fef2f2] text-[#dc2626] font-bold text-xs rounded-lg border border-[#fecaca] transition-all shadow-xs"
-                          >
-                            Delete
-                          </button>
-                        </div>
+                      {/* 3-Dot Actions Menu */}
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap relative customer-action-menu" onClick={e => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={() => setActiveMenuId(activeMenuId === c.id ? null : c.id)}
+                          className="p-2 rounded-xl border border-[#cbd5e1] bg-white hover:bg-[#f1f5f9] text-[#1e293b] hover:text-[#1d4ed8] transition-all shadow-2xs inline-flex items-center justify-center cursor-pointer"
+                          title="Customer Options"
+                        >
+                          <MoreVertical className="w-4 h-4" />
+                        </button>
+
+                        {/* Dropdown Menu */}
+                        {activeMenuId === c.id && (
+                          <div className="absolute right-6 top-12 w-48 bg-white border border-[#d7e2ec] rounded-xl shadow-xl py-1.5 z-30 animate-fadeIn text-left">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveMenuId(null);
+                                handleSelectCustomer(c.id);
+                              }}
+                              className="w-full px-3.5 py-2 text-xs font-bold text-[#334155] hover:bg-[#f1f5f9] hover:text-[#12345b] flex items-center gap-2.5 transition-colors"
+                            >
+                              <Eye className="w-3.5 h-3.5 text-[#64748b]" />
+                              <span>View Ledger</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveMenuId(null);
+                                handleOpenEditModal(c);
+                              }}
+                              className="w-full px-3.5 py-2 text-xs font-bold text-[#1d4ed8] hover:bg-[#eff6ff] flex items-center gap-2.5 transition-colors"
+                            >
+                              <Edit3 className="w-3.5 h-3.5 text-[#1d4ed8]" />
+                              <span>Edit / Note</span>
+                            </button>
+
+                            <div className="my-1 border-t border-[#edf2f7]" />
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveMenuId(null);
+                                setDeleteTarget(c);
+                              }}
+                              className="w-full px-3.5 py-2 text-xs font-bold text-[#dc2626] hover:bg-[#fef2f2] flex items-center gap-2.5 transition-colors"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 text-[#dc2626]" />
+                              <span>Delete Customer</span>
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   );

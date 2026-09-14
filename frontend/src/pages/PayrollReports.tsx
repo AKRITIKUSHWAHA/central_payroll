@@ -78,27 +78,27 @@ export const PayrollReports: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-12">
+    <div className="space-y-5 sm:space-y-6 max-w-7xl mx-auto pb-12 w-full">
       {/* 1. Workspace Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#12345b] tracking-tight">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-[#12345b] tracking-tight">
             Payroll Reports
           </h1>
-          <p className="text-sm font-semibold text-[#1d4ed8] mt-1">
+          <p className="text-xs sm:text-sm font-semibold text-[#1d4ed8] mt-1">
             Review processed payroll and download the current payroll report.
           </p>
         </div>
-        <div className="flex items-center gap-2.5 self-start sm:self-auto">
+        <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto w-full sm:w-auto">
           <button
             onClick={handleExportExcel}
-            className="px-5 py-2.5 bg-[#1d4ed8] hover:bg-[#1e40af] text-white text-sm font-extrabold rounded-xl transition-all shadow-md active:scale-95"
+            className="flex-1 sm:flex-initial px-4 py-2.5 bg-[#1d4ed8] hover:bg-[#1e40af] text-white text-xs sm:text-sm font-extrabold rounded-xl transition-all shadow-md active:scale-95 text-center cursor-pointer whitespace-nowrap"
           >
             Export Current to Excel
           </button>
           <button
             onClick={handlePrint}
-            className="px-4 py-2.5 bg-white hover:bg-[#f8fafc] text-[#1e293b] border border-[#cbd5e1] text-sm font-extrabold rounded-xl transition-all shadow-xs"
+            className="flex-1 sm:flex-initial px-4 py-2.5 bg-white hover:bg-[#f8fafc] text-[#1e293b] border border-[#cbd5e1] text-xs sm:text-sm font-extrabold rounded-xl transition-all shadow-xs text-center cursor-pointer whitespace-nowrap"
           >
             Print Current Report
           </button>
@@ -106,27 +106,27 @@ export const PayrollReports: React.FC = () => {
       </div>
 
       {/* 2. 3 KPI Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4 w-full">
         {/* Processed Reports */}
-        <div className="bg-[#edf4fa] border border-[#d2e2f0] rounded-2xl p-5 shadow-sm">
-          <span className="text-xs sm:text-sm font-bold text-[#475569]">Processed Reports</span>
-          <div className="text-2xl sm:text-3xl font-extrabold text-[#12345b] tracking-tight mt-1.5">
+        <div className="bg-[#edf4fa] border border-[#d2e2f0] rounded-2xl p-4 sm:p-5 shadow-sm overflow-hidden flex flex-col justify-between">
+          <span className="text-xs sm:text-sm font-bold text-[#475569] truncate">Processed Reports</span>
+          <div className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-[#12345b] tracking-tight mt-1.5 tabular-nums truncate">
             {periods.length}
           </div>
         </div>
 
         {/* Current Gross */}
-        <div className="bg-[#edf4fa] border border-[#d2e2f0] rounded-2xl p-5 shadow-sm">
-          <span className="text-xs sm:text-sm font-bold text-[#475569]">Current Gross</span>
-          <div className="text-2xl sm:text-3xl font-extrabold text-[#12345b] tracking-tight mt-1.5">
+        <div className="bg-[#edf4fa] border border-[#d2e2f0] rounded-2xl p-4 sm:p-5 shadow-sm overflow-hidden flex flex-col justify-between">
+          <span className="text-xs sm:text-sm font-bold text-[#475569] truncate">Current Gross</span>
+          <div className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-[#12345b] tracking-tight mt-1.5 tabular-nums truncate" title={formatMoney(currentTotals.gross)}>
             {formatMoney(currentTotals.gross)}
           </div>
         </div>
 
         {/* Current Net */}
-        <div className="bg-[#edf4fa] border border-[#d2e2f0] rounded-2xl p-5 shadow-sm">
-          <span className="text-xs sm:text-sm font-bold text-[#475569]">Current Net</span>
-          <div className="text-2xl sm:text-3xl font-extrabold text-[#12345b] tracking-tight mt-1.5">
+        <div className="bg-[#edf4fa] border border-[#d2e2f0] rounded-2xl p-4 sm:p-5 shadow-sm overflow-hidden flex flex-col justify-between">
+          <span className="text-xs sm:text-sm font-bold text-[#475569] truncate">Current Net</span>
+          <div className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-[#12345b] tracking-tight mt-1.5 tabular-nums truncate" title={formatMoney(currentTotals.net)}>
             {formatMoney(currentTotals.net)}
           </div>
         </div>

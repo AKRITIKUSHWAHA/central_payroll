@@ -1,33 +1,10 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { accountingService } from '../services/accountingService';
+import { companyService } from '../services/companyService';
 import { useToast } from '../context/ToastContext';
 import { Customer } from '../types';
-import { 
-  Search, 
-  Plus, 
-  Download, 
-  Edit3, 
-  Trash2, 
-  Mail, 
-  FileText, 
-  DollarSign, 
-  X, 
-  Users, 
-  CheckCircle2, 
-  XCircle, 
-  Wallet, 
-  ChevronLeft, 
-  ChevronRight,
-  Eye,
-  RotateCcw,
-  Phone,
-  Building2,
-  Calendar,
-  Layers,
-  ArrowUpRight,
-  Receipt
-} from 'lucide-react';
+import { X, AlertCircle } from 'lucide-react';
 
 export const CustomersView: React.FC = () => {
   const navigate = useNavigate();
@@ -37,75 +14,84 @@ export const CustomersView: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>(() => accountingService.getSelectedCustomerId() || '');
+  const [customers, setCustomers] = useState<Customer[]>(() => accountingService.getCustomers());
   
   // Modal States
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isStatementModalOpen, setIsStatementModalOpen] = useState(false);
-  const [statementCustomer, setStatementCustomer] = useState<Customer | null>(null);
-  
-  // Pagination States
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState<number>(25);
+  const [deleteTarget, setDeleteTarget] = useState<Customer | null>(null);
 
   const ledgerRef = useRef<HTMLDivElement | null>(null);
 
-  // Raw list & filtered list
-  const allCustomers = useMemo(() => {
-    return accountingService.getCustomers();
+  // Load customers from backend
+  const loadCustomers = async () => {
+    const list = await accountingService.fetchCustomers();
+    if (list && list.length > 0) {
+      setCustomers(list);
+    }
+  };
+
+  useEffect(() => {
+    loadCustomers();
   }, []);
 
+  // Lock body background scroll whenever modal is open
+  useEffect(() => {
+    if (isModalOpen || deleteTarget) {
+      const prevOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = prevOverflow;
+      };
+    }
+  }, [isModalOpen, deleteTarget]);
+
+  // Filtered list
   const filteredCustomers = useMemo(() => {
-    return accountingService.searchCustomers(searchQuery, statusFilter);
-  }, [searchQuery, statusFilter, allCustomers]);
+    const q = searchQuery.toLowerCase().trim();
+    return customers.filter(c => {
+      const matchesStatus = !statusFilter || (c.status || 'Active') === statusFilter;
+      if (!matchesStatus) return false;
+      if (!q) return true;
+      const haystack = [
+        c.name,
+        c.customerName,
+        c.phone,
+        c.email,
+        c.billingAddress,
+        c.shippingAddress,
+        c.notes,
+        ...(c.aliases || []),
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [searchQuery, statusFilter, customers]);
 
   // Selected Customer & Ledgers
   const selectedCustomer = useMemo(() => {
-    return accountingService.getCustomerById(selectedCustomerId) || filteredCustomers[0] || allCustomers[0];
-  }, [selectedCustomerId, filteredCustomers, allCustomers]);
+    return accountingService.getCustomerById(selectedCustomerId) || filteredCustomers[0] || customers[0];
+  }, [selectedCustomerId, filteredCustomers, customers]);
 
   const ledgerEntries = useMemo(() => {
     return selectedCustomer ? accountingService.getCustomerLedgerEntries(selectedCustomer.id) : [];
   }, [selectedCustomer]);
 
-  // Modal Ledger Entries
-  const modalLedgerEntries = useMemo(() => {
-    return statementCustomer ? accountingService.getCustomerLedgerEntries(statementCustomer.id) : [];
-  }, [statementCustomer]);
-
-  // KPI Calculations
-  const activeCount = useMemo(() => allCustomers.filter(c => c.status === 'Active').length, [allCustomers]);
-  const inactiveCount = useMemo(() => allCustomers.filter(c => c.status === 'Inactive').length, [allCustomers]);
-  const totalReceivables = useMemo(() => {
-    return allCustomers.reduce((sum, c) => sum + accountingService.getCustomerBalance(c.id), 0);
-  }, [allCustomers]);
-
-  // Pagination calculation
-  const totalPages = Math.ceil(filteredCustomers.length / (pageSize === -1 ? filteredCustomers.length || 1 : pageSize)) || 1;
-  const paginatedCustomers = useMemo(() => {
-    if (pageSize === -1) return filteredCustomers;
-    const start = (currentPage - 1) * pageSize;
-    return filteredCustomers.slice(start, start + pageSize);
-  }, [filteredCustomers, currentPage, pageSize]);
-
   const formatMoney = (amount: number) => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'BMD' }).format(amount || 0);
+    const num = Number(amount) || 0;
+    return `BMD ${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  const handleSelectCustomer = (id: string, openModal = false) => {
+  const handleSelectCustomer = (id: string) => {
     setSelectedCustomerId(id);
     accountingService.setSelectedCustomerId(id);
-    const c = accountingService.getCustomerById(id);
-    if (openModal && c) {
-      setStatementCustomer(c);
-      setIsStatementModalOpen(true);
-    } else {
-      setTimeout(() => {
-        if (ledgerRef.current) {
-          ledgerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-      }, 100);
-    }
+    setTimeout(() => {
+      if (ledgerRef.current) {
+        ledgerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 100);
   };
 
   const handleOpenAddModal = () => {
@@ -128,7 +114,7 @@ export const CustomersView: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleSaveCustomer = (e: React.FormEvent) => {
+  const handleSaveCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingCustomer || !editingCustomer.name.trim()) return;
 
@@ -136,24 +122,44 @@ export const CustomersView: React.FC = () => {
     setIsModalOpen(false);
     showToast(editingCustomer.id ? `Customer "${saved.name}" updated successfully!` : `New customer "${saved.name}" created!`);
     setSelectedCustomerId(saved.id);
+    await loadCustomers();
   };
 
-  const handleDeleteCustomer = (id: string, name: string) => {
-    if (!window.confirm(`Are you sure you want to delete customer "${name}"?`)) return;
-    const res = accountingService.deleteCustomer(id);
+  const handleDeleteCustomer = async () => {
+    if (!deleteTarget) return;
+    const res = accountingService.deleteCustomer(deleteTarget.id);
     if (!res.success) {
       alert(res.message || 'Cannot delete customer.');
+      setDeleteTarget(null);
       return;
     }
-    showToast(`Customer "${name}" deleted.`);
+    showToast(`Customer "${deleteTarget.name}" deleted.`);
+    setDeleteTarget(null);
     setSelectedCustomerId(accountingService.getSelectedCustomerId());
+    await loadCustomers();
   };
 
-  const handleResetFilters = () => {
-    setSearchQuery('');
-    setStatusFilter('');
-    setCurrentPage(1);
-    showToast('Filters reset.');
+  const handleExportExcel = () => {
+    const title = 'Central Dispatch Customers';
+    const headers = ['Customer', 'Phone', 'Email', 'Billing Address', 'Customer Note', 'Status', 'Balance'];
+    const rows = filteredCustomers.map(c => [
+      c.name,
+      c.phone || '',
+      c.email || '',
+      c.billingAddress || '',
+      c.notes || '',
+      c.status || 'Active',
+      formatMoney(accountingService.getCustomerBalance(c.id)),
+    ]);
+
+    const html = `<html><head><meta charset="utf-8"><style>body{font-family:Arial}table{border-collapse:collapse;width:100%}th,td{border:1px solid #bbb;padding:8px}th{background:#12345b;color:white}.money{text-align:right}</style></head><body><h1>${title}</h1><table><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>${rows.map(r => `<tr>${r.map((v, i) => `<td class="${i === 6 ? 'money' : ''}">${v}</td>`).join('')}</tr>`).join('')}</table></body></html>`;
+
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([html], { type: 'application/vnd.ms-excel' }));
+    a.download = `CDL-Customers-${new Date().toISOString().slice(0, 10)}.xls`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    showToast('Customers exported to Excel successfully.');
   };
 
   const handleEmailLedger = (c: Customer, entries: any[]) => {
@@ -171,361 +177,175 @@ export const CustomersView: React.FC = () => {
 
     const balance = accountingService.getCustomerBalance(c.id);
     const subject = `Central Dispatch Customer Statement — ${c.name}`;
-    const body = `Good day ${c.name},\n\nPlease find your account statement summary below.\n\n${lines}\n\nCurrent Balance: ${formatMoney(balance)}\n\nKind regards,\nCentral Dispatch Limited / Bermuda Island Taxi\ninfo@bermudaislandtaxi.com\n+1 (441) 295-4141`;
+    const company = companyService.getCompanyProfile();
+    const body = `Good day ${c.name},\n\nPlease find your account statement summary below.\n\n${lines}\n\nCurrent Balance: ${formatMoney(balance)}\n\nKind regards,\n${company.organizationName || 'Central Dispatch Limited / Bermuda Island Taxi'}\n${company.email || 'info@bermudaislandtaxi.com'}\n${company.phone || '+1 (441) 295-4141'}`;
     window.location.href = `mailto:${encodeURIComponent(c.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
-  const handleExportExcel = () => {
-    const rows = [
-      ['Customer Name', 'Aliases', 'Phone', 'Email', 'Billing Address', 'Status', 'Balance (BMD)', 'Notes'],
-      ...filteredCustomers.map(c => [
-        c.name,
-        (c.aliases || []).join('; '),
-        c.phone || '',
-        c.email || '',
-        c.billingAddress || '',
-        c.status || 'Active',
-        accountingService.getCustomerBalance(c.id).toFixed(2),
-        c.notes || '',
-      ]),
-    ];
-
-    const csvContent = 'data:text/csv;charset=utf-8,' + rows.map(e => e.map(x => `"${String(x).replace(/"/g, '""')}"`).join(',')).join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Central_Dispatch_Customers_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    showToast('Customer directory exported to CSV successfully!');
-  };
-
   let runningBalance = 0;
-  let modalRunningBalance = 0;
 
   return (
-    <div className="space-y-6 pb-12">
-      {/* 1. Header Banner */}
-      <div className="bg-white border border-[#dde7f0] rounded-2xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#12345b] to-[#1e528d] flex items-center justify-center text-white shadow-md">
-            <Users className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2.5">
-              <h1 className="text-2xl font-black text-[#12345b] tracking-tight">
-                Customers &amp; Account Ledgers
-              </h1>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-[#edf4fa] text-[#2f6fb3] border border-[#d2e2f0]">
-                {allCustomers.length.toLocaleString()} Master Accounts
-              </span>
-            </div>
-            <p className="text-xs font-semibold text-[#607286] mt-1">
-              Search customer master profiles, review running balances, view statements, and record account transactions.
-            </p>
-          </div>
+    <div className="space-y-6 max-w-7xl mx-auto pb-12">
+      {/* 1. Workspace Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#12345b] tracking-tight">
+            Customers &amp; Account Ledgers
+          </h1>
+          <p className="text-sm font-semibold text-[#1d4ed8] mt-1">
+            Search, add, update, or select a customer to review account activity.
+          </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        {/* Top Right Action Buttons */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 self-start sm:self-auto">
           <button
             onClick={handleOpenAddModal}
-            className="px-4 py-2 bg-[#2f6fb3] hover:bg-[#235891] text-white text-xs font-black rounded-xl shadow-sm flex items-center gap-1.5 transition-all active:scale-95"
+            className="px-5 py-2.5 bg-[#1d4ed8] hover:bg-[#1e40af] text-white text-sm font-extrabold rounded-xl transition-all shadow-md hover:shadow-lg active:scale-95"
           >
-            <Plus className="w-4 h-4" />
-            <span>Add Customer</span>
+            + Add Customer
           </button>
           <button
             onClick={handleExportExcel}
-            className="px-4 py-2 bg-white hover:bg-[#f1f5f9] text-[#12345b] border border-[#cbd5e1] text-xs font-bold rounded-xl shadow-sm flex items-center gap-1.5 transition-all"
+            className="px-4 py-2.5 bg-white hover:bg-[#f8fafc] text-[#1e293b] border border-[#cbd5e1] text-sm font-extrabold rounded-xl transition-all shadow-xs"
           >
-            <Download className="w-4 h-4 text-[#2f6fb3]" />
-            <span>Export CSV</span>
+            Export Customers to Excel
           </button>
         </div>
       </div>
 
-      {/* 2. KPI Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Customers */}
-        <div className="bg-white border border-[#dde7f0] rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between text-[#607286]">
-            <span className="text-xs font-extrabold uppercase tracking-wider">Total Accounts</span>
-            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
-              <Building2 className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-[#12345b]">
-              {allCustomers.length.toLocaleString()}
-            </span>
-            <span className="text-[11px] font-bold text-[#607286]">Customers</span>
-          </div>
-          <div className="mt-2 text-[11px] font-semibold text-[#8292a2]">
-            Consolidated customer directory
-          </div>
-        </div>
-
-        {/* Active Customers */}
-        <div className="bg-white border border-[#dde7f0] rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between text-[#607286]">
-            <span className="text-xs font-extrabold uppercase tracking-wider">Active Accounts</span>
-            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-              <CheckCircle2 className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-[#0f766e]">
-              {activeCount.toLocaleString()}
-            </span>
-            <span className="text-[11px] font-bold text-[#0f766e]">
-              ({((activeCount / (allCustomers.length || 1)) * 100).toFixed(0)}%)
-            </span>
-          </div>
-          <div className="mt-2 text-[11px] font-semibold text-[#8292a2]">
-            Ready for invoicing & dispatches
-          </div>
-        </div>
-
-        {/* Inactive Customers */}
-        <div className="bg-white border border-[#dde7f0] rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between text-[#607286]">
-            <span className="text-xs font-extrabold uppercase tracking-wider">Inactive Accounts</span>
-            <div className="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center">
-              <XCircle className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-2">
-            <span className="text-2xl font-black text-[#64748b]">
-              {inactiveCount.toLocaleString()}
-            </span>
-          </div>
-          <div className="mt-2 text-[11px] font-semibold text-[#8292a2]">
-            Archived or closed accounts
-          </div>
-        </div>
-
-        {/* Total Accounts Receivable */}
-        <div className="bg-white border border-[#dde7f0] rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between text-[#607286]">
-            <span className="text-xs font-extrabold uppercase tracking-wider">Total Receivables</span>
-            <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
-              <Wallet className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-2">
-            <span className="text-2xl font-black text-[#12345b]">
-              {formatMoney(totalReceivables)}
-            </span>
-          </div>
-          <div className="mt-2 text-[11px] font-semibold text-[#8292a2]">
-            Total customer balance owing
-          </div>
-        </div>
-      </div>
-
-      {/* 3. Customers Master Directory Table Card */}
+      {/* 2. Main Panel */}
       <div className="bg-white border border-[#dde7f0] rounded-2xl shadow-sm overflow-hidden">
-        {/* Toolbar */}
-        <div className="p-4 sm:p-5 border-b border-[#e2e8f0] bg-[#fbfdff]">
-          <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
-            {/* Search Input */}
-            <div className="flex-1 relative">
-              <Search className="w-4 h-4 text-[#607286] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+        {/* Accounting Toolbar */}
+        <div className="p-4 sm:p-5 border-b border-[#e2e8f0] flex flex-col md:flex-row items-stretch md:items-end justify-between gap-4">
+          <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 flex-1">
+            {/* Search customers */}
+            <div className="flex-1 min-w-[200px]">
+              <label htmlFor="customerSearch" className="block text-xs font-bold text-[#334155] mb-1.5">
+                Search customers
+              </label>
               <input
+                id="customerSearch"
                 type="text"
-                placeholder="Search by customer name, aliases, phone, email, address, or notes..."
+                placeholder="Name, phone, email, address, note, or customer code"
                 value={searchQuery}
-                onChange={e => {
-                  setSearchQuery(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="w-full pl-10 pr-4 py-2 bg-white border border-[#cbd5e1] rounded-xl text-xs font-bold text-[#1e293b] placeholder:text-[#94a3b8] focus:outline-none focus:ring-2 focus:ring-[#2f6fb3]/20 focus:border-[#2f6fb3]"
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full px-3.5 py-2 border border-[#cbd5e1] rounded-xl text-sm font-semibold focus:outline-none focus:border-[#1d4ed8] bg-white placeholder-[#94a3b8]"
               />
             </div>
 
-            {/* Dropdowns Group */}
-            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5">
-              {/* Status Filter */}
-              <div className="w-full sm:w-40">
-                <select
-                  value={statusFilter}
-                  onChange={e => {
-                    setStatusFilter(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="w-full px-3 py-2 bg-white border border-[#cbd5e1] rounded-xl text-xs font-bold text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-[#2f6fb3]/20 focus:border-[#2f6fb3]"
-                >
-                  <option value="">All Statuses</option>
-                  <option value="Active">Active ({activeCount})</option>
-                  <option value="Inactive">Inactive ({inactiveCount})</option>
-                </select>
-              </div>
-
-              {/* Page Size Selector */}
-              <div className="w-full sm:w-32">
-                <select
-                  value={pageSize}
-                  onChange={e => {
-                    setPageSize(Number(e.target.value));
-                    setCurrentPage(1);
-                  }}
-                  className="w-full px-3 py-2 bg-white border border-[#cbd5e1] rounded-xl text-xs font-bold text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-[#2f6fb3]/20 focus:border-[#2f6fb3]"
-                >
-                  <option value={25}>25 / page</option>
-                  <option value={50}>50 / page</option>
-                  <option value={100}>100 / page</option>
-                  <option value={250}>250 / page</option>
-                  <option value={-1}>Show All</option>
-                </select>
-              </div>
-
-              {/* Reset button */}
-              {(searchQuery || statusFilter) && (
-                <button
-                  onClick={handleResetFilters}
-                  className="px-3 py-2 bg-white hover:bg-[#f1f5f9] text-[#475569] border border-[#cbd5e1] text-xs font-bold rounded-xl shadow-sm flex items-center gap-1 transition-all"
-                  title="Reset filters"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span>Reset</span>
-                </button>
-              )}
+            {/* Status Dropdown */}
+            <div className="w-full md:w-48">
+              <label htmlFor="customerStatusFilter" className="block text-xs font-bold text-[#334155] mb-1.5">
+                Status
+              </label>
+              <select
+                id="customerStatusFilter"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-full px-3.5 py-2 border border-[#cbd5e1] rounded-xl text-sm font-semibold focus:outline-none focus:border-[#1d4ed8] bg-white cursor-pointer"
+              >
+                <option value="">All customers</option>
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+              </select>
             </div>
+          </div>
+
+          {/* Count label */}
+          <div className="text-xs font-semibold text-[#64748b] self-end md:self-center whitespace-nowrap">
+            {filteredCustomers.length.toLocaleString()} shown
           </div>
         </div>
 
-        {/* Table with Sticky Left Customer Column */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
+        {/* Mobile Scroll Hint */}
+        <div className="mobile-scroll-hint">
+          <span>👉 Swipe table to view billing address, balance &amp; actions</span>
+          <span className="text-[10px] uppercase bg-white px-2 py-0.5 rounded border border-[#cbd5e1] font-extrabold">
+            Customers
+          </span>
+        </div>
+
+        {/* Table Wrap */}
+        <div className="table-responsive-container">
+          <table className="w-full text-left text-sm border-collapse min-w-[900px]">
             <thead>
-              <tr className="bg-[#12345b] text-white border-b border-[#0e2744]">
-                <th className="py-3 px-4 font-black min-w-[220px] sticky left-0 bg-[#12345b] z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)]">
-                  Customer / Entity
-                </th>
-                <th className="py-3 px-4 font-black w-32 whitespace-nowrap">Phone</th>
-                <th className="py-3 px-4 font-black min-w-[170px]">Email</th>
-                <th className="py-3 px-4 font-black min-w-[200px]">Billing Address</th>
-                <th className="py-3 px-4 font-black min-w-[140px]">Notes</th>
-                <th className="py-3 px-4 font-black w-24 text-center">Status</th>
-                <th className="py-3 px-4 font-black text-right w-28 whitespace-nowrap">Balance</th>
-                <th className="py-3 px-4 font-black text-center w-28 whitespace-nowrap">Actions</th>
+              <tr className="bg-[#102a43] text-white font-bold text-xs uppercase tracking-wider">
+                <th className="py-3.5 px-4 font-bold">Customer</th>
+                <th className="py-3.5 px-4 font-bold">Phone</th>
+                <th className="py-3.5 px-4 font-bold">Email</th>
+                <th className="py-3.5 px-4 font-bold">Billing Address</th>
+                <th className="py-3.5 px-4 font-bold">Customer Note</th>
+                <th className="py-3.5 px-4 font-bold text-center">Status</th>
+                <th className="py-3.5 px-4 font-bold text-right">Balance</th>
+                <th className="py-3.5 px-4 font-bold text-center">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#e2e8f0]">
-              {paginatedCustomers.length === 0 ? (
+            <tbody className="divide-y divide-[#edf2f7]">
+              {filteredCustomers.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-[#607286]">
-                    <div className="max-w-md mx-auto space-y-2">
-                      <Users className="w-8 h-8 text-[#94a3b8] mx-auto mb-2" />
-                      <p className="text-sm font-black text-[#12345b]">No customers found</p>
-                      <p className="text-xs text-[#64748b]">Try adjusting your search criteria or clearing filters.</p>
-                      <button
-                        onClick={handleResetFilters}
-                        className="mt-3 px-3 py-1.5 bg-[#edf4fa] hover:bg-[#d8e6f3] text-[#2f6fb3] text-xs font-bold rounded-lg transition-colors"
-                      >
-                        Clear Filters
-                      </button>
-                    </div>
+                  <td colSpan={8} className="py-10 text-center text-sm font-bold text-[#64748b]">
+                    No customers match this search.
                   </td>
                 </tr>
               ) : (
-                paginatedCustomers.map(c => {
-                  const balance = accountingService.getCustomerBalance(c.id);
-                  const isSelected = c.id === selectedCustomer?.id;
-                  const initials = c.name
-                    .split(' ')
-                    .map(n => n[0])
-                    .filter(Boolean)
-                    .slice(0, 2)
-                    .join('')
-                    .toUpperCase() || 'CU';
-
+                filteredCustomers.map((c) => {
+                  const bal = accountingService.getCustomerBalance(c.id);
                   return (
                     <tr
                       key={c.id}
-                      className={`hover:bg-[#f8fbfd] transition-colors group ${
-                        isSelected ? 'bg-[#f0f6fc]' : ''
+                      className={`hover:bg-[#f8fafc] transition-colors ${
+                        selectedCustomerId === c.id ? 'bg-[#f0f7ff]' : ''
                       }`}
                     >
-                      {/* Sticky Customer Name & Avatar */}
-                      <td className={`py-3 px-4 sticky left-0 z-10 transition-colors shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${
-                        isSelected ? 'bg-[#f0f6fc]' : 'bg-white group-hover:bg-[#f8fbfd]'
-                      }`}>
-                        <div className="flex items-center gap-2.5">
-                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-[11px] shrink-0 ${
-                            isSelected 
-                              ? 'bg-[#12345b] text-white' 
-                              : 'bg-[#edf4fa] text-[#2f6fb3] border border-[#d2e2f0]'
-                          }`}>
-                            {initials}
+                      {/* Customer Name & Sub-code */}
+                      <td className="py-3.5 px-4">
+                        <button
+                          onClick={() => handleSelectCustomer(c.id)}
+                          className="font-extrabold text-[#0f172a] text-left hover:text-[#1d4ed8] hover:underline"
+                        >
+                          {c.name}
+                        </button>
+                        {(c.customerName || (c.aliases && c.aliases.length > 0)) && (
+                          <div className="text-xs text-[#64748b] mt-0.5">
+                            {c.customerName || c.aliases?.[0]}
                           </div>
-                          <div className="min-w-0">
-                            <button
-                              type="button"
-                              onClick={() => handleSelectCustomer(c.id, false)}
-                              className="font-extrabold text-[#12345b] hover:text-[#2f6fb3] hover:underline text-left block truncate max-w-[200px]"
-                              title={c.name}
-                            >
-                              {c.name}
-                            </button>
-                            {c.aliases && c.aliases.length > 0 && (
-                              <div className="text-[10px] font-semibold text-[#64748b] truncate max-w-[200px]" title={c.aliases.join(', ')}>
-                                {c.aliases.slice(0, 2).join(' • ')}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Phone */}
-                      <td className="py-3 px-4 text-[#334155] font-semibold whitespace-nowrap">
-                        {c.phone ? (
-                          <span className="flex items-center gap-1.5">
-                            <Phone className="w-3 h-3 text-[#94a3b8]" />
-                            {c.phone}
-                          </span>
-                        ) : (
-                          <span className="text-[#94a3b8]">—</span>
                         )}
                       </td>
 
+                      {/* Phone */}
+                      <td className="py-3.5 px-4 text-xs text-[#334155] whitespace-nowrap">
+                        {c.phone ? `Phone: ${c.phone}` : '—'}
+                      </td>
+
                       {/* Email */}
-                      <td className="py-3 px-4 text-[#334155] font-medium max-w-[170px]">
+                      <td className="py-3.5 px-4 text-xs text-[#334155] whitespace-nowrap">
                         {c.email ? (
-                          <a 
-                            href={`mailto:${c.email}`}
-                            className="text-[#2f6fb3] hover:underline truncate block text-[11px]"
-                            title={c.email}
-                          >
+                          <a href={`mailto:${c.email}`} className="text-[#0284c7] hover:underline">
                             {c.email}
                           </a>
                         ) : (
-                          <span className="text-[#94a3b8]">—</span>
+                          '—'
                         )}
                       </td>
 
                       {/* Billing Address */}
-                      <td className="py-3 px-4 text-[#475569] max-w-[200px]">
-                        <div className="truncate text-[11px]" title={c.billingAddress}>
-                          {c.billingAddress || <span className="text-[#94a3b8]">—</span>}
-                        </div>
+                      <td className="py-3.5 px-4 text-xs text-[#334155] max-w-[240px] truncate" title={c.billingAddress || ''}>
+                        {c.billingAddress || '—'}
                       </td>
 
-                      {/* Notes */}
-                      <td className="py-3 px-4 text-[#64748b] max-w-[140px]">
-                        <div className="truncate text-[11px]" title={c.notes}>
-                          {c.notes || <span className="text-[#94a3b8]">—</span>}
-                        </div>
+                      {/* Customer Note */}
+                      <td className="py-3.5 px-4 text-xs text-[#334155] max-w-[180px] truncate" title={c.notes || ''}>
+                        {c.notes || '—'}
                       </td>
 
                       {/* Status */}
-                      <td className="py-3 px-4 text-center whitespace-nowrap">
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
                         <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${
-                            c.status === 'Inactive'
-                              ? 'bg-slate-100 text-slate-600 border-slate-200'
-                              : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${
+                            c.status === 'Active'
+                              ? 'bg-[#dcfce7] text-[#15803d]'
+                              : 'bg-[#dbeafe] text-[#1e40af]'
                           }`}
                         >
                           {c.status || 'Active'}
@@ -533,38 +353,24 @@ export const CustomersView: React.FC = () => {
                       </td>
 
                       {/* Balance */}
-                      <td className="py-3 px-4 text-right font-black tabular-nums whitespace-nowrap">
-                        <span className={balance > 0 ? 'text-[#12345b]' : 'text-[#64748b]'}>
-                          {formatMoney(balance)}
-                        </span>
+                      <td className="py-3.5 px-4 text-right text-xs font-extrabold text-[#0f172a] whitespace-nowrap">
+                        {formatMoney(bal)}
                       </td>
 
-                      {/* Actions */}
-                      <td className="py-3 px-4 text-center whitespace-nowrap">
-                        <div className="flex items-center justify-center gap-1.5">
+                      {/* Stacked Action Buttons */}
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                        <div className="flex flex-col items-center gap-1.5">
                           <button
-                            type="button"
-                            onClick={() => handleSelectCustomer(c.id, true)}
-                            className="p-1.5 bg-[#edf4fa] hover:bg-[#d9e8f5] text-[#2f6fb3] rounded-lg transition-all active:scale-95"
-                            title="View Statement & History"
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            type="button"
                             onClick={() => handleOpenEditModal(c)}
-                            className="p-1.5 bg-slate-100 hover:bg-slate-200 text-[#334155] rounded-lg transition-all active:scale-95"
-                            title="Edit Customer Profile"
+                            className="w-24 px-2.5 py-1 bg-white hover:bg-[#f1f5f9] text-[#1e293b] font-bold text-xs rounded-lg border border-[#cbd5e1] transition-all shadow-xs"
                           >
-                            <Edit3 className="w-3.5 h-3.5" />
+                            Edit / Note
                           </button>
                           <button
-                            type="button"
-                            onClick={() => handleDeleteCustomer(c.id, c.name)}
-                            className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-all active:scale-95"
-                            title="Delete Customer"
+                            onClick={() => setDeleteTarget(c)}
+                            className="w-24 px-2.5 py-1 bg-white hover:bg-[#fef2f2] text-[#dc2626] font-bold text-xs rounded-lg border border-[#fecaca] transition-all shadow-xs"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            Delete
                           </button>
                         </div>
                       </td>
@@ -576,183 +382,123 @@ export const CustomersView: React.FC = () => {
           </table>
         </div>
 
-        {/* Pagination Footer */}
-        <div className="p-4 bg-[#f8fbfd] border-t border-[#e2e8f0] flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="text-xs font-bold text-[#64748b]">
-            {filteredCustomers.length > 0 ? (
-              <>
-                Showing <span className="text-[#12345b] font-black">{pageSize === -1 ? 1 : ((currentPage - 1) * pageSize) + 1}</span> to{' '}
-                <span className="text-[#12345b] font-black">{pageSize === -1 ? filteredCustomers.length : Math.min(currentPage * pageSize, filteredCustomers.length)}</span> of{' '}
-                <span className="text-[#12345b] font-black">{filteredCustomers.length.toLocaleString()}</span> customers
-              </>
-            ) : (
-              'No customers to display'
-            )}
-          </div>
-
-          {pageSize !== -1 && totalPages > 1 && (
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className="p-1.5 rounded-lg border border-[#cbd5e1] bg-white text-[#475569] hover:bg-[#f1f5f9] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                title="Previous Page"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-
-              <div className="flex items-center gap-1 px-2 text-xs font-bold text-[#1e293b]">
-                <span>Page</span>
-                <span className="px-2 py-0.5 bg-white border border-[#cbd5e1] rounded font-black text-[#12345b]">
-                  {currentPage}
-                </span>
-                <span>of {totalPages}</span>
-              </div>
-
-              <button
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-                className="p-1.5 rounded-lg border border-[#cbd5e1] bg-white text-[#475569] hover:bg-[#f1f5f9] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                title="Next Page"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          )}
+        {/* Note */}
+        <div className="p-4 border-t border-[#edf2f7] bg-[#fcfdfe] text-xs font-semibold text-[#64748b]">
+          Use Edit to add or change a customer's note. Changes are included in Complete App Backup.
         </div>
       </div>
 
-      {/* 4. Selected Customer Ledger Section */}
+      {/* 3. Customer Ledger Detail Panel */}
       {selectedCustomer && (
-        <div ref={ledgerRef} className="bg-white border border-[#dde7f0] rounded-2xl shadow-sm overflow-hidden scroll-mt-6">
-          <div className="px-6 py-5 bg-[#edf4fa] border-b border-[#d9e4ee] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2.5">
-                <h2 className="text-xl font-black text-[#12345b]">
-                  {selectedCustomer.name} — Customer Ledger &amp; Activity
-                </h2>
-                <span
-                  className={`px-2.5 py-0.5 rounded-full text-[10px] font-black border ${
-                    selectedCustomer.status === 'Inactive'
-                      ? 'bg-slate-100 text-slate-600 border-slate-200'
-                      : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                  }`}
-                >
-                  {selectedCustomer.status || 'Active'}
-                </span>
-                <span className="px-2 py-0.5 bg-[#e0effe] text-[#1e40af] text-[10px] font-black rounded-full">
-                  {ledgerEntries.length} Transactions
-                </span>
-              </div>
-              <p className="text-xs font-semibold text-[#607286] mt-1">
-                {selectedCustomer.phone ? `Phone: ${selectedCustomer.phone}` : 'No phone'} • {selectedCustomer.email ? `Email: ${selectedCustomer.email}` : 'No email'} • Billing: {selectedCustomer.billingAddress || 'No address'}
-              </p>
+        <div ref={ledgerRef} className="bg-white border border-[#dde7f0] rounded-2xl shadow-sm overflow-hidden mt-6">
+          <div className="p-5 border-b border-[#e2e8f0] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <h2 className="text-lg font-extrabold text-[#12345b]">
+                {selectedCustomer.name} — Customer Ledger
+              </h2>
+              <span
+                className={`px-3 py-0.5 rounded-full text-xs font-bold ${
+                  selectedCustomer.status === 'Active'
+                    ? 'bg-[#dcfce7] text-[#15803d]'
+                    : 'bg-[#dbeafe] text-[#1e40af]'
+                }`}
+              >
+                {selectedCustomer.status || 'Active'}
+              </span>
             </div>
-            <div className="text-left sm:text-right bg-white sm:bg-transparent p-3 sm:p-0 rounded-xl border sm:border-0 border-[#d2e2f0]">
-              <span className="block text-[11px] font-extrabold uppercase text-[#607286]">Current Balance</span>
-              <strong className="text-2xl font-black text-[#12345b]">
-                {formatMoney(accountingService.getCustomerBalance(selectedCustomer.id))}
-              </strong>
+            <div className="text-xl font-black text-[#12345b]">
+              {formatMoney(accountingService.getCustomerBalance(selectedCustomer.id))}
             </div>
           </div>
 
-          {/* Action buttons */}
-          <div className="p-4 border-b border-[#d9e4ee] flex flex-wrap items-center gap-2.5 bg-[#fbfdff]">
+          {/* Ledger Actions */}
+          <div className="p-4 bg-[#fbfdff] border-b border-[#e2e8f0] flex flex-wrap items-center gap-2.5">
             <button
               onClick={() => {
                 accountingService.setSelectedCustomerId(selectedCustomer.id);
                 navigate('/invoices');
               }}
-              className="px-4 py-2 bg-[#2f6fb3] hover:bg-[#235891] text-white text-xs font-black rounded-xl shadow-sm flex items-center gap-1.5 transition-all active:scale-95"
+              className="px-4 py-2 bg-[#1d4ed8] hover:bg-[#1e40af] text-white text-xs font-extrabold rounded-xl transition-all shadow-sm"
             >
-              <FileText className="w-4 h-4" />
-              <span>Create Invoice</span>
+              Create Invoice
             </button>
             <button
               onClick={() => {
                 accountingService.setSelectedCustomerId(selectedCustomer.id);
                 navigate('/payments');
               }}
-              className="px-4 py-2 bg-[#0f766e] hover:bg-[#0c5e58] text-white text-xs font-black rounded-xl shadow-sm flex items-center gap-1.5 transition-all active:scale-95"
+              className="px-4 py-2 bg-white hover:bg-[#f1f5f9] text-[#1e293b] border border-[#cbd5e1] text-xs font-extrabold rounded-xl transition-all shadow-xs"
             >
-              <DollarSign className="w-4 h-4" />
-              <span>Record Payment</span>
+              Record Payment
             </button>
             <button
               onClick={() => handleEmailLedger(selectedCustomer, ledgerEntries)}
-              className="px-4 py-2 bg-white border border-[#cbd5e1] hover:bg-[#f1f5f9] text-[#12345b] text-xs font-bold rounded-xl shadow-sm flex items-center gap-1.5 transition-all"
+              className="px-4 py-2 bg-white hover:bg-[#f1f5f9] text-[#1e293b] border border-[#cbd5e1] text-xs font-extrabold rounded-xl transition-all shadow-xs"
             >
-              <Mail className="w-4 h-4 text-[#2f6fb3]" />
-              <span>Email Statement</span>
+              Email Ledger
             </button>
             <button
               onClick={() => handleOpenEditModal(selectedCustomer)}
-              className="px-4 py-2 bg-white border border-[#cbd5e1] hover:bg-[#f1f5f9] text-[#12345b] text-xs font-bold rounded-xl shadow-sm flex items-center gap-1.5 transition-all"
+              className="px-4 py-2 bg-white hover:bg-[#f1f5f9] text-[#1e293b] border border-[#cbd5e1] text-xs font-extrabold rounded-xl transition-all shadow-xs"
             >
-              <Edit3 className="w-4 h-4 text-[#64748b]" />
-              <span>Edit Details</span>
+              Edit Customer
             </button>
           </div>
 
-          {/* Ledger Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead className="bg-[#12345b] text-white border-b border-[#0e2744]">
-                <tr>
-                  <th className="py-3 px-4 font-black w-28 whitespace-nowrap">Date</th>
-                  <th className="py-3 px-4 font-black w-32 whitespace-nowrap">Type</th>
-                  <th className="py-3 px-4 font-black w-28 whitespace-nowrap">Number</th>
-                  <th className="py-3 px-4 font-black min-w-[240px]">Description</th>
-                  <th className="py-3 px-4 font-black text-right w-32 whitespace-nowrap">Charge</th>
-                  <th className="py-3 px-4 font-black text-right w-32 whitespace-nowrap">Payment</th>
-                  <th className="py-3 px-4 font-black text-right w-36 whitespace-nowrap">Running Balance</th>
-                  <th className="py-3 px-4 font-black text-center w-28 whitespace-nowrap">Source</th>
+          {/* Contact & Historical Info */}
+          <div className="px-5 py-3 bg-[#f8fafc] text-xs font-semibold text-[#64748b] border-b border-[#e2e8f0]">
+            {selectedCustomer.phone ? `Phone: ${selectedCustomer.phone}` : 'No phone'}
+            {selectedCustomer.email ? ` • Email: ${selectedCustomer.email}` : ' • No email'}
+            {selectedCustomer.billingAddress ? ` • Address: ${selectedCustomer.billingAddress}` : ''}
+          </div>
+
+          {/* Mobile Scroll Hint */}
+          <div className="mobile-scroll-hint">
+            <span>👉 Swipe ledger table to view type, amount &amp; balance</span>
+            <span className="text-[10px] uppercase bg-white px-2 py-0.5 rounded border border-[#cbd5e1] font-extrabold">
+              Ledger
+            </span>
+          </div>
+
+          {/* Customer Ledger Table */}
+          <div className="table-responsive-container">
+            <table className="w-full text-left text-sm border-collapse min-w-[760px]">
+              <thead>
+                <tr className="bg-[#102a43] text-white font-bold text-xs uppercase tracking-wider">
+                  <th className="py-3 px-4 font-bold">Date</th>
+                  <th className="py-3 px-4 font-bold">Type</th>
+                  <th className="py-3 px-4 font-bold">Number</th>
+                  <th className="py-3 px-4 font-bold">Description</th>
+                  <th className="py-3 px-4 font-bold text-right">Charge</th>
+                  <th className="py-3 px-4 font-bold text-right">Payment</th>
+                  <th className="py-3 px-4 font-bold text-right">Balance</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#e1e9f0]">
+              <tbody className="divide-y divide-[#edf2f7]">
                 {ledgerEntries.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-12 text-center text-[#607286]">
-                      <div className="max-w-sm mx-auto space-y-2">
-                        <Receipt className="w-8 h-8 text-[#94a3b8] mx-auto mb-1" />
-                        <p className="text-sm font-black text-[#12345b]">No recorded transactions</p>
-                        <p className="text-xs text-[#64748b]">No invoices, payments, or ledger records on file for this customer yet.</p>
-                        <div className="pt-2 flex items-center justify-center gap-2">
-                          <button
-                            onClick={() => {
-                              accountingService.setSelectedCustomerId(selectedCustomer.id);
-                              navigate('/invoices');
-                            }}
-                            className="px-3 py-1.5 bg-[#2f6fb3] hover:bg-[#235891] text-white text-xs font-bold rounded-lg transition-colors"
-                          >
-                            + Create Invoice
-                          </button>
-                        </div>
-                      </div>
+                    <td colSpan={7} className="py-8 text-center text-sm font-bold text-[#64748b]">
+                      No invoices or payments recorded in this app yet.
                     </td>
                   </tr>
                 ) : (
-                  ledgerEntries.map(entry => {
-                    runningBalance += (entry.charge || 0) - (entry.payment || 0);
+                  ledgerEntries.map((r, idx) => {
+                    if (idx === 0) runningBalance = 0;
+                    runningBalance += (r.charge || 0) - (r.payment || 0);
                     return (
-                      <tr key={entry.id} className="hover:bg-[#f8fbfd] transition-colors">
-                        <td className="py-3 px-4 font-bold text-[#334155] whitespace-nowrap">{entry.date}</td>
-                        <td className="py-3 px-4 font-black text-[#2f6fb3] whitespace-nowrap">{entry.type}</td>
-                        <td className="py-3 px-4 font-semibold text-[#64748b] whitespace-nowrap">{entry.number ? `#${entry.number}` : '—'}</td>
-                        <td className="py-3 px-4 text-[#334155]">{entry.memo}</td>
-                        <td className="py-3 px-4 text-right font-black text-[#12345b] whitespace-nowrap">
-                          {entry.charge ? formatMoney(entry.charge) : '—'}
+                      <tr key={r.id || idx} className="hover:bg-[#f8fafc] transition-colors">
+                        <td className="py-3 px-4 text-xs font-semibold text-[#334155]">{r.date}</td>
+                        <td className="py-3 px-4 text-xs font-bold text-[#0f172a]">{r.type}</td>
+                        <td className="py-3 px-4 text-xs font-semibold text-[#475569]">{r.number || '—'}</td>
+                        <td className="py-3 px-4 text-xs text-[#334155]">{r.memo || '—'}</td>
+                        <td className="py-3 px-4 text-xs font-extrabold text-[#0f172a] text-right">
+                          {r.charge ? formatMoney(r.charge) : '—'}
                         </td>
-                        <td className="py-3 px-4 text-right font-black text-[#0f766e] whitespace-nowrap">
-                          {entry.payment ? formatMoney(entry.payment) : '—'}
+                        <td className="py-3 px-4 text-xs font-extrabold text-[#15803d] text-right">
+                          {r.payment ? formatMoney(r.payment) : '—'}
                         </td>
-                        <td className="py-3 px-4 text-right font-black text-[#12345b] whitespace-nowrap">
+                        <td className="py-3 px-4 text-xs font-extrabold text-[#0f172a] text-right">
                           {formatMoney(runningBalance)}
-                        </td>
-                        <td className="py-3 px-4 text-center whitespace-nowrap">
-                          <span className="inline-block px-2 py-0.5 text-[10px] font-bold bg-[#f1f5f9] text-[#475569] rounded-md">
-                            {entry.source || 'General'}
-                          </span>
                         </td>
                       </tr>
                     );
@@ -764,254 +510,98 @@ export const CustomersView: React.FC = () => {
         </div>
       )}
 
-      {/* 5. Statement Details Modal (when clicking View Eye Icon) */}
-      {isStatementModalOpen && statementCustomer && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-[#d7e2ec] overflow-hidden">
-            {/* Modal Header */}
-            <div className="px-6 py-4 bg-[#12345b] text-white flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-blue-500/20 border border-blue-400/30 flex items-center justify-center">
-                  <Receipt className="w-5 h-5 text-blue-200" />
-                </div>
-                <div>
-                  <h2 className="text-base font-black tracking-tight flex items-center gap-2">
-                    <span>{statementCustomer.name}</span>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                      statementCustomer.status === 'Inactive' ? 'bg-slate-500/30 text-slate-200' : 'bg-emerald-500/30 text-emerald-200'
-                    }`}>
-                      {statementCustomer.status || 'Active'}
-                    </span>
-                  </h2>
-                  <p className="text-[11px] text-blue-200/80">
-                    Account Statement &amp; Transaction History
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsStatementModalOpen(false)}
-                className="text-white/80 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Modal Summary Bar */}
-            <div className="p-4 bg-[#edf4fa] border-b border-[#d2e2f0] flex flex-wrap items-center justify-between gap-4 shrink-0">
-              <div className="flex items-center gap-6 text-xs">
-                <div>
-                  <span className="block text-[10px] font-extrabold uppercase text-[#607286]">Phone</span>
-                  <strong className="font-bold text-[#12345b]">{statementCustomer.phone || '—'}</strong>
-                </div>
-                <div>
-                  <span className="block text-[10px] font-extrabold uppercase text-[#607286]">Email</span>
-                  <strong className="font-bold text-[#12345b]">{statementCustomer.email || '—'}</strong>
-                </div>
-                <div>
-                  <span className="block text-[10px] font-extrabold uppercase text-[#607286]">Address</span>
-                  <strong className="font-bold text-[#12345b] max-w-[200px] truncate block" title={statementCustomer.billingAddress}>
-                    {statementCustomer.billingAddress || '—'}
-                  </strong>
-                </div>
-              </div>
-
-              <div className="text-right">
-                <span className="block text-[10px] font-extrabold uppercase text-[#607286]">Current Balance</span>
-                <strong className="text-xl font-black text-[#12345b]">
-                  {formatMoney(accountingService.getCustomerBalance(statementCustomer.id))}
-                </strong>
-              </div>
-            </div>
-
-            {/* Modal Transactions Table */}
-            <div className="flex-1 overflow-y-auto p-4">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead className="bg-[#12345b] text-white sticky top-0 z-10">
-                  <tr>
-                    <th className="py-2.5 px-3 font-black w-24">Date</th>
-                    <th className="py-2.5 px-3 font-black w-28">Type</th>
-                    <th className="py-2.5 px-3 font-black w-24">Ref #</th>
-                    <th className="py-2.5 px-3 font-black">Description</th>
-                    <th className="py-2.5 px-3 font-black text-right w-28">Charge</th>
-                    <th className="py-2.5 px-3 font-black text-right w-28">Payment</th>
-                    <th className="py-2.5 px-3 font-black text-right w-32">Balance</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#e2e8f0]">
-                  {modalLedgerEntries.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="py-12 text-center text-[#64748b]">
-                        <p className="font-bold text-sm text-[#12345b]">No recorded transactions found</p>
-                        <p className="text-xs text-[#94a3b8] mt-1">This customer has 0 open invoices or historical payments on file.</p>
-                      </td>
-                    </tr>
-                  ) : (
-                    modalLedgerEntries.map(entry => {
-                      modalRunningBalance += (entry.charge || 0) - (entry.payment || 0);
-                      return (
-                        <tr key={entry.id} className="hover:bg-[#f8fbfd]">
-                          <td className="py-2.5 px-3 font-bold text-[#334155] whitespace-nowrap">{entry.date}</td>
-                          <td className="py-2.5 px-3 font-black text-[#2f6fb3] whitespace-nowrap">{entry.type}</td>
-                          <td className="py-2.5 px-3 font-semibold text-[#64748b] whitespace-nowrap">{entry.number ? `#${entry.number}` : '—'}</td>
-                          <td className="py-2.5 px-3 text-[#334155]">{entry.memo}</td>
-                          <td className="py-2.5 px-3 text-right font-black text-[#12345b] whitespace-nowrap">
-                            {entry.charge ? formatMoney(entry.charge) : '—'}
-                          </td>
-                          <td className="py-2.5 px-3 text-right font-black text-[#0f766e] whitespace-nowrap">
-                            {entry.payment ? formatMoney(entry.payment) : '—'}
-                          </td>
-                          <td className="py-2.5 px-3 text-right font-black text-[#12345b] whitespace-nowrap">
-                            {formatMoney(modalRunningBalance)}
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Modal Footer Actions */}
-            <div className="p-4 bg-[#f8fbfd] border-t border-[#e2e8f0] flex flex-wrap items-center justify-between gap-3 shrink-0">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    setIsStatementModalOpen(false);
-                    accountingService.setSelectedCustomerId(statementCustomer.id);
-                    navigate('/invoices');
-                  }}
-                  className="px-3.5 py-1.5 bg-[#2f6fb3] hover:bg-[#235891] text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5"
-                >
-                  <FileText className="w-3.5 h-3.5" />
-                  <span>New Invoice</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setIsStatementModalOpen(false);
-                    accountingService.setSelectedCustomerId(statementCustomer.id);
-                    navigate('/payments');
-                  }}
-                  className="px-3.5 py-1.5 bg-[#0f766e] hover:bg-[#0c5e58] text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5"
-                >
-                  <DollarSign className="w-3.5 h-3.5" />
-                  <span>Record Payment</span>
-                </button>
-                <button
-                  onClick={() => handleEmailLedger(statementCustomer, modalLedgerEntries)}
-                  className="px-3.5 py-1.5 bg-white border border-[#cbd5e1] hover:bg-[#f1f5f9] text-[#12345b] text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5"
-                >
-                  <Mail className="w-3.5 h-3.5 text-[#2f6fb3]" />
-                  <span>Email Statement</span>
-                </button>
-              </div>
-
-              <button
-                onClick={() => setIsStatementModalOpen(false)}
-                className="px-4 py-1.5 bg-[#cbd5e1] hover:bg-[#94a3b8] text-[#1e293b] text-xs font-black rounded-lg transition-colors"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 6. Add / Edit Customer Modal */}
+      {/* Add / Edit Customer Modal */}
       {isModalOpen && editingCustomer && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-[#d7e2ec] animate-in fade-in zoom-in-95 duration-200">
-            <div className="px-6 py-4 bg-[#12345b] text-white flex items-center justify-between sticky top-0 z-10">
-              <div className="flex items-center gap-2.5">
-                <Users className="w-5 h-5 text-blue-300" />
-                <h2 className="text-base font-black tracking-tight">
-                  {editingCustomer.id ? `Edit Customer: ${editingCustomer.name}` : 'Add New Customer Profile'}
-                </h2>
-              </div>
+        <div className="fixed inset-0 bg-[#0b1d31]/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-[#d7e2ec] rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto animate-fadeIn">
+            <div className="flex items-center justify-between border-b border-[#e2e8f0] pb-3">
+              <h3 className="text-lg font-black text-[#12345b]">
+                {editingCustomer.id ? 'Edit Customer' : 'Add Customer'}
+              </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
+                className="text-[#64748b] hover:text-[#12345b] p-1 rounded-lg"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveCustomer} className="p-6 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-extrabold text-[#456078] uppercase mb-1">
-                    Customer / Business Name *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={editingCustomer.name}
-                    onChange={e => setEditingCustomer({ ...editingCustomer, name: e.target.value })}
-                    className="w-full px-3.5 py-2 border border-[#cbd5e1] rounded-xl text-xs font-bold text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-[#2f6fb3]/20 focus:border-[#2f6fb3]"
-                    placeholder="e.g. John Doe / Ace Transport"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-extrabold text-[#456078] uppercase mb-1">
-                    Company / Alternate Name
-                  </label>
-                  <input
-                    type="text"
-                    value={editingCustomer.customerName || ''}
-                    onChange={e => setEditingCustomer({ ...editingCustomer, customerName: e.target.value })}
-                    className="w-full px-3.5 py-2 border border-[#cbd5e1] rounded-xl text-xs font-bold text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-[#2f6fb3]/20 focus:border-[#2f6fb3]"
-                    placeholder="e.g. Ace Services Ltd"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-extrabold text-[#456078] uppercase mb-1">
-                    Phone Number
-                  </label>
-                  <input
-                    type="text"
-                    value={editingCustomer.phone || ''}
-                    onChange={e => setEditingCustomer({ ...editingCustomer, phone: e.target.value })}
-                    className="w-full px-3.5 py-2 border border-[#cbd5e1] rounded-xl text-xs font-bold text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-[#2f6fb3]/20 focus:border-[#2f6fb3]"
-                    placeholder="+1 (441) 295-0000"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-extrabold text-[#456078] uppercase mb-1">
-                    Email Address
-                  </label>
-                  <input
-                    type="email"
-                    value={editingCustomer.email || ''}
-                    onChange={e => setEditingCustomer({ ...editingCustomer, email: e.target.value })}
-                    className="w-full px-3.5 py-2 border border-[#cbd5e1] rounded-xl text-xs font-bold text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-[#2f6fb3]/20 focus:border-[#2f6fb3]"
-                    placeholder="accounts@example.bm"
-                  />
-                </div>
-              </div>
-
+            <form onSubmit={handleSaveCustomer} className="space-y-4">
               <div>
-                <label className="block text-xs font-extrabold text-[#456078] uppercase mb-1">
-                  Billing Address
-                </label>
-                <textarea
-                  rows={2}
-                  value={editingCustomer.billingAddress || ''}
-                  onChange={e => setEditingCustomer({ ...editingCustomer, billingAddress: e.target.value })}
-                  className="w-full px-3.5 py-2 border border-[#cbd5e1] rounded-xl text-xs font-bold text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-[#2f6fb3]/20 focus:border-[#2f6fb3]"
-                  placeholder="Street address, City, Bermuda"
+                <label className="block text-xs font-bold text-[#334155] mb-1">Customer Name *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Air Canada"
+                  value={editingCustomer.name}
+                  onChange={(e) => setEditingCustomer({ ...editingCustomer, name: e.target.value })}
+                  className="w-full px-3.5 py-2 border border-[#cbd5e1] rounded-xl text-sm font-semibold focus:outline-none focus:border-[#1d4ed8]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-extrabold text-[#456078] uppercase mb-1">
-                  Status
-                </label>
+                <label className="block text-xs font-bold text-[#334155] mb-1">Customer / Company Name</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Air Canada Corporate"
+                  value={editingCustomer.customerName || ''}
+                  onChange={(e) => setEditingCustomer({ ...editingCustomer, customerName: e.target.value })}
+                  className="w-full px-3.5 py-2 border border-[#cbd5e1] rounded-xl text-sm font-semibold focus:outline-none focus:border-[#1d4ed8]"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-[#334155] mb-1">Phone Number</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 236-1539"
+                    value={editingCustomer.phone || ''}
+                    onChange={(e) => setEditingCustomer({ ...editingCustomer, phone: e.target.value })}
+                    className="w-full px-3.5 py-2 border border-[#cbd5e1] rounded-xl text-sm font-semibold focus:outline-none focus:border-[#1d4ed8]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#334155] mb-1">Email Address</label>
+                  <input
+                    type="email"
+                    placeholder="e.g. its@link.bm"
+                    value={editingCustomer.email || ''}
+                    onChange={(e) => setEditingCustomer({ ...editingCustomer, email: e.target.value })}
+                    className="w-full px-3.5 py-2 border border-[#cbd5e1] rounded-xl text-sm font-semibold focus:outline-none focus:border-[#1d4ed8]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#334155] mb-1">Billing Address</label>
+                <textarea
+                  rows={2}
+                  placeholder="e.g. 22 Sun Valley Road Warwick WK 02"
+                  value={editingCustomer.billingAddress || ''}
+                  onChange={(e) => setEditingCustomer({ ...editingCustomer, billingAddress: e.target.value })}
+                  className="w-full px-3.5 py-2 border border-[#cbd5e1] rounded-xl text-sm font-semibold focus:outline-none focus:border-[#1d4ed8]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#334155] mb-1">Shipping / Service Address</label>
+                <textarea
+                  rows={2}
+                  placeholder="e.g. Service address if different"
+                  value={editingCustomer.shippingAddress || ''}
+                  onChange={(e) => setEditingCustomer({ ...editingCustomer, shippingAddress: e.target.value })}
+                  className="w-full px-3.5 py-2 border border-[#cbd5e1] rounded-xl text-sm font-semibold focus:outline-none focus:border-[#1d4ed8]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#334155] mb-1">Status</label>
                 <select
                   value={editingCustomer.status || 'Active'}
-                  onChange={e => setEditingCustomer({ ...editingCustomer, status: e.target.value as 'Active' | 'Inactive' })}
-                  className="w-full px-3.5 py-2 border border-[#cbd5e1] rounded-xl text-xs font-bold text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-[#2f6fb3]/20 focus:border-[#2f6fb3]"
+                  onChange={(e) => setEditingCustomer({ ...editingCustomer, status: e.target.value as 'Active' | 'Inactive' })}
+                  className="w-full px-3.5 py-2 border border-[#cbd5e1] rounded-xl text-sm font-semibold focus:outline-none focus:border-[#1d4ed8] bg-white"
                 >
                   <option value="Active">Active</option>
                   <option value="Inactive">Inactive</option>
@@ -1019,34 +609,73 @@ export const CustomersView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-extrabold text-[#456078] uppercase mb-1">
-                  Customer Notes
-                </label>
+                <label className="block text-xs font-bold text-[#334155] mb-1">Notes</label>
                 <textarea
                   rows={2}
+                  placeholder="Internal customer notes or billing memo"
                   value={editingCustomer.notes || ''}
-                  onChange={e => setEditingCustomer({ ...editingCustomer, notes: e.target.value })}
-                  className="w-full px-3.5 py-2 border border-[#cbd5e1] rounded-xl text-xs font-bold text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-[#2f6fb3]/20 focus:border-[#2f6fb3]"
-                  placeholder="Special instructions, preferences, or billing notes..."
+                  onChange={(e) => setEditingCustomer({ ...editingCustomer, notes: e.target.value })}
+                  className="w-full px-3.5 py-2 border border-[#cbd5e1] rounded-xl text-sm font-semibold focus:outline-none focus:border-[#1d4ed8]"
                 />
               </div>
 
-              <div className="pt-4 flex items-center justify-end gap-3 border-t border-[#e5ebf1]">
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#e2e8f0]">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 border border-[#cbd5e1] rounded-xl text-xs font-extrabold text-[#475569] hover:bg-[#f4f7fb] transition-colors"
+                  className="px-4 py-2 border border-[#cbd5e1] text-[#475569] font-bold text-sm rounded-xl hover:bg-[#f8fafc]"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-[#2f6fb3] hover:bg-[#235891] text-white rounded-xl text-xs font-black shadow-sm transition-all active:scale-95"
+                  className="px-5 py-2 bg-[#1d4ed8] hover:bg-[#1e40af] text-white font-bold text-sm rounded-xl shadow-md active:scale-95"
                 >
                   Save Customer
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-[#0b1d31]/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-[#d7e2ec] rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-fadeIn">
+            <div className="flex items-center gap-3 text-[#dc2626]">
+              <div className="w-10 h-10 rounded-full bg-[#fef2f2] flex items-center justify-center flex-shrink-0">
+                <AlertCircle className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-[#12345b]">
+                  Delete Customer?
+                </h3>
+                <p className="text-xs text-[#64748b]">This action cannot be undone.</p>
+              </div>
+            </div>
+
+            <p className="text-sm font-semibold text-[#334155]">
+              Are you sure you want to delete{' '}
+              <span className="font-extrabold text-[#0f172a]">{deleteTarget.name}</span>?
+            </p>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(null)}
+                className="px-4 py-2 border border-[#cbd5e1] text-[#475569] font-bold text-sm rounded-xl hover:bg-[#f8fafc]"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteCustomer}
+                className="px-5 py-2 bg-[#dc2626] hover:bg-[#b91c1c] text-white font-bold text-sm rounded-xl shadow-md active:scale-95"
+              >
+                Delete
+              </button>
+            </div>
           </div>
         </div>
       )}

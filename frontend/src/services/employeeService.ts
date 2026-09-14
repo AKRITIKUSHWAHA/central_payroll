@@ -32,6 +32,19 @@ class EmployeeService {
     return this.getStorage();
   }
 
+  public async fetchEmployees(): Promise<Employee[]> {
+    try {
+      const res = await apiFetch<{ success: boolean; employees: Employee[] }>('/employees');
+      if (res && res.success && res.employees) {
+        this.saveStorage(res.employees);
+        return res.employees;
+      }
+    } catch (e) {
+      console.error('Failed to fetch employees:', e);
+    }
+    return this.getStorage();
+  }
+
   public getEmployeeById(id: string): Employee | undefined {
     const employees = this.getStorage();
     return employees.find(e => e.id === id || e.employeeId === id);

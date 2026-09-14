@@ -28,3 +28,9 @@ npm-debug.log*
 .vscode/
 .idea/
 .DS_Store
+
+# Temporary / Zip archives & copy folders
+*.zip
+**/*.zip
+*node_modules*
+

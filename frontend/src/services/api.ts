@@ -2,7 +2,9 @@ const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost
 
 export const apiFetch = async <T>(endpoint: string, options?: RequestInit): Promise<T | null> => {
   try {
-    const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    const url = `${API_BASE_URL}${cleanEndpoint}`;
+    const res = await fetch(url, {
       headers: {
         'Content-Type': 'application/json',
         ...options?.headers,
@@ -11,7 +13,7 @@ export const apiFetch = async <T>(endpoint: string, options?: RequestInit): Prom
     });
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.error || `HTTP ${res.status}`);
+      throw new Error(errData.message || errData.error || `HTTP ${res.status}`);
     }
     return await res.json();
   } catch (error) {

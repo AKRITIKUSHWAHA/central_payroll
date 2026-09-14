@@ -1,15 +1,35 @@
-import React, { useState } from 'react';
-import { employeeService } from '../services/employeeService';
+import React, { useState, useEffect } from 'react';
+import { apiFetch } from '../services/api';
 import { payrollService } from '../services/payrollService';
+import { companyService, CompanyProfile } from '../services/companyService';
 import { EmailPayslipModal } from '../components/EmailPayslipModal';
 import { Printer, Mail, Download, PieChart, Building, User } from 'lucide-react';
+import { Employee, PayrollPeriod } from '../types';
 
 export const PayslipsView: React.FC = () => {
-  const employees = employeeService.getEmployees();
-  const currentPeriod = payrollService.getCurrentDraft();
-  
-  const [selectedEmpId, setSelectedEmpId] = useState<string>(employees[0]?.id || '');
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [periods, setPeriods] = useState<PayrollPeriod[]>([]);
+  const [selectedEmpId, setSelectedEmpId] = useState<string>('');
   const [showEmailModal, setShowEmailModal] = useState(false);
+  const [company, setCompany] = useState<CompanyProfile>(() => companyService.getCompanyProfile());
+
+  useEffect(() => {
+    companyService.fetchCompanyProfile().then(p => setCompany(p));
+
+    apiFetch<{ success: boolean; payslipPeriods: PayrollPeriod[]; employees: Employee[] }>('/payslips').then(res => {
+      if (res && res.success) {
+        if (res.employees && res.employees.length > 0) {
+          setEmployees(res.employees);
+          setSelectedEmpId(res.employees[0].id);
+        }
+        if (res.payslipPeriods && res.payslipPeriods.length > 0) {
+          setPeriods(res.payslipPeriods);
+        }
+      }
+    });
+  }, []);
+
+  const currentPeriod = periods[0] || payrollService.getCurrentDraft();
 
   if (!employees || employees.length === 0) {
     return (
@@ -58,7 +78,7 @@ export const PayslipsView: React.FC = () => {
           <div className="flex items-center gap-2 md:col-span-2 justify-end">
             <button
               onClick={() => window.print()}
-              className="px-4 py-2.5 bg-[#2f6fb3] hover:bg-[#245a96] text-white text-xs font-extrabold rounded-xl shadow-sm flex items-center gap-2"
+              className="px-4 py-2.5 bg-[#2f6fb3] hover:bg-[#245a96] text-white text-xs font-extrabold rounded-xl shadow-sm flex items-center gap-2 cursor-pointer"
             >
               <Printer className="w-4 h-4" />
               <span>Print Payslip</span>
@@ -66,7 +86,7 @@ export const PayslipsView: React.FC = () => {
 
             <button
               onClick={() => setShowEmailModal(true)}
-              className="px-4 py-2.5 bg-[#0f766e] hover:bg-[#0c5e58] text-white text-xs font-extrabold rounded-xl shadow-sm flex items-center gap-2"
+              className="px-4 py-2.5 bg-[#0f766e] hover:bg-[#0c5e58] text-white text-xs font-extrabold rounded-xl shadow-sm flex items-center gap-2 cursor-pointer"
             >
               <Mail className="w-4 h-4" />
               <span>Email Employee</span>
@@ -85,10 +105,10 @@ export const PayslipsView: React.FC = () => {
             </div>
             <div>
               <h2 className="text-xl font-black text-[#12345b] tracking-tight">
-                CENTRAL DISPATCH
+                {company.organizationName || 'CENTRAL DISPATCH'}
               </h2>
               <p className="text-xs font-bold text-[#607286]">
-                Hamilton, Bermuda • Tel: (441) 292-1234
+                {company.address || '3 Laffan Street, Pembroke HM09'} • Tel: {company.phone || '(441) 295-4141'}
               </p>
             </div>
           </div>
@@ -107,7 +127,7 @@ export const PayslipsView: React.FC = () => {
         </div>
 
         {/* Employee Info Grid */}
-        <div className="grid grid-cols-2 gap-4 p-4 bg-[#f8fbfd] border border-[#dde7f0] rounded-xl text-xs font-semibold">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-[#f8fbfd] border border-[#dde7f0] rounded-xl text-xs font-semibold">
           <div>
             <span className="text-[#607286] block font-bold">Employee Name:</span>
             <strong className="text-sm font-black text-[#12345b]">{selectedEmp.displayName}</strong>
@@ -129,10 +149,10 @@ export const PayslipsView: React.FC = () => {
         {/* Earnings & Deductions Grid */}
         <div className="space-y-4">
           <h3 className="text-sm font-black text-[#12345b] uppercase tracking-wider border-b border-[#dde7f0] pb-1">
-            Earnings & Rates Breakdown
+            Earnings &amp; Rates Breakdown
           </h3>
 
-          <div className="grid grid-cols-3 gap-3 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
             <div className="p-3 bg-[#f1f6fa] rounded-lg">
               <strong className="block text-[11px] text-[#607286] uppercase">Regular Hours</strong>
               <span className="text-sm font-bold text-[#12345b] tabular-nums">{item?.regularHours || 40} hrs</span>

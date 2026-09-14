@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { emailService } from '../services/emailService';
 import { useToast } from '../context/ToastContext';
 import { Mail, Send, X, CheckCircle2 } from 'lucide-react';
@@ -26,6 +27,16 @@ export const EmailPayslipModal: React.FC<EmailPayslipModalProps> = ({
   const [isSending, setIsSending] = useState(false);
   const { showToast } = useToast();
 
+  useEffect(() => {
+    if (isOpen) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = prev;
+      };
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const handleSend = async (e: React.FormEvent) => {
@@ -48,9 +59,15 @@ export const EmailPayslipModal: React.FC<EmailPayslipModalProps> = ({
     }
   };
 
-  return (
-    <div className="fixed inset-0 bg-[#0b1d31]/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white border border-[#d7e2ec] rounded-2xl max-w-lg w-full p-6 shadow-cdModal space-y-4">
+  return createPortal(
+    <div
+      className="fixed inset-0 bg-[#0b1d31]/60 backdrop-blur-sm z-[99999] w-screen h-screen flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white border border-[#d7e2ec] rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-5 sm:p-6 shadow-cdModal space-y-4 my-auto animate-scaleUp"
+        onClick={e => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between border-b border-[#e1e8ef] pb-3">
           <div className="flex items-center gap-2">
             <Mail className="w-5 h-5 text-[#2f6fb3]" />
@@ -121,6 +138,7 @@ export const EmailPayslipModal: React.FC<EmailPayslipModalProps> = ({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

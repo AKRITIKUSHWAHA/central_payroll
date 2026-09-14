@@ -22,9 +22,22 @@ class LeaveService {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(leaves));
   }
 
+  public async fetchLeaveData(): Promise<{ leaves: LeaveRecord[]; employees: any[] }> {
+    try {
+      const res = await apiFetch<{ success: boolean; leaves: LeaveRecord[]; employees: any[] }>('/leave-calendars');
+      if (res && res.success) {
+        if (res.leaves) this.saveStorage(res.leaves);
+        return { leaves: res.leaves || [], employees: res.employees || [] };
+      }
+    } catch (err) {
+      console.warn('Failed to fetch from /leave-calendars:', err);
+    }
+    return { leaves: this.getStorage(), employees: [] };
+  }
+
   public getLeaves(): LeaveRecord[] {
     // Sync with backend API
-    apiFetch<{ success: boolean; leaves: LeaveRecord[] }>('/leave').then(res => {
+    apiFetch<{ success: boolean; leaves: LeaveRecord[] }>('/leave-calendars').then(res => {
       if (res && res.success && res.leaves) {
         this.saveStorage(res.leaves);
       }
@@ -47,7 +60,7 @@ class LeaveService {
     this.saveStorage(leaves);
 
     // Sync POST to backend
-    apiFetch('/leave', {
+    apiFetch('/leave-calendars', {
       method: 'POST',
       body: JSON.stringify(newLeave)
     });
@@ -63,7 +76,7 @@ class LeaveService {
       this.saveStorage(leaves);
 
       // Sync PATCH to backend
-      apiFetch(`/leave/${leaveId}/status`, {
+      apiFetch(`/leave-calendars/${leaveId}/status`, {
         method: 'PATCH',
         body: JSON.stringify({ status })
       });
@@ -80,7 +93,7 @@ class LeaveService {
     this.saveStorage(updated);
 
     // Sync PUT to backend
-    apiFetch(`/leave/employee/${employeeId}`, {
+    apiFetch(`/leave-calendars/employee/${employeeId}`, {
       method: 'PUT',
       body: JSON.stringify({ leaves: leavesForEmployee })
     });

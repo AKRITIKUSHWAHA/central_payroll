@@ -1,21 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { accountingService } from '../services/accountingService';
 import { useToast } from '../context/ToastContext';
-import { 
-  Download, 
-  Search, 
-  Filter, 
-  RotateCcw, 
-  BookOpen, 
-  TrendingUp, 
-  TrendingDown, 
-  Scale, 
-  Calendar, 
-  ChevronLeft, 
-  ChevronRight,
-  FileSpreadsheet,
-  Layers
-} from 'lucide-react';
+import { apiFetch } from '../services/api';
+import { GeneralLedgerEntry } from '../types';
 
 export const GeneralLedgerView: React.FC = () => {
   const { showToast } = useToast();
@@ -24,51 +11,29 @@ export const GeneralLedgerView: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedYear, setSelectedYear] = useState('');
   const [selectedType, setSelectedType] = useState('');
-  const [selectedAccount, setSelectedAccount] = useState('');
-  
-  // Pagination States
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState<number>(50);
 
-  const allEntries = useMemo(() => {
-    return accountingService.getAllGeneralLedger();
-  }, []);
+  const [dbEntries, setDbEntries] = useState<GeneralLedgerEntry[]>([]);
 
-  // Extract unique filter options
-  const availableYears = useMemo(() => {
-    const years = new Set<string>();
-    allEntries.forEach(e => {
-      if (e.date && e.date.length >= 4) {
-        years.add(e.date.substring(0, 4));
+  useEffect(() => {
+    apiFetch<{ success: boolean; count: number; ledgerEntries: GeneralLedgerEntry[] }>('/general-ledger').then(res => {
+      if (res && res.success && res.ledgerEntries && res.ledgerEntries.length > 0) {
+        setDbEntries(res.ledgerEntries);
       }
     });
-    return Array.from(years).sort().reverse();
-  }, [allEntries]);
+  }, []);
 
-  const availableTypes = useMemo(() => {
-    const types = new Set<string>();
-    allEntries.forEach(e => {
-      if (e.type) types.add(e.type);
-    });
-    return Array.from(types).sort();
-  }, [allEntries]);
-
-  const availableAccounts = useMemo(() => {
-    const accounts = new Set<string>();
-    allEntries.forEach(e => {
-      if (e.account) accounts.add(e.account);
-    });
-    return Array.from(accounts).sort();
-  }, [allEntries]);
+  const allEntries = useMemo(() => {
+    if (dbEntries.length > 0) return dbEntries;
+    return accountingService.getAllGeneralLedger();
+  }, [dbEntries]);
 
   // Filtered entries
   const filteredEntries = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
     return allEntries.filter(entry => {
       if (selectedYear && !String(entry.date).startsWith(selectedYear)) return false;
       if (selectedType && entry.type !== selectedType) return false;
-      if (selectedAccount && entry.account !== selectedAccount) return false;
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
+      if (q) {
         const haystack = [
           entry.name, 
           entry.memo, 
@@ -81,7 +46,7 @@ export const GeneralLedgerView: React.FC = () => {
       }
       return true;
     });
-  }, [allEntries, selectedYear, selectedType, selectedAccount, searchQuery]);
+  }, [allEntries, selectedYear, selectedType, searchQuery]);
 
   // Totals calculation
   const totalDebits = useMemo(() => {
@@ -92,388 +57,221 @@ export const GeneralLedgerView: React.FC = () => {
     return filteredEntries.reduce((sum, r) => sum + Number(r.credit || 0), 0);
   }, [filteredEntries]);
 
-  const netBalance = totalDebits - totalCredits;
-
-  // Pagination calculation
-  const totalPages = Math.ceil(filteredEntries.length / (pageSize === -1 ? filteredEntries.length || 1 : pageSize)) || 1;
-  const paginatedEntries = useMemo(() => {
-    if (pageSize === -1) return filteredEntries;
-    const start = (currentPage - 1) * pageSize;
-    return filteredEntries.slice(start, start + pageSize);
-  }, [filteredEntries, currentPage, pageSize]);
-
-  const handleResetFilters = () => {
-    setSearchQuery('');
-    setSelectedYear('');
-    setSelectedType('');
-    setSelectedAccount('');
-    setCurrentPage(1);
-    showToast('Filters reset to default view.');
-  };
-
+  // Currency Formatter: BMD 279,279.16
   const formatMoney = (val: number) => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'BMD' }).format(val || 0);
+    const num = Number(val) || 0;
+    return `BMD ${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
+  // Slice up to 700 matching entries at once as per prototype
+  const displayedEntries = useMemo(() => {
+    return filteredEntries.slice(0, 700);
+  }, [filteredEntries]);
+
+  // Export to Excel / CSV
   const handleExportExcel = () => {
-    const rows = [
-      ['Date', 'Type', 'Number', 'Name', 'Memo', 'Account', 'Debit (BMD)', 'Credit (BMD)', 'Source'],
-      ...filteredEntries.map(e => [
-        e.date,
-        e.type,
-        e.number || '',
-        e.name,
-        e.memo || '',
-        e.account,
-        e.debit ? e.debit.toFixed(2) : '0.00',
-        e.credit ? e.credit.toFixed(2) : '0.00',
-        e.source || 'Imported',
-      ]),
-    ];
+    const title = 'Central Dispatch General Ledger';
+    const headers = ['Date', 'Type', 'Number', 'Name', 'Memo', 'Account', 'Debit', 'Credit', 'Source'];
+    const rows = filteredEntries.map(e => [
+      e.date,
+      e.type,
+      e.number || '',
+      e.name,
+      e.memo || '',
+      e.account,
+      e.debit ? Number(e.debit).toFixed(2) : '',
+      e.credit ? Number(e.credit).toFixed(2) : '',
+      e.source || 'Imported'
+    ]);
 
-    const csvContent = 'data:text/csv;charset=utf-8,' + rows.map(e => e.map(x => `"${String(x).replace(/"/g, '""')}"`).join(',')).join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Central_Dispatch_General_Ledger_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    showToast('General Ledger exported to Excel/CSV successfully!');
-  };
-
-  const getTypeBadgeStyle = (type: string) => {
-    switch (type) {
-      case 'Payment':
-        return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-      case 'Payroll Check':
-        return 'bg-indigo-50 text-indigo-700 border-indigo-200';
-      case 'Invoice':
-        return 'bg-purple-50 text-purple-700 border-purple-200';
-      case 'Tax Payment':
-        return 'bg-amber-50 text-amber-700 border-amber-200';
-      case 'Pledge':
-        return 'bg-teal-50 text-teal-700 border-teal-200';
-      case 'Check':
-        return 'bg-blue-50 text-blue-700 border-blue-200';
-      default:
-        return 'bg-slate-50 text-slate-700 border-slate-200';
-    }
+    const html = `<html><head><meta charset="utf-8"><style>body{font-family:Arial}table{border-collapse:collapse;width:100%}th,td{border:1px solid #bbb;padding:8px}th{background:#12345b;color:white}.money{text-align:right}</style></head><body><h1>${title}</h1><table><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>${rows.map(r => `<tr>${r.map((v, i) => `<td class="${i === 6 || i === 7 ? 'money' : ''}">${v}</td>`).join('')}</tr>`).join('')}</table></body></html>`;
+    
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([html], { type: 'application/vnd.ms-excel' }));
+    a.download = `CDL-General-Ledger-${new Date().toISOString().slice(0, 10)}.xls`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    showToast('General Ledger exported to Excel successfully.');
   };
 
   return (
-    <div className="space-y-6 pb-12">
-      {/* 1. Header Banner */}
-      <div className="bg-white border border-[#dde7f0] rounded-2xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#12345b] to-[#1e528d] flex items-center justify-center text-white shadow-md">
-            <BookOpen className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2.5">
-              <h1 className="text-2xl font-black text-[#12345b] tracking-tight">
-                General Ledger
-              </h1>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-[#edf4fa] text-[#2f6fb3] border border-[#d2e2f0]">
-                {allEntries.length.toLocaleString()} Total Records
-              </span>
-            </div>
-            <p className="text-xs font-semibold text-[#607286] mt-1">
-              Consolidated financial journal, payroll disbursements, customer settlements, and imported ledger transactions.
-            </p>
-          </div>
+    <div className="space-y-6 max-w-7xl mx-auto pb-12">
+      {/* 1. Workspace Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#12345b] tracking-tight">
+            General Ledger
+          </h1>
+          <p className="text-sm font-semibold text-[#1d4ed8] mt-1">
+            Complete imported ledger history plus invoices and payments created in this app.
+          </p>
         </div>
-
-        <div className="flex items-center gap-2.5">
-          <button
-            onClick={handleResetFilters}
-            className="px-3.5 py-2 bg-white hover:bg-[#f1f5f9] text-[#475569] border border-[#cbd5e1] text-xs font-bold rounded-xl shadow-sm flex items-center gap-1.5 transition-all"
-            title="Reset all search queries and dropdown filters"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>Reset</span>
-          </button>
-          <button
-            onClick={handleExportExcel}
-            className="px-4 py-2 bg-[#2f6fb3] hover:bg-[#235891] text-white text-xs font-black rounded-xl shadow-sm flex items-center gap-2 transition-all active:scale-95"
-          >
-            <FileSpreadsheet className="w-4 h-4" />
-            <span>Export to Excel</span>
-          </button>
-        </div>
+        <button
+          onClick={handleExportExcel}
+          className="px-5 py-2.5 bg-[#1d4ed8] hover:bg-[#1e40af] text-white text-sm font-extrabold rounded-xl transition-all shadow-md self-start sm:self-auto hover:shadow-lg active:scale-95"
+        >
+          Export Ledger to Excel
+        </button>
       </div>
 
-      {/* 2. KPI Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Filtered Count */}
-        <div className="bg-white border border-[#dde7f0] rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between text-[#607286]">
-            <span className="text-xs font-extrabold uppercase tracking-wider">Filtered Entries</span>
-            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
-              <Layers className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-[#12345b]">
-              {filteredEntries.length.toLocaleString()}
-            </span>
-            <span className="text-[11px] font-bold text-[#607286]">
-              of {allEntries.length.toLocaleString()}
-            </span>
-          </div>
-          <div className="mt-2 text-[11px] font-semibold text-[#8292a2]">
-            Active in current filter view
+      {/* 2. Filtered Debits & Filtered Credits KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl">
+        {/* Filtered Debits Card */}
+        <div className="bg-white border border-[#dde7f0] rounded-2xl p-5 shadow-sm">
+          <span className="text-xs sm:text-sm font-bold text-[#64748b]">Filtered Debits</span>
+          <div className="text-2xl sm:text-3xl font-extrabold text-[#12345b] tracking-tight mt-1.5">
+            {formatMoney(totalDebits)}
           </div>
         </div>
 
-        {/* Total Debits */}
-        <div className="bg-white border border-[#dde7f0] rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between text-[#607286]">
-            <span className="text-xs font-extrabold uppercase tracking-wider">Total Debits</span>
-            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
-              <TrendingUp className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-2">
-            <span className="text-2xl font-black text-[#12345b]">
-              {formatMoney(totalDebits)}
-            </span>
-          </div>
-          <div className="mt-2 text-[11px] font-semibold text-[#8292a2]">
-            Cash disbursements & AR debits
-          </div>
-        </div>
-
-        {/* Total Credits */}
-        <div className="bg-white border border-[#dde7f0] rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between text-[#607286]">
-            <span className="text-xs font-extrabold uppercase tracking-wider">Total Credits</span>
-            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-              <TrendingDown className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-2">
-            <span className="text-2xl font-black text-[#0f766e]">
-              {formatMoney(totalCredits)}
-            </span>
-          </div>
-          <div className="mt-2 text-[11px] font-semibold text-[#8292a2]">
-            Revenue, income & fee credits
-          </div>
-        </div>
-
-        {/* Net Differential */}
-        <div className="bg-white border border-[#dde7f0] rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between text-[#607286]">
-            <span className="text-xs font-extrabold uppercase tracking-wider">Net Differential</span>
-            <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
-              <Scale className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-2">
-            <span className={`text-2xl font-black ${netBalance >= 0 ? 'text-[#12345b]' : 'text-rose-600'}`}>
-              {formatMoney(netBalance)}
-            </span>
-          </div>
-          <div className="mt-2 text-[11px] font-semibold text-[#8292a2]">
-            Debits minus Credits
+        {/* Filtered Credits Card */}
+        <div className="bg-white border border-[#dde7f0] rounded-2xl p-5 shadow-sm">
+          <span className="text-xs sm:text-sm font-bold text-[#64748b]">Filtered Credits</span>
+          <div className="text-2xl sm:text-3xl font-extrabold text-[#12345b] tracking-tight mt-1.5">
+            {formatMoney(totalCredits)}
           </div>
         </div>
       </div>
 
-      {/* 3. Main Data Card */}
+      {/* 3. Panel Container */}
       <div className="bg-white border border-[#dde7f0] rounded-2xl shadow-sm overflow-hidden">
-        {/* Filters Toolbar */}
-        <div className="p-4 sm:p-5 border-b border-[#e2e8f0] bg-[#fbfdff]">
-          <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
-            {/* Search Input */}
-            <div className="flex-1 relative">
-              <Search className="w-4 h-4 text-[#607286] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+        {/* Accounting Toolbar */}
+        <div className="p-4 sm:p-5 border-b border-[#e2e8f0] flex flex-col md:flex-row items-stretch md:items-end justify-between gap-4">
+          <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 flex-1">
+            {/* Search ledger */}
+            <div className="flex-1 min-w-[200px]">
+              <label htmlFor="glSearch" className="block text-xs font-bold text-[#334155] mb-1.5">
+                Search ledger
+              </label>
               <input
+                id="glSearch"
                 type="text"
-                placeholder="Search by customer name, account, check #, memo..."
+                placeholder="Name, account, memo, or number"
                 value={searchQuery}
-                onChange={e => {
-                  setSearchQuery(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="w-full pl-10 pr-4 py-2 bg-white border border-[#cbd5e1] rounded-xl text-xs font-bold text-[#1e293b] placeholder:text-[#94a3b8] focus:outline-none focus:ring-2 focus:ring-[#2f6fb3]/20 focus:border-[#2f6fb3]"
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full px-3.5 py-2 border border-[#cbd5e1] rounded-xl text-sm font-semibold focus:outline-none focus:border-[#1d4ed8] bg-white placeholder-[#94a3b8]"
               />
             </div>
 
-            {/* Dropdowns Group */}
-            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5">
-              {/* Year Filter */}
-              <div className="w-full sm:w-32">
-                <select
-                  value={selectedYear}
-                  onChange={e => {
-                    setSelectedYear(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="w-full px-3 py-2 bg-white border border-[#cbd5e1] rounded-xl text-xs font-bold text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-[#2f6fb3]/20 focus:border-[#2f6fb3]"
-                >
-                  <option value="">All Years</option>
-                  {availableYears.map(yr => (
-                    <option key={yr} value={yr}>{yr}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Type Filter */}
-              <div className="w-full sm:w-40">
-                <select
-                  value={selectedType}
-                  onChange={e => {
-                    setSelectedType(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="w-full px-3 py-2 bg-white border border-[#cbd5e1] rounded-xl text-xs font-bold text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-[#2f6fb3]/20 focus:border-[#2f6fb3]"
-                >
-                  <option value="">All Types ({availableTypes.length})</option>
-                  {availableTypes.map(t => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Account Filter */}
-              <div className="w-full sm:w-56">
-                <select
-                  value={selectedAccount}
-                  onChange={e => {
-                    setSelectedAccount(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="w-full px-3 py-2 bg-white border border-[#cbd5e1] rounded-xl text-xs font-bold text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-[#2f6fb3]/20 focus:border-[#2f6fb3]"
-                >
-                  <option value="">All Accounts ({availableAccounts.length})</option>
-                  {availableAccounts.map(acc => (
-                    <option key={acc} value={acc}>{acc}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Page Size Selector */}
-              <div className="w-full sm:w-28">
-                <select
-                  value={pageSize}
-                  onChange={e => {
-                    setPageSize(Number(e.target.value));
-                    setCurrentPage(1);
-                  }}
-                  className="w-full px-3 py-2 bg-white border border-[#cbd5e1] rounded-xl text-xs font-bold text-[#1e293b] focus:outline-none focus:ring-2 focus:ring-[#2f6fb3]/20 focus:border-[#2f6fb3]"
-                >
-                  <option value={25}>25 / page</option>
-                  <option value={50}>50 / page</option>
-                  <option value={100}>100 / page</option>
-                  <option value={250}>250 / page</option>
-                  <option value={-1}>Show All</option>
-                </select>
-              </div>
+            {/* Year Dropdown */}
+            <div className="w-full md:w-36">
+              <label htmlFor="glYear" className="block text-xs font-bold text-[#334155] mb-1.5">
+                Year
+              </label>
+              <select
+                id="glYear"
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(e.target.value)}
+                className="w-full px-3.5 py-2 border border-[#cbd5e1] rounded-xl text-sm font-semibold focus:outline-none focus:border-[#1d4ed8] bg-white cursor-pointer"
+              >
+                <option value="">All years</option>
+                <option value="2024">2024</option>
+                <option value="2025">2025</option>
+                <option value="2026">2026</option>
+              </select>
             </div>
+
+            {/* Transaction type Dropdown */}
+            <div className="w-full md:w-48">
+              <label htmlFor="glType" className="block text-xs font-bold text-[#334155] mb-1.5">
+                Transaction type
+              </label>
+              <select
+                id="glType"
+                value={selectedType}
+                onChange={(e) => setSelectedType(e.target.value)}
+                className="w-full px-3.5 py-2 border border-[#cbd5e1] rounded-xl text-sm font-semibold focus:outline-none focus:border-[#1d4ed8] bg-white cursor-pointer"
+              >
+                <option value="">All types</option>
+                <option value="Payment">Payment</option>
+                <option value="Payroll Check">Payroll Check</option>
+                <option value="Check">Check</option>
+                <option value="Pledge">Pledge</option>
+                <option value="Tax Payment">Tax Payment</option>
+                <option value="Invoice">Invoice</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Transaction Count */}
+          <div className="text-xs font-semibold text-[#64748b] self-end md:self-center whitespace-nowrap">
+            {filteredEntries.length.toLocaleString()} transactions
           </div>
         </div>
 
-        {/* Ledger Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
+        {/* Table Wrap */}
+        <div className="overflow-x-auto w-full">
+          <table className="w-full text-left text-sm border-collapse min-w-[900px]">
             <thead>
-              <tr className="bg-[#12345b] text-white border-b border-[#0e2744]">
-                <th className="py-3 px-4 font-black w-28 whitespace-nowrap">Date</th>
-                <th className="py-3 px-4 font-black w-32 whitespace-nowrap">Type</th>
-                <th className="py-3 px-4 font-black w-24 whitespace-nowrap">Number</th>
-                <th className="py-3 px-4 font-black min-w-[200px]">Entity / Name</th>
-                <th className="py-3 px-4 font-black min-w-[220px]">Memo / Description</th>
-                <th className="py-3 px-4 font-black min-w-[220px]">Account</th>
-                <th className="py-3 px-4 font-black text-right w-32 whitespace-nowrap">Debit</th>
-                <th className="py-3 px-4 font-black text-right w-32 whitespace-nowrap">Credit</th>
-                <th className="py-3 px-4 font-black text-center w-28 whitespace-nowrap">Source</th>
+              <tr className="bg-[#102a43] text-white font-bold text-xs uppercase tracking-wider">
+                <th className="py-3.5 px-4 font-bold">Date</th>
+                <th className="py-3.5 px-4 font-bold">Type</th>
+                <th className="py-3.5 px-4 font-bold">Number</th>
+                <th className="py-3.5 px-4 font-bold">Name</th>
+                <th className="py-3.5 px-4 font-bold">Memo</th>
+                <th className="py-3.5 px-4 font-bold">Account</th>
+                <th className="py-3.5 px-4 font-bold text-right">Debit</th>
+                <th className="py-3.5 px-4 font-bold text-right">Credit</th>
+                <th className="py-3.5 px-4 font-bold text-center">Source</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#e2e8f0]">
-              {paginatedEntries.length === 0 ? (
+            <tbody className="divide-y divide-[#edf2f7]">
+              {displayedEntries.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center text-[#607286]">
-                    <div className="max-w-md mx-auto space-y-2">
-                      <Filter className="w-8 h-8 text-[#94a3b8] mx-auto mb-2" />
-                      <p className="text-sm font-black text-[#12345b]">No matching transactions found</p>
-                      <p className="text-xs text-[#64748b]">Try clearing or adjusting your search filters above.</p>
-                      <button
-                        onClick={handleResetFilters}
-                        className="mt-3 px-3 py-1.5 bg-[#edf4fa] hover:bg-[#d8e6f3] text-[#2f6fb3] text-xs font-bold rounded-lg transition-colors"
-                      >
-                        Clear Filters
-                      </button>
-                    </div>
+                  <td colSpan={9} className="py-10 text-center text-sm font-bold text-[#64748b]">
+                    No ledger entries match the filters.
                   </td>
                 </tr>
               ) : (
-                paginatedEntries.map((g, idx) => (
-                  <tr 
-                    key={g.id || `${g.date}-${g.number}-${idx}`} 
-                    className="hover:bg-[#f8fbfd] transition-colors group"
+                displayedEntries.map((entry, idx) => (
+                  <tr
+                    key={entry.id || `${entry.date}_${entry.number}_${idx}`}
+                    className="hover:bg-[#f8fafc] transition-colors"
                   >
                     {/* Date */}
-                    <td className="py-3 px-4 font-bold text-[#334155] whitespace-nowrap">
-                      {g.date}
+                    <td className="py-3 px-4 text-xs font-semibold text-[#334155] whitespace-nowrap">
+                      {entry.date || '—'}
                     </td>
 
-                    {/* Type Badge */}
-                    <td className="py-3 px-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-black border ${getTypeBadgeStyle(g.type)}`}>
-                        {g.type}
-                      </span>
+                    {/* Type */}
+                    <td className="py-3 px-4 text-xs font-bold text-[#0f172a] whitespace-nowrap">
+                      {entry.type || '—'}
                     </td>
 
                     {/* Number */}
-                    <td className="py-3 px-4 font-semibold text-[#64748b] whitespace-nowrap">
-                      {g.number ? `#${g.number}` : '—'}
+                    <td className="py-3 px-4 text-xs font-semibold text-[#475569] whitespace-nowrap">
+                      {entry.number || '—'}
                     </td>
 
                     {/* Name */}
-                    <td className="py-3 px-4 font-extrabold text-[#12345b] max-w-[240px]">
-                      <div className="truncate" title={g.name}>
-                        {g.name || '—'}
-                      </div>
+                    <td className="py-3 px-4 text-xs font-bold text-[#0f172a] max-w-[200px] truncate" title={entry.name}>
+                      {entry.name || '—'}
                     </td>
 
                     {/* Memo */}
-                    <td className="py-3 px-4 text-[#475569] max-w-[260px]">
-                      <div className="truncate text-[11px]" title={g.memo || ''}>
-                        {g.memo || '—'}
-                      </div>
+                    <td className="py-3 px-4 text-xs text-[#475569] max-w-[220px] truncate" title={entry.memo}>
+                      {entry.memo || '—'}
                     </td>
 
                     {/* Account */}
-                    <td className="py-3 px-4 font-medium text-[#1e293b] max-w-[240px]">
-                      <div className="truncate" title={g.account}>
-                        {g.account}
-                      </div>
+                    <td className="py-3 px-4 text-xs font-semibold text-[#1e293b] max-w-[220px] truncate" title={entry.account}>
+                      {entry.account || '—'}
                     </td>
 
                     {/* Debit */}
-                    <td className="py-3 px-4 text-right font-black text-[#12345b] whitespace-nowrap">
-                      {g.debit ? (
-                        <span>{formatMoney(g.debit)}</span>
-                      ) : (
-                        <span className="text-[#94a3b8] font-normal">—</span>
-                      )}
+                    <td className="py-3 px-4 text-xs font-extrabold text-[#0f172a] text-right whitespace-nowrap">
+                      {entry.debit ? formatMoney(entry.debit) : '—'}
                     </td>
 
                     {/* Credit */}
-                    <td className="py-3 px-4 text-right font-black text-[#0f766e] whitespace-nowrap">
-                      {g.credit ? (
-                        <span>{formatMoney(g.credit)}</span>
-                      ) : (
-                        <span className="text-[#94a3b8] font-normal">—</span>
-                      )}
+                    <td className="py-3 px-4 text-xs font-extrabold text-[#0f172a] text-right whitespace-nowrap">
+                      {entry.credit ? formatMoney(entry.credit) : '—'}
                     </td>
 
                     {/* Source */}
                     <td className="py-3 px-4 text-center whitespace-nowrap">
-                      <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-[#f1f5f9] text-[#475569] border border-[#e2e8f0]">
-                        {g.source || 'Imported'}
+                      <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-[#f1f5f9] text-[#475569]">
+                        {entry.source || 'Imported'}
                       </span>
                     </td>
                   </tr>
@@ -483,49 +281,9 @@ export const GeneralLedgerView: React.FC = () => {
           </table>
         </div>
 
-        {/* 4. Table Pagination Footer */}
-        <div className="p-4 bg-[#f8fbfd] border-t border-[#e2e8f0] flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="text-xs font-bold text-[#64748b]">
-            {filteredEntries.length > 0 ? (
-              <>
-                Showing <span className="text-[#12345b] font-black">{pageSize === -1 ? 1 : ((currentPage - 1) * pageSize) + 1}</span> to{' '}
-                <span className="text-[#12345b] font-black">{pageSize === -1 ? filteredEntries.length : Math.min(currentPage * pageSize, filteredEntries.length)}</span> of{' '}
-                <span className="text-[#12345b] font-black">{filteredEntries.length.toLocaleString()}</span> entries
-              </>
-            ) : (
-              'No entries to display'
-            )}
-          </div>
-
-          {pageSize !== -1 && totalPages > 1 && (
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className="p-1.5 rounded-lg border border-[#cbd5e1] bg-white text-[#475569] hover:bg-[#f1f5f9] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                title="Previous Page"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-
-              <div className="flex items-center gap-1 px-2 text-xs font-bold text-[#1e293b]">
-                <span>Page</span>
-                <span className="px-2 py-0.5 bg-white border border-[#cbd5e1] rounded font-black text-[#12345b]">
-                  {currentPage}
-                </span>
-                <span>of {totalPages}</span>
-              </div>
-
-              <button
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-                className="p-1.5 rounded-lg border border-[#cbd5e1] bg-white text-[#475569] hover:bg-[#f1f5f9] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                title="Next Page"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          )}
+        {/* Accounting Note */}
+        <div className="p-4 border-t border-[#edf2f7] bg-[#fcfdfe] text-xs font-semibold text-[#64748b]">
+          Up to 700 matching entries display at once. Excel export includes the complete ledger.
         </div>
       </div>
     </div>

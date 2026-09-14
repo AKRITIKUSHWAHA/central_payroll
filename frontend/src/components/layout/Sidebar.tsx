@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -17,9 +17,12 @@ import {
   ChevronRight,
   PieChart,
   ClipboardList,
-  X
+  Clock,
+  X,
+  KeyRound
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { ChangePasswordModal } from '../ChangePasswordModal';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -36,6 +39,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const { currentUser, logout, permissions } = useAuth();
   const navigate = useNavigate();
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
 
   const handleLogout = () => {
     if (onCloseMobile) onCloseMobile();
@@ -51,36 +55,36 @@ export const Sidebar: React.FC<SidebarProps> = ({
     switch (role) {
       case 'superadmin': return 'Super Admin';
       case 'admin': return 'Admin';
-      case 'staff': return 'Staff Assistant';
+      case 'staff': return 'Staff';
       default: return 'User';
     }
   };
 
+  const isStaff = currentUser?.role === 'staff';
+  const isSuperAdmin = currentUser?.role === 'superadmin';
+
   const workspaceNavItems = [
-    { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, visible: permissions.dashboard.view },
-    { to: '/employees', label: 'Employees', icon: Users, visible: permissions.employees.view },
-    { to: '/payroll', label: 'Payroll', icon: DollarSign, visible: permissions.payroll.view },
-    { to: '/leave', label: 'Leave Calendars', icon: CalendarDays, visible: permissions.leave.view },
-    { to: '/contacts', label: 'Staff Contact Details', icon: Contact, visible: permissions.contacts.view },
-    { to: '/schedules', label: 'Weekly Schedules', icon: CalendarRange, visible: permissions.schedules.view },
-    { to: '/reports', label: 'Payroll Reports', icon: FileText, visible: permissions.reports.view },
-    { to: '/reports/audit', label: 'Audit Reports', icon: ClipboardList, visible: permissions.audit.view },
-    { to: '/payslips', label: 'Payslips', icon: PieChart, visible: permissions.payslips.view },
+    { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, visible: !isStaff && !!permissions.dashboard?.view },
+    { to: '/payroll', label: 'Payroll', icon: DollarSign, visible: isSuperAdmin && !!permissions.payroll?.view },
+    { to: '/leave', label: 'Leave Calendars', icon: CalendarDays, visible: !isStaff && !!permissions.leave?.view },
+    { to: '/contacts', label: 'Staff Contact Details', icon: Contact, visible: !isStaff && !!permissions.contacts?.view },
+    { to: '/schedules', label: 'Weekly Schedules', icon: CalendarRange, visible: true },
+    { to: '/reports', label: 'Payroll Reports', icon: FileText, visible: isSuperAdmin && !!permissions.reports?.view },
+    { to: '/payslips', label: 'Payslips', icon: PieChart, visible: isSuperAdmin && !!permissions.payslips?.view },
+    { to: '/my-time', label: 'Time Records', icon: Clock, visible: !isStaff && !!permissions.myTime?.view },
   ];
 
   const customersNavItems = [
-    { to: '/accounts', label: 'Accounts Overview', icon: LayoutDashboard, visible: true },
-    { to: '/customers', label: 'Customers & Ledgers', icon: Users, visible: true },
-    { to: '/invoices', label: 'Create Invoice', icon: FileSpreadsheet, visible: true },
-    { to: '/payments', label: 'Record Payment', icon: DollarSign, visible: true },
-    { to: '/aging', label: 'A/R Aging', icon: CalendarDays, visible: true },
-    { to: '/ledger', label: 'General Ledger', icon: FileText, visible: true },
-  ];
-
-  const adminNavItems = [
-    { to: '/permissions', label: 'Permissions', icon: ShieldCheck, visible: permissions.permissions.view },
-    { to: '/users', label: 'User Accounts', icon: UserCog, visible: permissions.userAccounts.view },
-    { to: '/settings', label: 'Settings', icon: Settings, visible: permissions.settings.view },
+    { to: '/accounts', label: 'Accounts Overview', icon: LayoutDashboard, visible: !isStaff },
+    { to: '/customers', label: 'Customers & Ledgers', icon: Users, visible: !isStaff },
+    { to: '/invoices', label: 'Create Invoice', icon: FileSpreadsheet, visible: !isStaff },
+    { to: '/payments', label: 'Record Payment', icon: DollarSign, visible: !isStaff },
+    { to: '/aging', label: 'A/R Aging', icon: CalendarDays, visible: !isStaff },
+    { to: '/ledger', label: 'General Ledger', icon: FileText, visible: !isStaff },
+    { to: '/employees', label: 'Employee Records', icon: Users, visible: !isStaff && !!permissions.employees?.view },
+    { to: '/permissions', label: 'Permissions', icon: ShieldCheck, visible: isSuperAdmin && !!permissions.permissions?.view },
+    { to: '/users', label: 'User Accounts', icon: UserCog, visible: isSuperAdmin && !!permissions.userAccounts?.view },
+    { to: '/settings', label: 'Settings', icon: Settings, visible: !isStaff && !!permissions.settings?.view },
   ];
 
   return (
@@ -170,47 +174,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
 
           {/* CUSTOMERS & ACCOUNTS Category */}
-          <div>
-            {(!collapsed || mobileOpen) && (
-              <div className="text-[11px] font-extrabold tracking-wider text-[#8292a3] uppercase px-3 py-1.5 mb-1">
-                CUSTOMERS &amp; ACCOUNTS
-              </div>
-            )}
-            <nav className="space-y-0.5">
-              {customersNavItems.filter(item => item.visible).map(item => {
-                const Icon = item.icon;
-                return (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    onClick={handleNavClick}
-                    className={({ isActive }) =>
-                      `flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold text-sm transition-all ${
-                        isActive
-                          ? 'bg-[#e6e8ea] text-[#20262d] font-bold shadow-sm'
-                          : 'text-[#4b5563] hover:bg-[#f0f4f7] hover:text-[#12345b]'
-                      } ${collapsed && !mobileOpen ? 'md:justify-center md:px-0' : ''}`
-                    }
-                    title={collapsed && !mobileOpen ? item.label : undefined}
-                  >
-                    <Icon className="w-4 h-4 flex-shrink-0 text-[#2f6fb3]" />
-                    {(!collapsed || mobileOpen) && <span className="truncate">{item.label}</span>}
-                  </NavLink>
-                );
-              })}
-            </nav>
-          </div>
-
-          {/* ADMINISTRATION Category */}
-          {adminNavItems.some(i => i.visible) && (
+          {customersNavItems.some(i => i.visible) && (
             <div>
               {(!collapsed || mobileOpen) && (
                 <div className="text-[11px] font-extrabold tracking-wider text-[#8292a3] uppercase px-3 py-1.5 mb-1">
-                  ADMINISTRATION
+                  CUSTOMERS &amp; ACCOUNTS
                 </div>
               )}
               <nav className="space-y-0.5">
-                {adminNavItems.filter(item => item.visible).map(item => {
+                {customersNavItems.filter(item => item.visible).map(item => {
                   const Icon = item.icon;
                   return (
                     <NavLink
@@ -239,32 +211,61 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* User Chip Section (Fixed at bottom) */}
         <div className={`flex-shrink-0 border-t border-[#d7e2ec] pt-3 ${collapsed && !mobileOpen ? 'md:text-center' : 'px-1'}`}>
           {!collapsed || mobileOpen ? (
-            <div>
-              <div className="font-extrabold text-[#12345b] text-sm truncate">
-                {currentUser?.displayName || currentUser?.username || 'Not signed in'}
+            <div className="space-y-2">
+              <div>
+                <div className="font-extrabold text-[#12345b] text-sm truncate">
+                  {currentUser?.displayName || currentUser?.username || 'Not signed in'}
+                </div>
+                <div className="text-xs font-semibold text-[#607286]">
+                  {getRoleLabel(currentUser?.role)}
+                </div>
               </div>
-              <div className="text-xs font-semibold text-[#607286] mb-3">
-                {getRoleLabel(currentUser?.role)}
+
+              <div className="flex flex-col gap-1.5 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setIsChangePasswordOpen(true)}
+                  className="w-full flex items-center justify-center gap-2 py-1.5 px-3 bg-[#edf5fb] hover:bg-[#deecf8] text-[#2f6fb3] font-bold text-xs rounded-xl transition-all border border-[#d2e4f3]"
+                >
+                  <KeyRound className="w-3.5 h-3.5" />
+                  <span>Change Password</span>
+                </button>
+
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center justify-center gap-2 py-1.5 px-3 bg-white border border-[#d7e2ec] hover:bg-[#fff0f0] hover:border-red-300 text-[#607286] hover:text-red-700 font-bold text-xs rounded-xl transition-all shadow-sm"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Sign Out</span>
+                </button>
               </div>
-              <button
-                onClick={handleLogout}
-                className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-white border border-[#d7e2ec] hover:bg-[#edf5fb] hover:border-[#2f6fb3] text-[#12345b] font-bold text-xs rounded-xl transition-all shadow-sm"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                <span>Sign Out</span>
-              </button>
             </div>
           ) : (
-            <button
-              onClick={handleLogout}
-              className="w-full p-2.5 bg-white border border-[#d7e2ec] hover:bg-[#edf5fb] text-[#12345b] rounded-xl flex items-center justify-center transition-all"
-              title="Sign Out"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
+            <div className="space-y-1.5 flex flex-col items-center">
+              <button
+                type="button"
+                onClick={() => setIsChangePasswordOpen(true)}
+                className="w-full p-2 bg-[#edf5fb] hover:bg-[#deecf8] text-[#2f6fb3] rounded-xl flex items-center justify-center transition-all"
+                title="Change Password"
+              >
+                <KeyRound className="w-4 h-4" />
+              </button>
+              <button
+                onClick={handleLogout}
+                className="w-full p-2 bg-white border border-[#d7e2ec] hover:bg-[#fff0f0] hover:text-red-700 text-[#607286] rounded-xl flex items-center justify-center transition-all"
+                title="Sign Out"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
           )}
         </div>
       </aside>
+
+      <ChangePasswordModal
+        isOpen={isChangePasswordOpen}
+        onClose={() => setIsChangePasswordOpen(false)}
+      />
     </>
   );
 };

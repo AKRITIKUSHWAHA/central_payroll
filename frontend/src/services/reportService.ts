@@ -34,7 +34,7 @@ class ReportService {
 
   public async fetchAuditLogs(): Promise<AuditLogItem[]> {
     try {
-      const res = await apiFetch<{ success: boolean; auditLogs: AuditLogItem[] }>('/reports/audit');
+      const res = await apiFetch<{ success: boolean; auditLogs: AuditLogItem[] }>('/audit-reports');
       if (res && res.success && res.auditLogs) {
         localStorage.setItem(AUDIT_STORAGE_KEY, JSON.stringify(res.auditLogs));
         return res.auditLogs;
@@ -61,13 +61,25 @@ class ReportService {
     localStorage.setItem(AUDIT_STORAGE_KEY, JSON.stringify(logs));
 
     try {
-      await apiFetch('/reports/audit', {
+      await apiFetch('/audit-reports', {
         method: 'POST',
         body: JSON.stringify(newLog)
       });
     } catch (err) {
       console.error('Failed to save audit log to backend:', err);
     }
+  }
+
+  public async fetchPayrollReports(): Promise<PayrollPeriod[]> {
+    try {
+      const res = await apiFetch<{ success: boolean; periods: PayrollPeriod[] }>('/payroll-reports');
+      if (res && res.success && res.periods) {
+        return res.periods;
+      }
+    } catch (err) {
+      console.warn('Failed to fetch payroll reports from API:', err);
+    }
+    return payrollService.getPayrollPeriods();
   }
 
   public generateWeeklyPayrollSummary(periodId?: string) {

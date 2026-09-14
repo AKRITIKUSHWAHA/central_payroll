@@ -1,391 +1,586 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { payrollService } from '../services/payrollService';
 import { reportService } from '../services/reportService';
+import { employeeService } from '../services/employeeService';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { PayrollPeriod, EmployeePayrollItem, PayrollStatus } from '../types';
-import { 
-  Save, 
-  Download, 
-  Printer, 
-  PieChart, 
-  CheckCircle2, 
-  FileSpreadsheet, 
-  DollarSign, 
-  Calendar, 
-  Clock, 
-  AlertTriangle,
-  History,
-  ShieldAlert
-} from 'lucide-react';
+import { PayrollPeriod, EmployeePayrollItem, PayrollStatus, Employee } from '../types';
 
 export const PayrollConsole: React.FC = () => {
   const { currentUser } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [currentPeriod, setCurrentPeriod] = useState<PayrollPeriod>(() => payrollService.getCurrentDraft());
-  const [periods, setPeriods] = useState<PayrollPeriod[]>(() => payrollService.getPayrollPeriods());
-  const [showConfirmApprove, setShowConfirmApprove] = useState(false);
+  // Default base 8 employees from prototype & database
+  const defaultBaseStaff = useMemo(() => [
+    { id: 'ali', employeeId: 'CDL-001', displayName: 'Ali Hamza', position: 'Global Dispatch / Call Center', regularRate: 18, holidayRate: 27 },
+    { id: 'alesia', employeeId: 'CDL-002', displayName: 'Alesia Brangman', position: 'Dispatch Supervisor', regularRate: 20, holidayRate: 30 },
+    { id: 'ty', employeeId: 'CDL-003', displayName: 'Tyonika McGowan (Ty)', position: 'Dispatcher', regularRate: 16.5, holidayRate: 24.75 },
+    { id: 'neli', employeeId: 'CDL-004', displayName: 'Neli Outerbridge', position: 'Owner / Manager / Director', regularRate: 35, holidayRate: 52.5 },
+    { id: 'ssh', employeeId: 'CDL-005', displayName: 'SSH, SSH', position: 'SSH Dispatch / Call Center', regularRate: 16, holidayRate: 24 },
+    { id: 'staff6', employeeId: 'CDL-006', displayName: 'Miss Shonee Simons', position: 'Dispatcher', regularRate: 16, holidayRate: 24 },
+    { id: 'staff7', employeeId: 'CDL-007', displayName: 'Miss Tiffany Robinson', position: 'Dispatcher / Customer Service', regularRate: 16, holidayRate: 24 },
+    { id: 'staff8', employeeId: 'CDL-008', displayName: 'Tanuvi Patel', position: 'Dispatcher / Operations', regularRate: 16.5, holidayRate: 24.75 },
+  ], []);
 
-  // Helper to format date strings for input fields (YYYY-MM-DD)
-  const toDateInput = (val: any): string => {
-    if (!val) return '';
-    if (val instanceof Date) return val.toISOString().split('T')[0];
-    const s = String(val);
-    return s.includes('T') ? s.split('T')[0] : s;
+  // Form setup state
+  const [periodStart, setPeriodStart] = useState<string>('');
+  const [periodEnd, setPeriodEnd] = useState<string>('');
+  const [payDate, setPayDate] = useState<string>('');
+  const [status, setStatus] = useState<PayrollStatus>('Draft');
+
+  // Employee payroll items state
+  const [payrollItems, setPayrollItems] = useState<EmployeePayrollItem[]>([]);
+
+  // Payroll History list
+  const [history, setHistory] = useState<PayrollPeriod[]>([]);
+
+  // Format money helper
+  const money = (val: number) => {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(val) || 0);
   };
 
-  // Helper to format dates for readable display (e.g. Sept 10, 2026)
-  const toDisplayDate = (val: any): string => {
-    const clean = toDateInput(val);
-    if (!clean) return '—';
-    try {
-      const [year, month, day] = clean.split('-').map(Number);
-      if (!year || !month || !day) return clean;
-      const d = new Date(year, month - 1, day);
-      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    } catch {
-      return clean;
-    }
+  // Helper to calculate single item
+  const calculateItem = (item: EmployeePayrollItem): EmployeePayrollItem => {
+    const regHours = Number(item.regularHours) || 0;
+    const holHours = Number(item.holidayHours) || 0;
+    const other = Number(item.otherPay) || 0;
+    const deduct = Number(item.deductions) || 0;
+
+    const regularPay = regHours * (item.regularRate || 0);
+    const holidayPay = holHours * (item.holidayRate || 0);
+    const totalHours = regHours + holHours;
+    const grossPay = regularPay + holidayPay + other;
+    const netPay = grossPay - deduct;
+
+    return {
+      ...item,
+      regularPay,
+      holidayPay,
+      totalHours,
+      grossPay,
+      netPay
+    };
   };
 
-  const handleItemChange = (employeeId: string, field: keyof EmployeePayrollItem, value: number) => {
-    const updatedItems = currentPeriod.items.map(item => {
-      if (item.employeeId === employeeId) {
-        return { ...item, [field]: Number(value) || 0 };
+  // Initialize draft, DB sync, and history
+  useEffect(() => {
+    Promise.all([
+      payrollService.fetchPayrollPeriods(),
+      employeeService.fetchEmployees()
+    ]).then(([periods, employees]) => {
+      let currentItems: EmployeePayrollItem[] = [];
+
+      if (periods && periods.length > 0) {
+        setHistory(periods.filter(p => p.status === 'Paid' || p.status === 'Approved'));
+        const draft = periods.find(p => p.status === 'Draft') || periods[0];
+        if (draft) {
+          setPeriodStart(draft.periodStart || '');
+          setPeriodEnd(draft.periodEnd || '');
+          setPayDate(draft.payDate || '');
+          setStatus(draft.status || 'Draft');
+          if (draft.items && draft.items.length > 0) {
+            currentItems = draft.items.map(calculateItem);
+          }
+        }
       }
-      return item;
-    });
 
-    const updatedPeriod = { ...currentPeriod, items: updatedItems };
-    const saved = payrollService.savePayrollPeriod(updatedPeriod);
-    setCurrentPeriod(saved);
+      // If empty draft, build from defaultBaseStaff
+      if (currentItems.length === 0) {
+        currentItems = defaultBaseStaff.map(s => calculateItem({
+          employeeId: s.id,
+          employeeName: s.displayName,
+          position: s.position,
+          department: 'Operations',
+          regularRate: s.regularRate,
+          regularHours: 0,
+          regularPay: 0,
+          holidayRate: s.holidayRate,
+          holidayHours: 0,
+          holidayPay: 0,
+          otherPay: 0,
+          deductions: 0,
+          totalHours: 0,
+          grossPay: 0,
+          netPay: 0,
+          status: 'Incomplete'
+        }));
+      }
+
+      // Sync with any newly added employees from DB
+      if (employees && employees.length > 0) {
+        const existingIds = new Set(currentItems.map(i => (i.employeeId || '').toLowerCase()));
+        employees.forEach(emp => {
+          const empKey = (emp.id || emp.employeeId || '').toLowerCase();
+          if (!existingIds.has(empKey)) {
+            existingIds.add(empKey);
+            currentItems.push(calculateItem({
+              employeeId: emp.id || emp.employeeId,
+              employeeName: emp.displayName || `${emp.firstName} ${emp.lastName}`.trim(),
+              position: emp.position || 'Staff Member',
+              department: emp.department || 'Operations',
+              regularRate: Number(emp.payRate) || 16.00,
+              regularHours: 0,
+              regularPay: 0,
+              holidayRate: Number(emp.holidayRate) || 24.00,
+              holidayHours: 0,
+              holidayPay: 0,
+              otherPay: 0,
+              deductions: 0,
+              totalHours: 0,
+              grossPay: 0,
+              netPay: 0,
+              status: 'Incomplete'
+            }));
+          }
+        });
+      }
+
+      setPayrollItems(currentItems);
+    });
+  }, [defaultBaseStaff]);
+
+  // Totals calculation
+  const totals = useMemo(() => {
+    return payrollItems.reduce(
+      (acc, item) => {
+        acc.hours += Number(item.totalHours) || 0;
+        acc.gross += Number(item.grossPay) || 0;
+        acc.net += Number(item.netPay) || 0;
+        return acc;
+      },
+      { hours: 0, gross: 0, net: 0 }
+    );
+  }, [payrollItems]);
+
+  // Handle cell entry
+  const handleItemFieldChange = (employeeId: string, field: keyof EmployeePayrollItem, value: number) => {
+    setPayrollItems(prev =>
+      prev.map(item => {
+        if (item.employeeId === employeeId) {
+          const updated = {
+            ...item,
+            [field]: isNaN(value) ? 0 : value
+          };
+          return calculateItem(updated);
+        }
+        return item;
+      })
+    );
   };
 
+  // Save Draft
   const handleSaveDraft = () => {
-    const saved = payrollService.savePayrollPeriod(currentPeriod);
-    setCurrentPeriod(saved);
+    const periodData: PayrollPeriod = {
+      id: `pay-draft-${periodStart || 'current'}`,
+      periodStart,
+      periodEnd,
+      payDate,
+      status,
+      items: payrollItems,
+      totalHours: totals.hours,
+      totalGrossPayroll: totals.gross,
+      totalDeductions: 0,
+      totalNetPayroll: totals.net,
+      createdBy: currentUser?.displayName || 'Super Admin',
+      createdAt: new Date().toISOString()
+    };
+
+    payrollService.savePayrollPeriod(periodData);
     showToast('Payroll draft saved successfully.');
   };
 
+  // Process Pay
   const handleProcessPay = () => {
-    setShowConfirmApprove(true);
-  };
-
-  const confirmProcessPay = () => {
-    const user = currentUser?.displayName || 'Super Admin';
-    const updated = payrollService.updatePayrollStatus(currentPeriod.id, 'Paid', user);
-    if (updated) {
-      setCurrentPeriod(updated);
-      setPeriods(payrollService.getPayrollPeriods());
-      showToast('Payroll processed and marked as Paid successfully!');
-      reportService.addAuditLog({
-        action: 'PAYROLL_PROCESSED',
-        module: 'Payroll',
-        user,
-        role: currentUser?.role || 'Super Admin',
-        details: `Processed payroll for period ${toDateInput(currentPeriod.periodStart)} - ${toDateInput(currentPeriod.periodEnd)} ($${currentPeriod.totalNetPayroll.toFixed(2)})`,
-      });
+    if (!periodStart || !periodEnd || !payDate) {
+      alert('Please select the pay-period dates and pay date first.');
+      return;
     }
-    setShowConfirmApprove(false);
+    if (!window.confirm('Process this payroll and add it to Payroll History?')) {
+      return;
+    }
+
+    const processedPeriod: PayrollPeriod = {
+      id: `pay-${Date.now()}`,
+      periodStart,
+      periodEnd,
+      payDate,
+      status: 'Paid',
+      items: payrollItems,
+      totalHours: totals.hours,
+      totalGrossPayroll: totals.gross,
+      totalDeductions: 0,
+      totalNetPayroll: totals.net,
+      createdBy: currentUser?.displayName || 'Super Admin',
+      createdAt: new Date().toISOString()
+    };
+
+    setStatus('Paid');
+    payrollService.savePayrollPeriod(processedPeriod);
+    setHistory(prev => [processedPeriod, ...prev]);
+
+    reportService.addAuditLog({
+      action: 'PAYROLL_PROCESSED',
+      module: 'Payroll',
+      user: currentUser?.displayName || 'Super Admin',
+      role: currentUser?.role || 'Super Admin',
+      details: `Processed payroll for ${periodStart} to ${periodEnd} (${money(totals.net)})`
+    });
+
+    showToast('Payroll processed and saved to history.');
   };
 
-  const handleExportCSV = () => {
-    const headers = ['Employee', 'Position', 'Regular Rate', 'Regular Hours', 'Regular Pay', 'Holiday Hours', 'Holiday Pay', 'Other Pay', 'Deductions', 'Total Hours', 'Gross Pay', 'Net Pay'];
-    const rows = currentPeriod.items.map(i => [
+  // Export to Excel
+  const handleExportExcel = () => {
+    const title = `Central Dispatch Payroll (${periodStart || 'Draft'} to ${periodEnd || 'Draft'})`;
+    const headers = [
+      'Employee',
+      'Regular Rate',
+      'Regular Hours',
+      'Regular Pay',
+      'Holiday Rate',
+      'Holiday Hours',
+      'Holiday Pay',
+      'Other Pay',
+      'Deductions',
+      'Total Hours',
+      'Gross Pay',
+      'Net Pay'
+    ];
+
+    const rows = payrollItems.map(i => [
       i.employeeName,
-      i.position,
-      Number(i.regularRate || 0).toFixed(2),
-      Number(i.regularHours || 0).toFixed(2),
-      Number(i.regularPay || 0).toFixed(2),
-      Number(i.holidayHours || 0).toFixed(2),
-      Number(i.holidayPay || 0).toFixed(2),
-      Number(i.otherPay || 0).toFixed(2),
-      Number(i.deductions || 0).toFixed(2),
-      Number(i.totalHours || 0).toFixed(2),
-      Number(i.grossPay || 0).toFixed(2),
-      Number(i.netPay || 0).toFixed(2),
+      money(i.regularRate),
+      Number(i.regularHours).toFixed(2),
+      money(i.regularPay),
+      i.holidayRate ? money(i.holidayRate) : '—',
+      Number(i.holidayHours).toFixed(2),
+      money(i.holidayPay),
+      money(i.otherPay),
+      money(i.deductions),
+      Number(i.totalHours).toFixed(2),
+      money(i.grossPay),
+      money(i.netPay)
     ]);
-    reportService.exportToCSV(`Payroll_${toDateInput(currentPeriod.periodStart)}_${toDateInput(currentPeriod.periodEnd)}.csv`, headers, rows);
-    showToast('Exported payroll to Excel/CSV successfully.');
+
+    const html = `<html><head><meta charset="utf-8"><style>body{font-family:Arial}table{border-collapse:collapse;width:100%}th,td{border:1px solid #bbb;padding:8px}th{background:#12345b;color:white}.money{text-align:right}</style></head><body><h1>${title}</h1><p>Pay Date: ${payDate || '—'} | Status: ${status}</p><table><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>${rows.map(r => `<tr>${r.map((v, idx) => `<td class="${idx > 0 ? 'money' : ''}">${v}</td>`).join('')}</tr>`).join('')}<tr><th style="text-align:left">TOTALS</th><th></th><th></th><th class="money">${money(payrollItems.reduce((s, x) => s + x.regularPay, 0))}</th><th></th><th></th><th class="money">${money(payrollItems.reduce((s, x) => s + x.holidayPay, 0))}</th><th class="money">${money(payrollItems.reduce((s, x) => s + x.otherPay, 0))}</th><th class="money">${money(payrollItems.reduce((s, x) => s + x.deductions, 0))}</th><th class="money">${totals.hours.toFixed(2)}</th><th class="money">${money(totals.gross)}</th><th class="money">${money(totals.net)}</th></tr></table></body></html>`;
+
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([html], { type: 'application/vnd.ms-excel' }));
+    a.download = `CDL-Payroll-${periodStart || 'report'}.xls`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    showToast('Excel report downloaded');
   };
 
-  const formatMoney = (val: number) => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'BMD' }).format(Number(val) || 0);
+  // Backup Payroll Data
+  const handleBackup = () => {
+    const backupData = {
+      periodStart,
+      periodEnd,
+      payDate,
+      status,
+      items: payrollItems,
+      history,
+      backupDate: new Date().toISOString()
+    };
+    const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `Central-Dispatch-Payroll-Backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    showToast('Payroll backup downloaded successfully.');
+  };
+
+  // Restore Backup
+  const handleRestoreClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = event => {
+      try {
+        const parsed = JSON.parse(event.target?.result as string);
+        if (parsed.periodStart) setPeriodStart(parsed.periodStart);
+        if (parsed.periodEnd) setPeriodEnd(parsed.periodEnd);
+        if (parsed.payDate) setPayDate(parsed.payDate);
+        if (parsed.status) setStatus(parsed.status);
+        if (Array.isArray(parsed.items)) setPayrollItems(parsed.items.map(calculateItem));
+        if (Array.isArray(parsed.history)) setHistory(parsed.history);
+        showToast('Payroll data restored successfully.');
+      } catch {
+        alert('Invalid backup file format.');
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  // Delete history item
+  const handleDeleteHistory = (idx: number) => {
+    if (!window.confirm('Delete this payroll history record?')) return;
+    const updated = [...history];
+    updated.splice(idx, 1);
+    setHistory(updated);
+    showToast('Payroll history record deleted.');
   };
 
   return (
-    <div className="space-y-6 pb-12 w-full max-w-full min-w-0">
-      {/* 1. Top Banner */}
-      <div className="bg-gradient-to-r from-[#102f52] to-[#1f5f98] text-white rounded-2xl p-6 sm:p-7 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-6 max-w-7xl mx-auto pb-12">
+      {/* 1. Header Card (Dark Navy `#102a43`) */}
+      <div className="bg-[#102a43] text-white rounded-2xl p-6 sm:p-7 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
-              Central Dispatch Payroll
-            </h1>
-            <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
-              currentPeriod.status === 'Paid' 
-                ? 'bg-emerald-500/30 text-emerald-200 border border-emerald-400/40' 
-                : 'bg-white/20 text-white border border-white/30'
-            }`}>
-              {currentPeriod.status}
-            </span>
-          </div>
-          <p className="text-xs sm:text-sm font-semibold text-[#d7e8f7] mt-1">
-            Weekly payroll workspace • Thursday through Wednesday cycle (Bermuda labor system)
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+            Central Dispatch Payroll
+          </h1>
+          <p className="text-xs sm:text-sm font-semibold text-[#cbd5e1] mt-1">
+            Weekly payroll • Thursday through Wednesday
           </p>
         </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => navigate('/payslips')}
-            className="px-3.5 py-2 bg-white/10 hover:bg-white/20 border border-white/30 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
-          >
-            <PieChart className="w-4 h-4 text-blue-200" />
-            <span>View Payslips</span>
-          </button>
-          <button
-            onClick={handleExportCSV}
-            className="px-3.5 py-2 bg-white/10 hover:bg-white/20 border border-white/30 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
-          >
-            <Download className="w-4 h-4 text-blue-200" />
-            <span>Export CSV</span>
-          </button>
+        <div>
+          <span className="px-4 py-1.5 bg-white/15 text-white border border-white/25 rounded-full text-xs font-extrabold uppercase tracking-wider inline-block">
+            {status}
+          </span>
         </div>
       </div>
 
-      {/* 2. Setup Inputs & KPI Stats Panel */}
-      <div className="bg-white border border-[#dde7f0] rounded-2xl p-6 shadow-sm space-y-6">
-        {/* Date & Status Inputs */}
+      {/* 2. Setup Panel & KPI Stats Cards */}
+      <div className="bg-white border border-[#dde7f0] rounded-2xl p-5 sm:p-6 shadow-sm space-y-5">
+        {/* Setup Form Row */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
-            <label className="block text-xs font-extrabold text-[#38516b] uppercase tracking-wider mb-1.5">
+            <label htmlFor="payrollStart" className="block text-xs font-bold text-[#334155] mb-1.5">
               Pay Period Start
             </label>
             <input
+              id="payrollStart"
               type="date"
-              value={toDateInput(currentPeriod.periodStart)}
-              onChange={e => setCurrentPeriod({ ...currentPeriod, periodStart: e.target.value })}
-              className="w-full px-3.5 py-2 bg-white border border-[#b9c9d9] rounded-xl text-xs font-bold text-[#1c2b3a] focus:outline-none focus:ring-2 focus:ring-[#2f6fb3]/20 focus:border-[#2f6fb3]"
+              value={periodStart}
+              onChange={e => setPeriodStart(e.target.value)}
+              placeholder="mm/dd/yyyy"
+              className="w-full px-3.5 py-2 border border-[#cbd5e1] rounded-xl text-sm font-semibold text-[#0f172a] bg-white focus:outline-none focus:border-[#1d4ed8] cursor-pointer"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-extrabold text-[#38516b] uppercase tracking-wider mb-1.5">
+            <label htmlFor="payrollEnd" className="block text-xs font-bold text-[#334155] mb-1.5">
               Pay Period End
             </label>
             <input
+              id="payrollEnd"
               type="date"
-              value={toDateInput(currentPeriod.periodEnd)}
-              onChange={e => setCurrentPeriod({ ...currentPeriod, periodEnd: e.target.value })}
-              className="w-full px-3.5 py-2 bg-white border border-[#b9c9d9] rounded-xl text-xs font-bold text-[#1c2b3a] focus:outline-none focus:ring-2 focus:ring-[#2f6fb3]/20 focus:border-[#2f6fb3]"
+              value={periodEnd}
+              onChange={e => setPeriodEnd(e.target.value)}
+              placeholder="mm/dd/yyyy"
+              className="w-full px-3.5 py-2 border border-[#cbd5e1] rounded-xl text-sm font-semibold text-[#0f172a] bg-white focus:outline-none focus:border-[#1d4ed8] cursor-pointer"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-extrabold text-[#38516b] uppercase tracking-wider mb-1.5">
+            <label htmlFor="payrollPayDate" className="block text-xs font-bold text-[#334155] mb-1.5">
               Pay Date
             </label>
             <input
+              id="payrollPayDate"
               type="date"
-              value={toDateInput(currentPeriod.payDate)}
-              onChange={e => setCurrentPeriod({ ...currentPeriod, payDate: e.target.value })}
-              className="w-full px-3.5 py-2 bg-white border border-[#b9c9d9] rounded-xl text-xs font-bold text-[#1c2b3a] focus:outline-none focus:ring-2 focus:ring-[#2f6fb3]/20 focus:border-[#2f6fb3]"
+              value={payDate}
+              onChange={e => setPayDate(e.target.value)}
+              placeholder="mm/dd/yyyy"
+              className="w-full px-3.5 py-2 border border-[#cbd5e1] rounded-xl text-sm font-semibold text-[#0f172a] bg-white focus:outline-none focus:border-[#1d4ed8] cursor-pointer"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-extrabold text-[#38516b] uppercase tracking-wider mb-1.5">
+            <label htmlFor="payrollStatus" className="block text-xs font-bold text-[#334155] mb-1.5">
               Payroll Status
             </label>
             <select
-              value={currentPeriod.status}
-              onChange={e => setCurrentPeriod({ ...currentPeriod, status: e.target.value as PayrollStatus })}
-              className="w-full px-3.5 py-2 bg-white border border-[#b9c9d9] rounded-xl text-xs font-bold text-[#1c2b3a] focus:outline-none focus:ring-2 focus:ring-[#2f6fb3]/20 focus:border-[#2f6fb3]"
+              id="payrollStatus"
+              value={status}
+              onChange={e => setStatus(e.target.value as PayrollStatus)}
+              className="w-full px-3.5 py-2 border border-[#cbd5e1] rounded-xl text-sm font-semibold text-[#0f172a] bg-white focus:outline-none focus:border-[#1d4ed8]"
             >
               <option value="Draft">Draft</option>
-              <option value="Calculated">Calculated</option>
-              <option value="Approved">Ready / Approved</option>
+              <option value="Ready">Ready</option>
               <option value="Paid">Paid</option>
-              <option value="Archived">On Hold / Archived</option>
+              <option value="On Hold">On Hold</option>
             </select>
           </div>
         </div>
 
-        {/* Real-time KPI Stats Cards */}
+        {/* 3 KPI Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
-          <div className="p-4 bg-[#eaf4fb] border border-[#d6e7f4] rounded-xl">
-            <span className="block text-xs font-extrabold text-[#607286] uppercase tracking-wider">Total Hours</span>
-            <strong className="block text-2xl font-black text-[#12345b] mt-1 tabular-nums">
-              {Number(currentPeriod.totalHours || 0).toFixed(2)}
+          <div className="p-4 bg-[#eef6ff] border border-[#d6e7f4] rounded-xl">
+            <span className="block text-xs font-bold text-[#64748b]">Total Hours</span>
+            <strong className="block text-2xl font-black text-[#102a43] mt-1 tabular-nums">
+              {totals.hours.toFixed(2)}
             </strong>
           </div>
 
-          <div className="p-4 bg-[#eaf4fb] border border-[#d6e7f4] rounded-xl">
-            <span className="block text-xs font-extrabold text-[#607286] uppercase tracking-wider">Gross Payroll</span>
-            <strong className="block text-2xl font-black text-[#12345b] mt-1 tabular-nums">
-              {formatMoney(currentPeriod.totalGrossPayroll || 0)}
+          <div className="p-4 bg-[#eef6ff] border border-[#d6e7f4] rounded-xl">
+            <span className="block text-xs font-bold text-[#64748b]">Gross Payroll</span>
+            <strong className="block text-2xl font-black text-[#102a43] mt-1 tabular-nums">
+              {money(totals.gross)}
             </strong>
           </div>
 
-          <div className="p-4 bg-[#eaf4fb] border border-[#d6e7f4] rounded-xl">
-            <span className="block text-xs font-extrabold text-[#607286] uppercase tracking-wider">Total Payroll To Pay</span>
-            <strong className="block text-2xl font-black text-[#0f766e] mt-1 tabular-nums">
-              {formatMoney(currentPeriod.totalNetPayroll || 0)}
+          <div className="p-4 bg-[#eef6ff] border border-[#d6e7f4] rounded-xl">
+            <span className="block text-xs font-bold text-[#64748b]">Total Payroll To Pay</span>
+            <strong className="block text-2xl font-black text-[#102a43] mt-1 tabular-nums">
+              {money(totals.net)}
             </strong>
           </div>
         </div>
       </div>
 
-      {/* 3. Main Payroll Calculation Table */}
+      {/* 3. Main Employee Payroll Table Card */}
       <div className="bg-white border border-[#dde7f0] rounded-2xl shadow-sm overflow-hidden">
-        <div className="px-5 py-4 bg-[#edf4fa] border-b border-[#d9e4ee] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <h2 className="text-base font-black text-[#12345b]">
-              Employee Payroll
-            </h2>
-            <span className="text-xs font-bold text-[#607286]">
-              ({currentPeriod.items.length} Active Staff)
-            </span>
-          </div>
-          <span className="text-xs font-bold text-[#2f6fb3]">
-            {toDisplayDate(currentPeriod.periodStart)} through {toDisplayDate(currentPeriod.periodEnd)}
+        {/* Section Head */}
+        <div className="p-4 sm:p-5 border-b border-[#e2e8f0] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <h2 className="text-base sm:text-lg font-extrabold text-[#12345b]">
+            Employee Payroll
+          </h2>
+          <span className="text-xs font-semibold text-[#64748b]">
+            {periodStart && periodEnd ? `${periodStart} to ${periodEnd}` : 'Select a pay period'}
           </span>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
+        {/* Mobile Scroll Hint */}
+        <div className="mobile-scroll-hint">
+          <span>👉 Swipe horizontally to enter hours &amp; pay</span>
+          <span className="text-[10px] uppercase bg-white px-2 py-0.5 rounded border border-[#cbd5e1] font-extrabold">
+            12 Columns
+          </span>
+        </div>
+
+        {/* Payroll Table */}
+        <div className="table-responsive-container">
+          <table className="w-full text-left text-sm border-collapse min-w-[1100px]">
             <thead>
-              <tr className="bg-[#12345b] text-white font-black uppercase tracking-wider border-b border-[#0e2744]">
-                <th className="py-3 px-4 min-w-[200px] sticky left-0 bg-[#12345b] z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)]">
+              <tr className="bg-[#102a43] text-white font-bold text-xs uppercase tracking-wider">
+                <th className="py-3 px-4 font-bold min-w-[200px] sticky left-0 bg-[#102a43] z-10">
                   Employee
                 </th>
-                <th className="py-3 px-3 text-right w-24 whitespace-nowrap">Regular Rate</th>
-                <th className="py-3 px-3 text-right w-24 whitespace-nowrap">Regular Hours</th>
-                <th className="py-3 px-3 text-right w-28 whitespace-nowrap">Regular Pay</th>
-                <th className="py-3 px-3 text-right w-24 whitespace-nowrap">Holiday Rate</th>
-                <th className="py-3 px-3 text-right w-24 whitespace-nowrap">Holiday Hours</th>
-                <th className="py-3 px-3 text-right w-28 whitespace-nowrap">Holiday Pay</th>
-                <th className="py-3 px-3 text-right w-24 whitespace-nowrap">Other Pay</th>
-                <th className="py-3 px-3 text-right w-28 whitespace-nowrap">Deductions</th>
-                <th className="py-3 px-3 text-right w-24 whitespace-nowrap">Total Hours</th>
-                <th className="py-3 px-3 text-right w-28 whitespace-nowrap">Gross Pay</th>
-                <th className="py-3 px-4 text-right w-28 whitespace-nowrap">Net Pay</th>
+                <th className="py-3 px-3 font-bold text-right">Regular Rate</th>
+                <th className="py-3 px-3 font-bold text-right">Regular Hours</th>
+                <th className="py-3 px-3 font-bold text-right">Regular Pay</th>
+                <th className="py-3 px-3 font-bold text-right">Holiday Rate</th>
+                <th className="py-3 px-3 font-bold text-right">Holiday Hours</th>
+                <th className="py-3 px-3 font-bold text-right">Holiday Pay</th>
+                <th className="py-3 px-3 font-bold text-right">Other Pay</th>
+                <th className="py-3 px-3 font-bold text-right">Deductions</th>
+                <th className="py-3 px-3 font-bold text-right">Total Hours</th>
+                <th className="py-3 px-3 font-bold text-right">Gross Pay</th>
+                <th className="py-3 px-4 font-bold text-right">Net Pay</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#e2e8f0]">
-              {currentPeriod.items.map((item, idx) => (
-                <tr key={item.employeeId} className={`hover:bg-[#f8fbfd] transition-colors group ${idx % 2 === 0 ? 'bg-white' : 'bg-[#fcfdfe]'}`}>
-                  {/* Sticky Employee Name Column */}
-                  <td className={`py-3 px-4 sticky left-0 z-10 transition-colors shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${
-                    idx % 2 === 0 ? 'bg-white group-hover:bg-[#f8fbfd]' : 'bg-[#fcfdfe] group-hover:bg-[#f8fbfd]'
+            <tbody className="divide-y divide-[#edf2f7]">
+              {payrollItems.map((emp, idx) => (
+                <tr
+                  key={emp.employeeId}
+                  className={`transition-colors ${idx % 2 === 0 ? 'bg-white hover:bg-[#f8fafc]' : 'bg-[#fbfdff] hover:bg-[#f1f5f9]'}`}
+                >
+                  {/* Sticky Employee Name + Role */}
+                  <td className={`py-3.5 px-4 font-bold text-sm whitespace-nowrap sticky left-0 z-10 ${
+                    idx % 2 === 0 ? 'bg-white' : 'bg-[#fbfdff]'
                   }`}>
-                    <div className="font-extrabold text-[#12345b] truncate max-w-[180px]" title={item.employeeName}>
-                      {item.employeeName}
-                    </div>
-                    <div className="text-[11px] font-semibold text-[#607286] truncate max-w-[180px]">
-                      {item.position || 'Staff'}
-                    </div>
+                    <div className="text-[#0f172a] font-bold">{emp.employeeName}</div>
+                    <div className="text-xs font-normal text-[#64748b]">{emp.position}</div>
                   </td>
 
                   {/* Regular Rate */}
-                  <td className="py-2.5 px-3 text-right">
-                    <input
-                      type="number"
-                      step="0.5"
-                      min="0"
-                      value={item.regularRate === 0 ? '' : item.regularRate}
-                      onChange={e => handleItemChange(item.employeeId, 'regularRate', parseFloat(e.target.value) || 0)}
-                      className="w-18 px-2 py-1.5 text-right border border-[#cbd5e1] rounded-lg font-bold text-[#1e293b] bg-white focus:border-[#2f6fb3] focus:outline-none focus:ring-1 focus:ring-[#2f6fb3]"
-                    />
+                  <td className="py-3 px-3 text-right font-semibold text-[#0f172a] tabular-nums whitespace-nowrap">
+                    {money(emp.regularRate)}
                   </td>
 
-                  {/* Regular Hours */}
-                  <td className="py-2.5 px-3 text-right">
+                  {/* Regular Hours Input */}
+                  <td className="py-3 px-3 text-right">
                     <input
                       type="number"
-                      step="0.5"
+                      step="0.25"
                       min="0"
-                      value={item.regularHours === 0 ? '' : item.regularHours}
-                      onChange={e => handleItemChange(item.employeeId, 'regularHours', parseFloat(e.target.value) || 0)}
-                      className="w-18 px-2 py-1.5 text-right border border-[#cbd5e1] rounded-lg font-bold text-[#1e293b] bg-white focus:border-[#2f6fb3] focus:outline-none focus:ring-1 focus:ring-[#2f6fb3]"
+                      value={emp.regularHours === 0 ? '' : emp.regularHours}
+                      onChange={e => handleItemFieldChange(emp.employeeId, 'regularHours', parseFloat(e.target.value) || 0)}
+                      placeholder=""
+                      className="w-20 px-2 py-1.5 text-right border border-[#cbd5e1] rounded-lg font-bold text-xs text-[#0f172a] focus:outline-none focus:border-[#1d4ed8] bg-white"
                     />
                   </td>
 
                   {/* Regular Pay */}
-                  <td className="py-2.5 px-3 text-right font-bold text-[#1e40af] tabular-nums whitespace-nowrap">
-                    {formatMoney(item.regularPay || 0)}
+                  <td className="py-3 px-3 text-right font-extrabold text-[#12345b] tabular-nums whitespace-nowrap">
+                    {money(emp.regularPay)}
                   </td>
 
                   {/* Holiday Rate */}
-                  <td className="py-2.5 px-3 text-right">
-                    <input
-                      type="number"
-                      step="0.5"
-                      min="0"
-                      value={item.holidayRate === 0 ? '' : item.holidayRate}
-                      onChange={e => handleItemChange(item.employeeId, 'holidayRate', parseFloat(e.target.value) || 0)}
-                      className="w-18 px-2 py-1.5 text-right border border-[#cbd5e1] rounded-lg font-bold text-[#1e293b] bg-white focus:border-[#2f6fb3] focus:outline-none focus:ring-1 focus:ring-[#2f6fb3]"
-                    />
+                  <td className="py-3 px-3 text-right font-semibold text-[#0f172a] tabular-nums whitespace-nowrap">
+                    {emp.holidayRate ? money(emp.holidayRate) : '—'}
                   </td>
 
-                  {/* Holiday Hours */}
-                  <td className="py-2.5 px-3 text-right">
+                  {/* Holiday Hours Input */}
+                  <td className="py-3 px-3 text-right">
                     <input
                       type="number"
-                      step="0.5"
+                      step="0.25"
                       min="0"
-                      value={item.holidayHours === 0 ? '' : item.holidayHours}
-                      onChange={e => handleItemChange(item.employeeId, 'holidayHours', parseFloat(e.target.value) || 0)}
-                      className="w-18 px-2 py-1.5 text-right border border-[#cbd5e1] rounded-lg font-bold text-[#1e293b] bg-white focus:border-[#2f6fb3] focus:outline-none focus:ring-1 focus:ring-[#2f6fb3]"
+                      disabled={!emp.holidayRate}
+                      value={emp.holidayHours === 0 ? '' : emp.holidayHours}
+                      onChange={e => handleItemFieldChange(emp.employeeId, 'holidayHours', parseFloat(e.target.value) || 0)}
+                      placeholder=""
+                      className={`w-20 px-2 py-1.5 text-right border border-[#cbd5e1] rounded-lg font-bold text-xs text-[#0f172a] focus:outline-none focus:border-[#1d4ed8] ${
+                        !emp.holidayRate ? 'bg-[#f1f5f9] cursor-not-allowed text-[#94a3b8]' : 'bg-white'
+                      }`}
                     />
                   </td>
 
                   {/* Holiday Pay */}
-                  <td className="py-2.5 px-3 text-right font-bold text-[#1e40af] tabular-nums whitespace-nowrap">
-                    {formatMoney(item.holidayPay || 0)}
+                  <td className="py-3 px-3 text-right font-extrabold text-[#12345b] tabular-nums whitespace-nowrap">
+                    {money(emp.holidayPay)}
                   </td>
 
-                  {/* Other Pay */}
-                  <td className="py-2.5 px-3 text-right">
+                  {/* Other Pay Input */}
+                  <td className="py-3 px-3 text-right">
                     <input
                       type="number"
-                      step="1"
-                      min="0"
-                      value={item.otherPay === 0 ? '' : item.otherPay}
-                      onChange={e => handleItemChange(item.employeeId, 'otherPay', parseFloat(e.target.value) || 0)}
-                      className="w-18 px-2 py-1.5 text-right border border-[#cbd5e1] rounded-lg font-bold text-[#1e293b] bg-white focus:border-[#2f6fb3] focus:outline-none focus:ring-1 focus:ring-[#2f6fb3]"
+                      step="0.01"
+                      value={emp.otherPay === 0 ? '' : emp.otherPay}
+                      onChange={e => handleItemFieldChange(emp.employeeId, 'otherPay', parseFloat(e.target.value) || 0)}
+                      placeholder=""
+                      className="w-20 px-2 py-1.5 text-right border border-[#cbd5e1] rounded-lg font-bold text-xs text-[#0f172a] focus:outline-none focus:border-[#1d4ed8] bg-white"
                     />
                   </td>
 
-                  {/* Deductions */}
-                  <td className="py-2.5 px-3 text-right">
+                  {/* Deductions Input */}
+                  <td className="py-3 px-3 text-right">
                     <input
                       type="number"
-                      step="1"
+                      step="0.01"
                       min="0"
-                      value={item.deductions === 0 ? '' : item.deductions}
-                      onChange={e => handleItemChange(item.employeeId, 'deductions', parseFloat(e.target.value) || 0)}
-                      className="w-20 px-2 py-1.5 text-right border border-[#cbd5e1] rounded-lg font-bold text-[#1e293b] bg-white focus:border-[#2f6fb3] focus:outline-none focus:ring-1 focus:ring-[#2f6fb3] placeholder-gray-400"
-                      placeholder="0.00"
+                      value={emp.deductions === 0 ? '' : emp.deductions}
+                      onChange={e => handleItemFieldChange(emp.employeeId, 'deductions', parseFloat(e.target.value) || 0)}
+                      placeholder=""
+                      className="w-20 px-2 py-1.5 text-right border border-[#cbd5e1] rounded-lg font-bold text-xs text-[#0f172a] focus:outline-none focus:border-[#1d4ed8] bg-white"
                     />
                   </td>
 
                   {/* Total Hours */}
-                  <td className="py-2.5 px-3 text-right font-extrabold text-[#12345b] tabular-nums whitespace-nowrap">
-                    {Number(item.totalHours || 0).toFixed(2)}
+                  <td className="py-3 px-3 text-right font-extrabold text-[#12345b] tabular-nums whitespace-nowrap">
+                    {emp.totalHours.toFixed(2)}
                   </td>
 
                   {/* Gross Pay */}
-                  <td className="py-2.5 px-3 text-right font-extrabold text-[#12345b] tabular-nums whitespace-nowrap">
-                    {formatMoney(item.grossPay || 0)}
+                  <td className="py-3 px-3 text-right font-extrabold text-[#12345b] tabular-nums whitespace-nowrap">
+                    {money(emp.grossPay)}
                   </td>
 
                   {/* Net Pay */}
-                  <td className="py-2.5 px-4 text-right font-black text-[#0f766e] tabular-nums whitespace-nowrap">
-                    {formatMoney(item.netPay || 0)}
+                  <td className="py-3 px-4 text-right font-black text-[#176b55] tabular-nums whitespace-nowrap">
+                    {money(emp.netPay)}
                   </td>
                 </tr>
               ))}
@@ -393,100 +588,145 @@ export const PayrollConsole: React.FC = () => {
           </table>
         </div>
 
-        {/* Bottom Actions Toolbar */}
-        <div className="p-4 bg-white border-t border-[#d9e4ee] flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={handleSaveDraft}
-              className="px-4 py-2 bg-[#2f6fb3] hover:bg-[#235891] text-white text-xs font-black rounded-xl shadow-sm flex items-center gap-1.5 transition-all active:scale-95"
-            >
-              <Save className="w-4 h-4" />
-              <span>Save Draft</span>
-            </button>
-
-            <button
-              onClick={handleExportCSV}
-              className="px-4 py-2 bg-white border border-[#cbd5e1] hover:bg-[#f1f5f9] text-[#12345b] text-xs font-bold rounded-xl shadow-sm flex items-center gap-1.5 transition-all"
-            >
-              <Download className="w-4 h-4 text-[#2f6fb3]" />
-              <span>Export CSV</span>
-            </button>
-
-            <button
-              onClick={() => window.print()}
-              className="px-4 py-2 bg-white border border-[#cbd5e1] hover:bg-[#f1f5f9] text-[#12345b] text-xs font-bold rounded-xl shadow-sm flex items-center gap-1.5 transition-all"
-            >
-              <Printer className="w-4 h-4 text-[#64748b]" />
-              <span>Print Payroll</span>
-            </button>
-
-            <button
-              onClick={() => navigate('/payslips')}
-              className="px-4 py-2 bg-white border border-[#cbd5e1] hover:bg-[#f1f5f9] text-[#12345b] text-xs font-bold rounded-xl shadow-sm flex items-center gap-1.5 transition-all"
-            >
-              <PieChart className="w-4 h-4 text-[#0f766e]" />
-              <span>View Payslips</span>
-            </button>
-          </div>
+        {/* Action Buttons Toolbar */}
+        <div className="p-4 sm:p-5 bg-white border-t border-[#e2e8f0] flex flex-wrap items-center gap-2.5">
+          <button
+            type="button"
+            onClick={handleSaveDraft}
+            className="px-4 py-2 bg-white hover:bg-[#f8fafc] text-[#1e293b] border border-[#cbd5e1] text-xs font-extrabold rounded-xl transition-all shadow-xs"
+          >
+            Save Draft
+          </button>
 
           <button
-            onClick={handleProcessPay}
-            disabled={currentPeriod.status === 'Paid'}
-            className={`px-5 py-2 text-white text-xs font-black rounded-xl shadow-sm flex items-center gap-1.5 transition-all active:scale-95 ${
-              currentPeriod.status === 'Paid'
-                ? 'bg-emerald-600/60 cursor-not-allowed'
-                : 'bg-emerald-600 hover:bg-emerald-700'
-            }`}
+            type="button"
+            onClick={handleBackup}
+            className="px-4 py-2 bg-white hover:bg-[#f8fafc] text-[#1e293b] border border-[#cbd5e1] text-xs font-extrabold rounded-xl transition-all shadow-xs"
           >
-            <CheckCircle2 className="w-4 h-4" />
-            <span>{currentPeriod.status === 'Paid' ? 'Paid & Finalized' : 'Process Pay (Mark as Paid)'}</span>
+            Backup Payroll Data
           </button>
+
+          <button
+            type="button"
+            onClick={handleRestoreClick}
+            className="px-4 py-2 bg-white hover:bg-[#f8fafc] text-[#1e293b] border border-[#cbd5e1] text-xs font-extrabold rounded-xl transition-all shadow-xs"
+          >
+            Restore Backup
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/json"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+
+          <button
+            type="button"
+            onClick={handleExportExcel}
+            className="px-4 py-2 bg-white hover:bg-[#f8fafc] text-[#1e293b] border border-[#cbd5e1] text-xs font-extrabold rounded-xl transition-all shadow-xs"
+          >
+            Export to Excel
+          </button>
+
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="px-4 py-2 bg-white hover:bg-[#f8fafc] text-[#1e293b] border border-[#cbd5e1] text-xs font-extrabold rounded-xl transition-all shadow-xs"
+          >
+            Print Report
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigate('/payslips')}
+            className="px-4 py-2 bg-white hover:bg-[#f8fafc] text-[#1e293b] border border-[#cbd5e1] text-xs font-extrabold rounded-xl transition-all shadow-xs"
+          >
+            Payslips
+          </button>
+
+          <button
+            type="button"
+            onClick={handleProcessPay}
+            className="px-5 py-2 bg-[#176b55] hover:bg-[#125543] text-white text-xs font-black rounded-xl transition-all shadow-md active:scale-95 cursor-pointer"
+          >
+            Process Pay
+          </button>
+        </div>
+
+        {/* Disclaimer Notice */}
+        <div className="px-4 sm:px-5 pb-5 text-xs font-semibold text-[#64748b] leading-relaxed">
+          This app stores data in this browser only. Use Backup Payroll Data regularly and keep the downloaded backup file somewhere safe. It does not calculate Bermuda payroll tax, Social Insurance, pension, or statutory deductions automatically.
         </div>
       </div>
 
-      {/* Process Pay Confirmation Modal */}
-      {showConfirmApprove && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-[#d7e2ec] space-y-4">
-            <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
-              <CheckCircle2 className="w-6 h-6" />
-            </div>
-
-            <div className="text-center">
-              <h3 className="text-lg font-black text-[#12345b]">
-                Process and Finalize Payroll?
-              </h3>
-              <p className="text-xs text-[#607286] mt-2">
-                This will mark payroll period <strong className="text-[#12345b]">{toDisplayDate(currentPeriod.periodStart)} – {toDisplayDate(currentPeriod.periodEnd)}</strong> as <strong>Paid</strong> and record an entry in the system audit logs.
-              </p>
-            </div>
-
-            <div className="bg-[#f0fdf4] border border-[#bbf7d0] rounded-xl p-3.5 text-center">
-              <span className="block text-[11px] font-extrabold uppercase text-[#166534]">Total Net Disbursement</span>
-              <strong className="text-2xl font-black text-[#166534]">
-                {formatMoney(currentPeriod.totalNetPayroll)}
-              </strong>
-            </div>
-
-            <div className="flex items-center justify-end gap-2.5 pt-2">
-              <button
-                type="button"
-                onClick={() => setShowConfirmApprove(false)}
-                className="px-4 py-2 border border-[#cbd5e1] rounded-xl text-xs font-bold text-[#475569] hover:bg-[#f1f5f9] transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={confirmProcessPay}
-                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-sm transition-all active:scale-95"
-              >
-                Confirm &amp; Process Pay
-              </button>
-            </div>
-          </div>
+      {/* 4. Payroll History Card */}
+      <div className="bg-white border border-[#dde7f0] rounded-2xl shadow-sm overflow-hidden">
+        <div className="p-4 sm:p-5 border-b border-[#e2e8f0]">
+          <h2 className="text-base font-extrabold text-[#12345b]">
+            Payroll History
+          </h2>
         </div>
-      )}
+
+        <div className="overflow-x-auto w-full">
+          <table className="w-full text-left text-sm border-collapse min-w-[700px]">
+            <thead>
+              <tr className="bg-[#102a43] text-white font-bold text-xs uppercase tracking-wider">
+                <th className="py-3 px-4 font-bold">Period</th>
+                <th className="py-3 px-4 font-bold">Pay Date</th>
+                <th className="py-3 px-4 font-bold">Status</th>
+                <th className="py-3 px-4 font-bold text-right">Hours</th>
+                <th className="py-3 px-4 font-bold text-right">Gross</th>
+                <th className="py-3 px-4 font-bold text-right">Net Payroll</th>
+                <th className="py-3 px-4 font-bold text-center w-28">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#edf2f7]">
+              {!history || history.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-8 px-4 text-center text-xs font-semibold text-[#64748b]">
+                    No processed payrolls yet.
+                  </td>
+                </tr>
+              ) : (
+                history.map((h, i) => (
+                  <tr key={h.id || i} className="bg-white hover:bg-[#f8fafc] transition-colors">
+                    <td className="py-3.5 px-4 font-bold text-xs text-[#0f172a] whitespace-nowrap">
+                      {h.periodStart || '—'} to {h.periodEnd || '—'}
+                    </td>
+                    <td className="py-3.5 px-4 font-semibold text-xs text-[#334155] whitespace-nowrap">
+                      {h.payDate || '—'}
+                    </td>
+                    <td className="py-3.5 px-4 whitespace-nowrap">
+                      <span className="px-2.5 py-1 bg-[#dcfce7] text-[#166534] border border-[#bbf7d0] text-[11px] font-extrabold rounded-md inline-block">
+                        {h.status || 'Paid'}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4 text-right font-semibold text-xs text-[#0f172a] tabular-nums whitespace-nowrap">
+                      {Number(h.totalHours || 0).toFixed(2)}
+                    </td>
+                    <td className="py-3.5 px-4 text-right font-bold text-xs text-[#12345b] tabular-nums whitespace-nowrap">
+                      {money(h.totalGrossPayroll || 0)}
+                    </td>
+                    <td className="py-3.5 px-4 text-right font-black text-xs text-[#176b55] tabular-nums whitespace-nowrap">
+                      {money(h.totalNetPayroll || 0)}
+                    </td>
+                    <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteHistory(i)}
+                        className="px-3 py-1 bg-[#fee2e2] hover:bg-[#fecaca] text-[#b91c1c] text-xs font-extrabold rounded-lg transition-all"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 };

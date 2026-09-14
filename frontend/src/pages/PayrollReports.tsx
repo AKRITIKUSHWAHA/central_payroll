@@ -1,112 +1,179 @@
-import React, { useState } from 'react';
-import { payrollService } from '../services/payrollService';
+import React, { useState, useEffect, useMemo } from 'react';
 import { reportService } from '../services/reportService';
+import { payrollService } from '../services/payrollService';
 import { useToast } from '../context/ToastContext';
-import { FileText, Printer, FileSpreadsheet, Filter } from 'lucide-react';
+import { PayrollPeriod } from '../types';
 
 export const PayrollReports: React.FC = () => {
-  const periods = payrollService.getPayrollPeriods();
-  const [selectedReportType, setSelectedReportType] = useState('1');
+  const [periods, setPeriods] = useState<PayrollPeriod[]>([]);
   const { showToast } = useToast();
 
-  const reportTypes = [
-    { id: '1', name: 'Weekly Payroll Summary' },
-    { id: '2', name: 'Employee Payroll Report' },
-    { id: '3', name: 'Payroll by Department' },
-    { id: '4', name: 'Hours Worked Report' },
-    { id: '5', name: 'Overtime & Holiday Report' },
-    { id: '6', name: 'Gross vs Net Payroll' },
-    { id: '7', name: 'Payroll Payment Report' },
-    { id: '8', name: 'Leave Impact Report' },
-  ];
+  useEffect(() => {
+    reportService.fetchPayrollReports().then(data => {
+      if (data && data.length > 0) {
+        setPeriods(data);
+      }
+    });
+  }, []);
 
-  const handleExportCSV = () => {
-    const period = periods[0];
-    if (!period || !period.items) {
-      showToast('No payroll items available to export.', 'info');
+  const allPeriods = useMemo(() => {
+    if (periods.length > 0) return periods;
+    return payrollService.getPayrollPeriods();
+  }, [periods]);
+
+  const currentTotals = useMemo(() => {
+    if (allPeriods && allPeriods.length > 0) {
+      const gross = allPeriods.reduce((sum: number, p: PayrollPeriod) => sum + Number(p.totalGrossPayroll || 0), 0);
+      const net = allPeriods.reduce((sum: number, p: PayrollPeriod) => sum + Number(p.totalNetPayroll || 0), 0);
+      return { gross, net };
+    }
+    return { gross: 0, net: 0 };
+  }, [allPeriods]);
+
+  const formatMoney = (val: number) => {
+    return `$${Number(val || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
+  const handleExportExcel = () => {
+    const period = allPeriods[0];
+    if (!period || !period.items || period.items.length === 0) {
+      showToast('No payroll reports available to export.', 'info');
       return;
     }
     const headers = ['Employee', 'Regular Hours', 'Holiday Hours', 'Gross Pay', 'Deductions', 'Net Pay'];
-    const rows = period.items.map(i => [i.employeeName, i.regularHours, i.holidayHours, i.grossPay, i.deductions, i.netPay]);
-    reportService.exportToCSV('Payroll_Report.csv', headers, rows);
-    showToast('Exported report to CSV successfully.');
+    const rows = period.items.map(i => [
+      i.employeeName,
+      Number(i.regularHours || 0).toFixed(2),
+      Number(i.holidayHours || 0).toFixed(2),
+      formatMoney(i.grossPay),
+      formatMoney(i.deductions),
+      formatMoney(i.netPay)
+    ]);
+
+    reportService.exportToCSV(`Central_Dispatch_Payroll_Report_${new Date().toISOString().slice(0, 10)}.csv`, headers, rows);
+    showToast('Current payroll report exported to Excel.');
+  };
+
+  const handlePrint = () => {
+    window.print();
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-7xl mx-auto pb-12">
+      {/* 1. Workspace Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-[#12345b] tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#12345b] tracking-tight">
             Payroll Reports
           </h1>
-          <p className="text-sm font-semibold text-[#607286] mt-1">
-            Review processed payroll reports and download audit statements
+          <p className="text-sm font-semibold text-[#1d4ed8] mt-1">
+            Review processed payroll and download the current payroll report.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5 self-start sm:self-auto">
           <button
-            onClick={handleExportCSV}
-            className="px-4 py-2 bg-[#2f6fb3] hover:bg-[#245a96] text-white text-xs font-extrabold rounded-xl shadow-sm flex items-center gap-1.5"
+            onClick={handleExportExcel}
+            className="px-5 py-2.5 bg-[#1d4ed8] hover:bg-[#1e40af] text-white text-sm font-extrabold rounded-xl transition-all shadow-md active:scale-95"
           >
-            <FileSpreadsheet className="w-3.5 h-3.5" />
-            <span>Export Current to Excel</span>
+            Export Current to Excel
           </button>
           <button
-            onClick={() => window.print()}
-            className="px-4 py-2 bg-white border border-[#aebfd1] hover:bg-[#edf5fb] text-[#173a60] text-xs font-extrabold rounded-xl shadow-sm flex items-center gap-1.5"
+            onClick={handlePrint}
+            className="px-4 py-2.5 bg-white hover:bg-[#f8fafc] text-[#1e293b] border border-[#cbd5e1] text-sm font-extrabold rounded-xl transition-all shadow-xs"
           >
-            <Printer className="w-3.5 h-3.5" />
-            <span>Print Report</span>
+            Print Current Report
           </button>
         </div>
       </div>
 
-      <div className="bg-white border border-[#dde7f0] rounded-2xl p-4 shadow-cdCard">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-bold text-[#38516b] uppercase mb-1">Select Report Type</label>
-            <select
-              value={selectedReportType}
-              onChange={e => setSelectedReportType(e.target.value)}
-              className="w-full px-3 py-2 border border-[#bdcbd9] rounded-xl text-sm font-bold text-[#1c2b3a]"
-            >
-              {reportTypes.map(r => (
-                <option key={r.id} value={r.id}>{r.id}. {r.name}</option>
-              ))}
-            </select>
+      {/* 2. 3 KPI Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Processed Reports */}
+        <div className="bg-[#edf4fa] border border-[#d2e2f0] rounded-2xl p-5 shadow-sm">
+          <span className="text-xs sm:text-sm font-bold text-[#475569]">Processed Reports</span>
+          <div className="text-2xl sm:text-3xl font-extrabold text-[#12345b] tracking-tight mt-1.5">
+            {periods.length}
+          </div>
+        </div>
+
+        {/* Current Gross */}
+        <div className="bg-[#edf4fa] border border-[#d2e2f0] rounded-2xl p-5 shadow-sm">
+          <span className="text-xs sm:text-sm font-bold text-[#475569]">Current Gross</span>
+          <div className="text-2xl sm:text-3xl font-extrabold text-[#12345b] tracking-tight mt-1.5">
+            {formatMoney(currentTotals.gross)}
+          </div>
+        </div>
+
+        {/* Current Net */}
+        <div className="bg-[#edf4fa] border border-[#d2e2f0] rounded-2xl p-5 shadow-sm">
+          <span className="text-xs sm:text-sm font-bold text-[#475569]">Current Net</span>
+          <div className="text-2xl sm:text-3xl font-extrabold text-[#12345b] tracking-tight mt-1.5">
+            {formatMoney(currentTotals.net)}
           </div>
         </div>
       </div>
 
-      <div className="bg-white border border-[#dde7f0] rounded-2xl shadow-cdCard overflow-hidden">
-        <div className="px-5 py-4 bg-[#edf4fa] border-b border-[#d9e4ee]">
+      {/* 3. Payroll Report Archive Panel */}
+      <div className="bg-white border border-[#dde7f0] rounded-2xl shadow-sm overflow-hidden">
+        <div className="p-4 sm:p-5 border-b border-[#e2e8f0]">
           <h2 className="text-base font-extrabold text-[#12345b]">
             Payroll Report Archive
           </h2>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+
+        {/* Mobile Scroll Hint */}
+        <div className="mobile-scroll-hint">
+          <span>👉 Swipe archive table to view status, hours &amp; pay</span>
+          <span className="text-[10px] uppercase bg-white px-2 py-0.5 rounded border border-[#cbd5e1] font-extrabold">
+            Archive
+          </span>
+        </div>
+
+        <div className="table-responsive-container">
+          <table className="w-full text-left text-sm border-collapse min-w-[760px]">
             <thead>
-              <tr className="bg-[#12345b] text-white font-bold uppercase">
-                <th className="py-3 px-4">Period</th>
-                <th className="py-3 px-4">Pay Date</th>
-                <th className="py-3 px-4">Status</th>
-                <th className="py-3 px-4 text-right">Hours</th>
-                <th className="py-3 px-4 text-right">Gross</th>
-                <th className="py-3 px-4 text-right">Net Payroll</th>
+              <tr className="bg-[#102a43] text-white font-bold text-xs uppercase tracking-wider">
+                <th className="py-3.5 px-5 font-bold">Period</th>
+                <th className="py-3.5 px-5 font-bold">Pay Date</th>
+                <th className="py-3.5 px-5 font-bold">Status</th>
+                <th className="py-3.5 px-5 font-bold text-right">Hours</th>
+                <th className="py-3.5 px-5 font-bold text-right">Gross</th>
+                <th className="py-3.5 px-5 font-bold text-right">Net Payroll</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#e1e9f0]">
-              {periods.map(p => (
-                <tr key={p.id} className="hover:bg-[#f8fbfd]">
-                  <td className="py-3 px-4 font-bold text-[#183a61]">{p.periodStart} to {p.periodEnd}</td>
-                  <td className="py-3 px-4 text-[#607286] font-semibold">{p.payDate}</td>
-                  <td className="py-3 px-4 font-extrabold text-[#0f766e]">{p.status}</td>
-                  <td className="py-3 px-4 text-right font-bold text-[#12345b] tabular-nums">{p.totalHours.toFixed(2)}</td>
-                  <td className="py-3 px-4 text-right font-bold text-[#12345b] tabular-nums">${p.totalGrossPayroll.toFixed(2)}</td>
-                  <td className="py-3 px-4 text-right font-black text-[#0f766e] tabular-nums">${p.totalNetPayroll.toFixed(2)}</td>
+            <tbody className="divide-y divide-[#edf2f7]">
+              {periods.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-10 text-center text-sm font-bold text-[#64748b]">
+                    No processed payroll reports yet.
+                  </td>
                 </tr>
-              ))}
+              ) : (
+                periods.map((p) => (
+                  <tr key={p.id} className="hover:bg-[#f8fafc] transition-colors">
+                    <td className="py-3.5 px-5 font-bold text-[#0f172a] whitespace-nowrap">
+                      {p.periodStart || '—'} to {p.periodEnd || '—'}
+                    </td>
+                    <td className="py-3.5 px-5 text-xs text-[#334155] whitespace-nowrap">
+                      {p.payDate || '—'}
+                    </td>
+                    <td className="py-3.5 px-5 whitespace-nowrap">
+                      <span className="inline-block px-3 py-1 rounded-full text-xs font-bold bg-[#dcfce7] text-[#15803d]">
+                        {p.status || 'Processed'}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-5 text-xs font-extrabold text-[#0f172a] text-right whitespace-nowrap">
+                      {Number(p.totalHours || 0).toFixed(2)}
+                    </td>
+                    <td className="py-3.5 px-5 text-xs font-extrabold text-[#0f172a] text-right whitespace-nowrap">
+                      {formatMoney(p.totalGrossPayroll)}
+                    </td>
+                    <td className="py-3.5 px-5 text-xs font-extrabold text-[#0f172a] text-right whitespace-nowrap">
+                      {formatMoney(p.totalNetPayroll)}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

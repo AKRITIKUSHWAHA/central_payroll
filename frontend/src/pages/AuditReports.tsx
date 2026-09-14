@@ -60,8 +60,8 @@ export const AuditReports: React.FC = () => {
             {auditMode === 'weekly' ? 'Weekly System Actions Audit Log' : 'Year-End Financial Audit Summary'}
           </h2>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+        <div className="overflow-x-auto w-full min-w-0">
+          <table className="w-full text-left text-xs min-w-[640px]">
             <thead>
               <tr className="bg-[#12345b] text-white font-bold uppercase">
                 <th className="py-3 px-4">Action</th>

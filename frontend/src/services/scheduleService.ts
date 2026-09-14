@@ -19,15 +19,37 @@ class ScheduleService {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(schedules));
   }
 
+  public async fetchScheduleData(weekStartDate: string): Promise<{ schedules: EmployeeSchedule[]; employees: any[]; note?: string }> {
+    try {
+      const res = await apiFetch<{ success: boolean; schedules: EmployeeSchedule[]; employees: any[]; note?: string }>(
+        `/weekly-schedules?weekStartDate=${weekStartDate}`
+      );
+      if (res && res.success) {
+        if (res.schedules) {
+          const storage = this.getStorage();
+          storage[weekStartDate] = res.schedules;
+          this.saveStorage(storage);
+        }
+        if (res.note !== undefined) {
+          this.saveScheduleNotes(weekStartDate, res.note);
+        }
+        return { schedules: res.schedules || [], employees: res.employees || [], note: res.note };
+      }
+    } catch (err) {
+      console.warn('Failed to fetch from /weekly-schedules:', err);
+    }
+    const storage = this.getStorage();
+    return { schedules: storage[weekStartDate] || [], employees: [], note: this.getScheduleNotes(weekStartDate) };
+  }
+
   public getWeeklySchedules(weekStartDate: string): EmployeeSchedule[] {
-    // Sync with backend
-    apiFetch<{ success: boolean; schedules: EmployeeSchedule[] }>(`/schedules?weekStartDate=${weekStartDate}`).then(res => {
+    apiFetch<{ success: boolean; schedules: EmployeeSchedule[] }>(`/weekly-schedules?weekStartDate=${weekStartDate}`).then(res => {
       if (res && res.success && res.schedules) {
         const storage = this.getStorage();
         storage[weekStartDate] = res.schedules;
         this.saveStorage(storage);
       }
-    });
+    }).catch(() => {});
 
     const storage = this.getStorage();
     return storage[weekStartDate] || [];
@@ -38,12 +60,11 @@ class ScheduleService {
     storage[weekStartDate] = schedules;
     this.saveStorage(storage);
 
-    // Sync each schedule to backend
     schedules.forEach(schedule => {
-      apiFetch('/schedules', {
+      apiFetch('/weekly-schedules', {
         method: 'POST',
         body: JSON.stringify(schedule)
-      });
+      }).catch(() => {});
     });
   }
 
@@ -54,6 +75,10 @@ class ScheduleService {
 
   public saveScheduleNotes(weekStartDate: string, notes: string) {
     localStorage.setItem(`${NOTES_KEY}_${weekStartDate}`, notes);
+    apiFetch('/weekly-schedules/notes', {
+      method: 'POST',
+      body: JSON.stringify({ note: notes })
+    }).catch(() => {});
   }
 }
 

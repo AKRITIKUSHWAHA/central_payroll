@@ -157,40 +157,93 @@ CREATE TABLE IF NOT EXISTS schedules (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 ```
 
-### 7. `audit_logs` Table
+### 8. `time_records` Table
 ```sql
-CREATE TABLE IF NOT EXISTS audit_logs (
+CREATE TABLE IF NOT EXISTS time_records (
   id VARCHAR(50) PRIMARY KEY,
-  action VARCHAR(100) NOT NULL,
-  module VARCHAR(100) NOT NULL,
-  user VARCHAR(100) NOT NULL,
-  role VARCHAR(100) NOT NULL,
-  timestamp VARCHAR(100) NOT NULL,
-  details TEXT,
-  ipAddress VARCHAR(50)
+  userId VARCHAR(50) NOT NULL,
+  employeeId VARCHAR(50),
+  employeeName VARCHAR(200) NOT NULL,
+  clockIn VARCHAR(100) NOT NULL,
+  clockOut VARCHAR(100),
+  totalHours DECIMAL(6,2) DEFAULT 0.00,
+  status ENUM('ClockedIn', 'ClockedOut') NOT NULL DEFAULT 'ClockedIn',
+  notes TEXT,
+  createdAt VARCHAR(100),
+  INDEX idx_user_time (userId),
+  INDEX idx_emp_time (employeeId)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+```
+
+### 9. `app_settings` Table
+```sql
+CREATE TABLE IF NOT EXISTS app_settings (
+  settingKey VARCHAR(100) PRIMARY KEY,
+  settingValue LONGTEXT,
+  updatedAt VARCHAR(100)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 ```
 
 ---
 
-## 📡 API Endpoint Reference
+## 📡 Menu-Specific API Endpoint Reference (Exact Match with Prototype)
 
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `POST` | `/api/auth/login` | Authenticate user with username & password |
-| `GET` | `/api/employees` | Fetch all employees from MySQL `employees` table |
-| `POST` | `/api/employees` | Create or update an employee in MySQL |
-| `PATCH` | `/api/employees/:id/toggle` | Toggle employee Active/Inactive status |
-| `GET` | `/api/payroll` | Fetch all payroll periods |
-| `PUT` | `/api/payroll/:id/items` | Save items and upsert payroll period in MySQL |
-| `PATCH` | `/api/payroll/:id/status` | Update period status (`Draft` -> `Paid`) |
-| `GET` | `/api/leave` | Fetch all leave records |
-| `PUT` | `/api/leave/employee/:employeeId` | Sync employee leaves in `leave_records` table |
-| `GET` | `/api/schedules` | Fetch weekly shift schedules |
-| `POST` | `/api/schedules` | Save schedule matrix row into `schedules` table |
-| `GET` | `/api/users` | Fetch user accounts |
-| `POST` | `/api/users` | Create/update user account |
-| `PATCH` | `/api/users/:id/toggle` | Toggle user account Active/Inactive status |
+| # | Category | Sidebar Menu Name | Frontend Route | Backend API Endpoint | Description |
+| :---: | :--- | :--- | :--- | :--- | :--- |
+| **1** | **WORKSPACE** | **Dashboard** | `/dashboard` | `/api/dashboard` | Dashboard KPI summary, employee stats, charts & customer list |
+| **2** | **WORKSPACE** | **Payroll** | `/payroll` | `/api/payroll` | Weekly payroll computation, calculations & salary processing |
+| **3** | **WORKSPACE** | **Leave Calendars** | `/leave` | `/api/leave` | Dual-calendar sick/vacation leave records & persistence |
+| **4** | **WORKSPACE** | **Staff Contact Details** | `/contacts` | `/api/contacts` | Phone & email contact directory with quick call/email links |
+| **5** | **WORKSPACE** | **Weekly Schedules** | `/schedules` | `/api/schedules` | Duty shift rotas, weekly hours, & staff time clock |
+| **6** | **WORKSPACE** | **Payroll Reports** | `/reports` | `/api/reports` | 8-Report types summary & historical payroll archive |
+| **7** | **WORKSPACE** | **Payslips** | `/payslips` | `/api/payslips` | Printable salary pay slips for individual employees |
+| **8** | **CUSTOMERS & ACCOUNTS** | **Accounts Overview** | `/accounts` | `/api/accounts` | Financial KPIs, complete backup & restore utilities |
+| **9** | **CUSTOMERS & ACCOUNTS** | **Customers & Ledgers** | `/customers` | `/api/customers` | 782 Customers directory, calendar date filter, ledger cards |
+| **10** | **CUSTOMERS & ACCOUNTS** | **Create Invoice** | `/invoices` | `/api/invoices` | Multi-line customer invoicing, email dispatch & pay link |
+| **11** | **CUSTOMERS & ACCOUNTS** | **Record Payment** | `/payments` | `/api/payments` | Customer payments, RideBermuda pay link & ledger balance |
+| **12** | **CUSTOMERS & ACCOUNTS** | **A/R Aging** | `/aging` | `/api/aging` | Receivables aging breakdown (Current, 1-30, 31-60, 61-90, 90+) |
+| **13** | **CUSTOMERS & ACCOUNTS** | **General Ledger** | `/ledger` | `/api/ledger` | 1,927+ Consolidated general ledger transactions with export |
+| **14** | **CUSTOMERS & ACCOUNTS** | **Employee Records** | `/employees` | `/api/employees` | Master staff directory, 5-part registration & pay rates |
+| **15** | **CUSTOMERS & ACCOUNTS** | **Permissions** | `/permissions` | `/api/permissions` | Role-based permission matrix (Super Admin only) |
+| **16** | **CUSTOMERS & ACCOUNTS** | **User Accounts** | `/users` | `/api/users` | Admin & staff login accounts, 3-dot action menu |
+
+---
+
+## 📅 Development Timeline & Work Log (Date-Wise)
+
+### ✅ Completed: 10 September 2026
+1. **Responsive Mobile/Tablet Optimization**: Responsive layouts across desktop, tablet, and mobile with off-canvas navigation.
+2. **Sidebar Layout & Viewport Lock**: Fixed sidebar positioning with independent internal scroll.
+3. **Audit Logging MySQL Integration**: Created and wired `audit_logs` table.
+4. **Environment Configuration**: Configured `.env` and `.env.example`.
+
+---
+
+### ✅ Completed: 11 September 2026 (Customer Accounts & Ledger Integration)
+1. **Database Schema & Data Import**: Seeded 782 Customers and 1,927 General Ledger entries in MySQL.
+2. **Frontend UI Components**: Dashboard launcher, Accounts Overview, Invoices, Payments, A/R Aging, and General Ledger.
+3. **Navigation & Routes**: Added Customers & Accounts section in sidebar.
+
+---
+
+### ✅ Completed: 12 September 2026 (Company Settings, Payment Links, Staff Password Change & Security)
+1. **Company Profile & Settings MySQL Persistence (`app_settings` table)**:
+   - Wired `GET /api/settings` and `POST /api/settings` directly to MySQL `app_settings` table.
+   - Company Name, Bermuda Telephone, Office Address, Payroll Contact Email, and Overtime Threshold are dynamically persisted and loaded across reloads.
+2. **RideBermuda Customer Payment Link (`https://ridebermuda-prod.web.app/paylink`)**:
+   - Integrated into System Settings (`/settings`) with instant testing capability.
+   - Added prominent header card on Payments View (`/payments`) with quick "Copy Link" and "Open Link" buttons.
+   - Embedded directly into generated customer email bodies and printable invoice preview dialogues in Invoices View (`/invoices`).
+3. **Staff Self-Service Password Management & User Accounts Directory (`/users`)**:
+   - Built global `ChangePasswordModal` accessible from Topbar and Sidebar for all users (Staff, Admin, Super Admin).
+   - Created backend API `POST /api/user-accounts/change-password` that updates password hashes directly in MySQL `users` table.
+   - Redesigned User Accounts screen with quick statistics pills, 4:8 responsive split, live search filter, and a sleek **3-Dots Actions Menu** (`Copy Login Link & Details`, `Reset Password`, `Activate / Deactivate Account`).
+4. **Customer Date Filter & Added Date Column (`/customers`)**:
+   - Implemented single Calendar Date Picker to instantly locate customers added on any chosen date.
+   - Added "Added Date" column displaying timestamp of creation.
+5. **Role-Based Security & Redirection Rules**:
+   - Enforced strict `SuperAdminRoute` guarding for `/permissions` and `/users`.
+   - Routing: Unauthenticated -> `/login`, Staff -> `/my-time`, Admin/SuperAdmin -> `/dashboard`.
 
 ---
 
@@ -200,4 +253,5 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 2. **Auto-Upsert Safety**:
    Backend endpoints auto-create missing records if they do not exist in MySQL yet, preventing 404 response errors.
 3. **Verification**:
-   Always run `npx tsc --noEmit` in `frontend` directory to ensure strict TypeScript type checking before pushing to Git.
+   Always run `npx tsc --noEmit` in `frontend` and `backend` directories to ensure strict TypeScript type checking before pushing to Git.
+

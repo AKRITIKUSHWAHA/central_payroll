@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { accountingService } from '../services/accountingService';
+import { companyService, CompanyProfile } from '../services/companyService';
 import { useToast } from '../context/ToastContext';
 import { Invoice, InvoiceItem } from '../types';
-import { Plus, Trash2, Printer, Mail, X } from 'lucide-react';
+import { Plus, Trash2, Printer, Mail, X, ExternalLink, Copy, Check, Send } from 'lucide-react';
+import { apiFetch } from '../services/api';
 
 export const InvoicesView: React.FC = () => {
   const { showToast } = useToast();
@@ -13,15 +15,30 @@ export const InvoicesView: React.FC = () => {
   const [invoiceDate, setInvoiceDate] = useState<string>(new Date().toISOString().slice(0, 10));
   const [dueDate, setDueDate] = useState<string>('');
   const [memo, setMemo] = useState<string>('');
+  const [company, setCompany] = useState<CompanyProfile>(() => companyService.getCompanyProfile());
   const [items, setItems] = useState<InvoiceItem[]>([
     { service: 'Island Taxi', description: 'Passenger trip / Dispatch service', quantity: 1, rate: 0, amount: 0 },
     { service: 'Island Taxi', description: '', quantity: 1, rate: 0, amount: 0 },
   ]);
 
   const [previewInvoice, setPreviewInvoice] = useState<Invoice | null>(null);
+  const [emailModalInvoice, setEmailModalInvoice] = useState<Invoice | null>(null);
+  const [emailRecipient, setEmailRecipient] = useState<string>('');
+  const [emailSubject, setEmailSubject] = useState<string>('');
+  const [emailBody, setEmailBody] = useState<string>('');
+  const [emailPayLink, setEmailPayLink] = useState<string>('https://ridebermuda-prod.web.app/paylink');
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
+
   const invoices = accountingService.getInvoices();
 
   const selectedCustomer = accountingService.getCustomerById(selectedCustomerId);
+
+  useEffect(() => {
+    companyService.fetchCompanyProfile().then(p => {
+      setCompany(p);
+      if (p.paymentLink) setEmailPayLink(p.paymentLink);
+    });
+  }, []);
 
   useEffect(() => {
     const daysMap: Record<string, number> = {
@@ -42,87 +59,123 @@ export const InvoicesView: React.FC = () => {
   };
 
   const handleRemoveItem = (index: number) => {
-    if (items.length === 1) {
-      setItems([{ service: 'Island Taxi', description: '', quantity: 1, rate: 0, amount: 0 }]);
-      return;
-    }
     setItems(items.filter((_, i) => i !== index));
   };
 
-  const handleItemChange = (index: number, field: keyof InvoiceItem, value: any) => {
+  const handleItemChange = (index: number, field: keyof InvoiceItem, val: any) => {
     const updated = [...items];
-    updated[index] = { ...updated[index], [field]: value };
-    const qty = Number(updated[index].quantity || 0);
-    const rate = Number(updated[index].rate || 0);
-    updated[index].amount = qty * rate;
+    const item = { ...updated[index], [field]: val };
+    if (field === 'quantity' || field === 'rate') {
+      item.amount = (Number(item.quantity) || 0) * (Number(item.rate) || 0);
+    }
+    updated[index] = item;
     setItems(updated);
   };
 
-  const calculateTotal = () => {
-    return items.reduce((sum, item) => sum + (Number(item.quantity || 0) * Number(item.rate || 0)), 0);
+  const totalAmount = items.reduce((acc, it) => acc + (it.amount || 0), 0);
+
+  const formatMoney = (val: number) => {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'BMD' }).format(Number(val) || 0);
   };
 
-  const formatMoney = (amount: number) => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'BMD' }).format(amount || 0);
-  };
-
-  const handleSaveInvoice = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveInvoice = (status: 'Owing' | 'Paid' = 'Owing') => {
+    if (typeof status === 'object' && status !== null && 'preventDefault' in status) {
+      (status as any).preventDefault();
+      status = 'Owing';
+    }
     if (!selectedCustomerId) {
-      alert('Please select a customer.');
+      alert('Please select a customer first.');
       return;
     }
+    const invNum = invoiceNumber.trim() || `INV-${Date.now().toString().slice(-5)}`;
+    const cust = accountingService.getCustomerById(selectedCustomerId);
 
-    const validItems = items.filter(item => item.rate > 0 || item.description.trim());
-    if (validItems.length === 0) {
-      alert('Please add at least one line item with a rate.');
-      return;
-    }
-
-    const created = accountingService.saveInvoice({
+    const invoice: Invoice = {
+      id: `inv_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
       customerId: selectedCustomerId,
-      number: invoiceNumber,
+      customerName: cust?.name || 'Customer',
+      customerEmail: cust?.email || '',
+      number: invNum,
       terms,
       date: invoiceDate,
       dueDate,
-      items: validItems,
-      memo,
-      amount: calculateTotal(),
-    });
+      items: items.filter(it => it.amount > 0 || it.description.trim() !== ''),
+      memo: memo || 'Thank you for choosing Central Dispatch / Bermuda Island Taxi.',
+      amount: totalAmount,
+      paidAmount: status === 'Paid' ? totalAmount : 0,
+      balance: status === 'Paid' ? 0 : totalAmount,
+      status,
+      createdAt: new Date().toISOString(),
+    };
 
-    showToast(`Invoice ${created.number} saved successfully!`);
-    setPreviewInvoice(created);
-
-    setInvoiceNumber('');
-    setMemo('');
-    setItems([
-      { service: 'Island Taxi', description: 'Passenger trip / Dispatch service', quantity: 1, rate: 0, amount: 0 },
-      { service: 'Island Taxi', description: '', quantity: 1, rate: 0, amount: 0 },
-    ]);
+    accountingService.saveInvoice(invoice);
+    showToast(`Invoice ${invNum} saved successfully.`);
+    setPreviewInvoice(invoice);
   };
 
   const handleDeleteInvoice = (id: string) => {
-    const res = accountingService.deleteInvoice(id);
-    if (!res.success) {
-      alert(res.message);
-      return;
-    }
+    if (!confirm('Are you sure you want to delete this invoice?')) return;
+    accountingService.deleteInvoice(id);
     showToast('Invoice deleted.');
   };
 
-  const handleEmailInvoice = (inv: Invoice) => {
+  const handleOpenEmailModal = (inv: Invoice) => {
     const cust = accountingService.getCustomerById(inv.customerId);
-    if (!cust?.email || !cust.email.includes('@')) {
-      alert('Customer does not have a valid email address. Edit customer to add email.');
+    const targetEmail = cust?.email || inv.customerEmail || '';
+    const payUrl = company.paymentLink || 'https://ridebermuda-prod.web.app/paylink';
+    const isPaid = inv.status === 'Paid';
+    const lines = inv.items.map((it, idx) => `${idx + 1}. ${it.service} - ${it.description} | Qty ${it.quantity} @ ${formatMoney(it.rate)} = ${formatMoney(it.amount)}`).join('\n');
+    const subject = `Central Dispatch Invoice ${inv.number} — ${isPaid ? 'Paid in Full' : 'Amount Due'}`;
+    const body = `Good day ${cust?.name || inv.customerName},\n\n${isPaid ? 'Thank you for your payment. This invoice is paid in full.' : 'Please find your invoice details below.'}\n\nInvoice Number: ${inv.number}\nDate: ${inv.date}\nDue Date: ${inv.dueDate}\nTerms: ${inv.terms}\nStatus: ${inv.status}\n\n${lines}\n\nTotal Amount: ${formatMoney(inv.amount)}\nBalance Due: ${formatMoney(inv.balance || inv.amount)}\n\nOnline Payment Link:\n${payUrl}\n\n${inv.memo || 'Thank you for choosing Central Dispatch / Bermuda Island Taxi.'}\n\nKind regards,\n${company.organizationName || 'Central Dispatch Limited'}\n${company.email || 'info@bermudaislandtaxi.com'}\n${company.phone || '+1 (441) 295-4141'}`;
+
+    setEmailModalInvoice(inv);
+    setEmailRecipient(targetEmail);
+    setEmailSubject(subject);
+    setEmailBody(body);
+    setEmailPayLink(payUrl);
+  };
+
+  const handleSendServerEmail = async () => {
+    if (!emailRecipient || !emailRecipient.includes('@')) {
+      alert('Please enter a valid recipient email address.');
       return;
     }
+    if (!emailModalInvoice) return;
 
-    const lines = inv.items.map((it, idx) => `${idx + 1}. ${it.service} - ${it.description} | Qty ${it.quantity} @ ${formatMoney(it.rate)} = ${formatMoney(it.amount)}`).join('\n');
-    const isPaid = inv.status === 'Paid';
-    const subject = `Central Dispatch Invoice ${inv.number} — ${isPaid ? 'Paid in Full' : 'Amount Due'}`;
-    const body = `Good day ${cust.name},\n\n${isPaid ? 'Thank you for your payment. This invoice is paid in full.' : 'Please find your invoice details below.'}\n\nInvoice Number: ${inv.number}\nDate: ${inv.date}\nDue Date: ${inv.dueDate}\nTerms: ${inv.terms}\nStatus: ${inv.status}\n\n${lines}\n\nTotal Amount: ${formatMoney(inv.amount)}\nBalance Due: ${formatMoney(inv.balance || inv.amount)}\n\n${inv.memo || 'Thank you for choosing Central Dispatch / Bermuda Island Taxi.'}\n\nKind regards,\nCentral Dispatch Limited\ninfo@bermudaislandtaxi.com\n+1 (441) 295-4141`;
+    try {
+      setIsSendingEmail(true);
+      const res = await apiFetch<{ success: boolean; message?: string; error?: string }>('/email/send-invoice', {
+        method: 'POST',
+        body: JSON.stringify({
+          recipientEmail: emailRecipient.trim(),
+          customerName: emailModalInvoice.customerName,
+          invoiceNumber: emailModalInvoice.number,
+          amount: emailModalInvoice.amount,
+          balance: emailModalInvoice.balance,
+          paymentLink: emailPayLink.trim(),
+          customMessage: emailBody,
+        })
+      });
 
-    window.location.href = `mailto:${encodeURIComponent(cust.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      if (res && res.success) {
+        showToast(`Invoice ${emailModalInvoice.number} emailed successfully to ${emailRecipient}!`);
+        setEmailModalInvoice(null);
+      } else {
+        alert(res?.error || 'Failed to dispatch email.');
+      }
+    } catch (err: any) {
+      alert('Email dispatch error: ' + err.message);
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
+
+  const handleOpenMailto = () => {
+    if (!emailRecipient) {
+      alert('Please enter a recipient email.');
+      return;
+    }
+    window.location.href = `mailto:${encodeURIComponent(emailRecipient)}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
   };
 
   const handlePrint = () => {
@@ -142,7 +195,7 @@ export const InvoicesView: React.FC = () => {
           </p>
         </div>
 
-        <form onSubmit={handleSaveInvoice} className="p-6 space-y-6">
+        <form onSubmit={(e) => { e.preventDefault(); handleSaveInvoice('Owing'); }} className="p-6 space-y-6">
           {/* Metadata Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
@@ -244,7 +297,7 @@ export const InvoicesView: React.FC = () => {
                 className="px-3 py-1 bg-white border border-[#aebfd1] hover:bg-[#edf5fb] text-[#12345b] text-xs font-black rounded-lg shadow-sm flex items-center gap-1"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>+ Add Line</span>
+                <span>Add Line</span>
               </button>
             </div>
             <div className="overflow-x-auto">
@@ -340,7 +393,7 @@ export const InvoicesView: React.FC = () => {
             <div>
               <span className="block text-xs font-extrabold text-[#456078]">Invoice Total</span>
               <strong className="text-2xl font-black text-[#12345b]">
-                {formatMoney(calculateTotal())}
+                {formatMoney(totalAmount)}
               </strong>
             </div>
             <button
@@ -409,7 +462,7 @@ export const InvoicesView: React.FC = () => {
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleEmailInvoice(inv)}
+                          onClick={() => handleOpenEmailModal(inv)}
                           className="px-2.5 py-1 bg-[#2f6fb3] hover:bg-[#235891] text-white font-bold text-[11px] rounded-lg"
                         >
                           Email
@@ -439,7 +492,7 @@ export const InvoicesView: React.FC = () => {
               <h2 className="text-lg font-black tracking-tight">Customer Invoice Preview</h2>
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => handleEmailInvoice(previewInvoice)}
+                  onClick={() => handleOpenEmailModal(previewInvoice)}
                   className="px-3 py-1.5 bg-[#2f6fb3] hover:bg-[#235891] text-white text-xs font-black rounded-lg flex items-center gap-1"
                 >
                   <Mail className="w-3.5 h-3.5" />
@@ -447,57 +500,53 @@ export const InvoicesView: React.FC = () => {
                 </button>
                 <button
                   onClick={handlePrint}
-                  className="px-3 py-1.5 bg-white text-[#12345b] hover:bg-[#edf5fb] text-xs font-black rounded-lg flex items-center gap-1"
+                  className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-black rounded-lg flex items-center gap-1"
                 >
                   <Printer className="w-3.5 h-3.5" />
-                  <span>Print / PDF</span>
+                  <span>Print</span>
                 </button>
                 <button
                   onClick={() => setPreviewInvoice(null)}
-                  className="p-1 text-white/80 hover:text-white"
+                  className="p-1 text-white/70 hover:text-white"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
 
-            {/* Invoice Document Design */}
-            <div className="p-8 space-y-6 text-[#172235] font-sans">
-              <div className="flex items-start justify-between border-b-2 border-[#86b51b] pb-4">
+            <div className="p-8 space-y-6">
+              {/* Header */}
+              <div className="flex justify-between items-start border-b border-[#e1e9f0] pb-6">
                 <div>
-                  <h1 className="text-3xl font-black text-[#86b51b]">INVOICE</h1>
-                  <strong className="block text-sm font-black text-[#12345b] mt-1">
-                    Central Dispatch Limited / Bermuda Island Taxi
-                  </strong>
-                  <div className="text-xs text-[#607286] mt-0.5">
-                    18 Boulden Circle<br />New Castle, DE 19720-3494
-                  </div>
+                  <h3 className="text-2xl font-black text-[#12345b] tracking-tight">
+                    {company.organizationName || 'Central Dispatch Limited'}
+                  </h3>
+                  <p className="text-xs text-[#607286] mt-1">{company.address || '3 Laffan Street, Pembroke HM09'}</p>
+                  <p className="text-xs text-[#607286]">Phone: {company.phone || '(441) 295-4141'} • Email: {company.email || 'info@bermudaislandtaxi.com'}</p>
                 </div>
-                <div className="text-right text-xs">
-                  <strong className="text-[#12345b]">info@bermudaislandtaxi.com</strong>
-                  <div className="text-[#607286] mt-0.5">+1 (441) 295-4141</div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 bg-[#f3f8e9] p-4 rounded-xl text-xs">
-                <div>
-                  <strong className="text-[#456078] uppercase block text-[10px]">Bill To:</strong>
-                  <div className="font-black text-[#12345b] text-sm mt-0.5">{previewInvoice.customerName}</div>
-                  <div className="text-[#607286]">{previewInvoice.customerEmail}</div>
-                </div>
-                <div>
-                  <strong className="text-[#456078] uppercase block text-[10px]">Ship / Service Customer:</strong>
-                  <div className="font-bold text-[#12345b] mt-0.5">{previewInvoice.customerName}</div>
+                <div className="text-right">
+                  <div className="text-xs font-extrabold uppercase tracking-widest text-[#2f6fb3]">INVOICE</div>
+                  <div className="text-xl font-black text-[#12345b]">{previewInvoice.number}</div>
+                  <span
+                    className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-black mt-1 ${
+                      previewInvoice.status === 'Paid'
+                        ? 'bg-[#dcfce7] text-[#166534]'
+                        : 'bg-[#fee2e2] text-[#991b1b]'
+                    }`}
+                  >
+                    {previewInvoice.status}
+                  </span>
                 </div>
               </div>
 
-              <div className="grid grid-cols-4 gap-2 bg-[#f4f7fa] p-3 rounded-xl text-center text-xs">
+              {/* Billed To & Dates */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-[#f8fbfd] p-4 rounded-xl border border-[#e1e9f0] text-xs">
                 <div>
-                  <span className="text-[10px] uppercase font-bold text-[#607286] block">Invoice No.</span>
-                  <strong className="text-[#12345b] font-black">{previewInvoice.number}</strong>
+                  <span className="text-[10px] uppercase font-bold text-[#607286] block">Billed To</span>
+                  <strong className="text-[#12345b] font-black">{previewInvoice.customerName}</strong>
                 </div>
                 <div>
-                  <span className="text-[10px] uppercase font-bold text-[#607286] block">Terms</span>
+                  <span className="text-[10px] uppercase font-bold text-[#607286] block">Payment Terms</span>
                   <strong className="text-[#12345b] font-black">{previewInvoice.terms}</strong>
                 </div>
                 <div>
@@ -511,33 +560,35 @@ export const InvoicesView: React.FC = () => {
               </div>
 
               {/* Items */}
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="border-b border-[#bdcbd9] text-[#456078]">
-                    <th className="py-2">#</th>
-                    <th className="py-2">Product or Service</th>
-                    <th className="py-2">Description</th>
-                    <th className="py-2 text-right">Qty</th>
-                    <th className="py-2 text-right">Rate</th>
-                    <th className="py-2 text-right">Amount</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#e5ebf1]">
-                  {previewInvoice.items.map((item, n) => (
-                    <tr key={n}>
-                      <td className="py-2.5 font-bold">{n + 1}</td>
-                      <td className="py-2.5 font-extrabold text-[#12345b]">{item.service}</td>
-                      <td className="py-2.5 text-[#607286]">{item.description}</td>
-                      <td className="py-2.5 text-right font-semibold">{item.quantity}</td>
-                      <td className="py-2.5 text-right font-semibold">{formatMoney(item.rate)}</td>
-                      <td className="py-2.5 text-right font-black text-[#12345b]">{formatMoney(item.amount)}</td>
+              <div className="overflow-x-auto w-full min-w-0">
+                <table className="w-full text-left text-xs border-collapse min-w-[500px]">
+                  <thead>
+                    <tr className="border-b border-[#bdcbd9] text-[#456078]">
+                      <th className="py-2">#</th>
+                      <th className="py-2">Product or Service</th>
+                      <th className="py-2">Description</th>
+                      <th className="py-2 text-right">Qty</th>
+                      <th className="py-2 text-right">Rate</th>
+                      <th className="py-2 text-right">Amount</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-[#e5ebf1]">
+                    {previewInvoice.items.map((item, n) => (
+                      <tr key={n}>
+                        <td className="py-2.5 font-bold">{n + 1}</td>
+                        <td className="py-2.5 font-extrabold text-[#12345b]">{item.service}</td>
+                        <td className="py-2.5 text-[#607286]">{item.description}</td>
+                        <td className="py-2.5 text-right font-semibold">{item.quantity}</td>
+                        <td className="py-2.5 text-right font-semibold">{formatMoney(item.rate)}</td>
+                        <td className="py-2.5 text-right font-black text-[#12345b]">{formatMoney(item.amount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
 
               {/* Totals */}
-              <div className="ml-auto w-72 space-y-1.5 border-t-2 border-[#12345b] pt-3 text-xs">
+              <div className="w-full sm:w-72 sm:ml-auto space-y-1.5 border-t-2 border-[#12345b] pt-3 text-xs">
                 <div className="flex justify-between">
                   <span className="font-bold text-[#607286]">Invoice Total:</span>
                   <strong className="font-black text-[#12345b]">{formatMoney(previewInvoice.amount)}</strong>
@@ -552,11 +603,172 @@ export const InvoicesView: React.FC = () => {
                 </div>
               </div>
 
+              {/* Payment Link Card */}
+              <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between gap-3">
+                <div>
+                  <span className="text-[11px] font-bold text-emerald-800 block">Online Payment Link</span>
+                  <a
+                    href={emailPayLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs font-bold text-emerald-700 hover:underline flex items-center gap-1"
+                  >
+                    <span>{emailPayLink}</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(emailPayLink);
+                    showToast('Payment link copied to clipboard!');
+                  }}
+                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                  <span>Copy Pay Link</span>
+                </button>
+              </div>
+
               {previewInvoice.memo && (
                 <div className="p-3 bg-[#f8fbfd] border border-[#dce6ef] rounded-xl text-xs text-[#607286]">
                   <strong>Message / Memo:</strong> {previewInvoice.memo}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Customer Invoice Email Modal */}
+      {emailModalInvoice && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-[#d7e2ec] animate-fadeIn">
+            <div className="px-6 py-4 bg-[#12345b] text-white flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Mail className="w-5 h-5 text-[#3b82f6]" />
+                <h2 className="text-lg font-black tracking-tight">Email Invoice to Customer</h2>
+              </div>
+              <button
+                onClick={() => setEmailModalInvoice(null)}
+                className="p-1 text-white/70 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-extrabold text-[#38516b] uppercase mb-1">
+                    Customer Name
+                  </label>
+                  <input
+                    type="text"
+                    readOnly
+                    value={emailModalInvoice.customerName}
+                    className="w-full px-3 py-2 bg-[#f4f7fa] border border-[#bdcbd9] rounded-xl text-xs font-bold text-[#1c2b3a]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-extrabold text-[#38516b] uppercase mb-1">
+                    Recipient Customer Email *
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={emailRecipient}
+                    onChange={e => setEmailRecipient(e.target.value)}
+                    placeholder="Enter customer email (e.g. its@link.bm)"
+                    className="w-full px-3 py-2 bg-white border border-[#2f6fb3] rounded-xl text-xs font-bold text-[#1c2b3a] focus:ring-2 focus:ring-[#2f6fb3]/20"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-extrabold text-[#38516b] uppercase mb-1">
+                  Online Payment Link URL
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={emailPayLink}
+                    onChange={e => setEmailPayLink(e.target.value)}
+                    placeholder="https://ridebermuda-prod.web.app/paylink"
+                    className="w-full px-3 py-2 bg-white border border-[#cbd5e1] rounded-xl text-xs font-semibold text-[#1c2b3a]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(emailPayLink);
+                      showToast('Payment link copied!');
+                    }}
+                    className="px-3 py-2 bg-slate-100 hover:bg-slate-200 border border-[#cbd5e1] text-xs font-bold rounded-xl text-[#12345b] flex items-center gap-1 shrink-0"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Copy</span>
+                  </button>
+                </div>
+                <p className="text-[11px] text-[#64748b] mt-1">
+                  Default: <code className="bg-slate-100 px-1 py-0.5 rounded font-mono">ridebermuda-prod.web.app/paylink</code> (or configure custom link in Settings)
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-extrabold text-[#38516b] uppercase mb-1">
+                  Email Subject
+                </label>
+                <input
+                  type="text"
+                  value={emailSubject}
+                  onChange={e => setEmailSubject(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-[#bdcbd9] rounded-xl text-xs font-bold text-[#1c2b3a]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-extrabold text-[#38516b] uppercase mb-1">
+                  Email Message Body
+                </label>
+                <textarea
+                  rows={8}
+                  value={emailBody}
+                  onChange={e => setEmailBody(e.target.value)}
+                  className="w-full p-3 bg-white border border-[#bdcbd9] rounded-xl text-xs font-mono text-[#1c2b3a] focus:ring-2 focus:ring-[#2f6fb3]/20"
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="pt-3 border-t border-[#edf2f7] flex flex-wrap items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={handleOpenMailto}
+                  className="px-4 py-2 bg-white hover:bg-[#f8fafc] text-[#12345b] border border-[#cbd5e1] text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5"
+                >
+                  <Mail className="w-4 h-4 text-[#2f6fb3]" />
+                  <span>Open in Mail App (mailto)</span>
+                </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEmailModalInvoice(null)}
+                    className="px-4 py-2 bg-white text-[#64748b] hover:text-[#12345b] text-xs font-bold rounded-xl"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isSendingEmail}
+                    onClick={handleSendServerEmail}
+                    className="px-5 py-2.5 bg-[#2f6fb3] hover:bg-[#235891] disabled:opacity-70 text-white text-xs font-black rounded-xl shadow-md flex items-center gap-2 cursor-pointer"
+                  >
+                    <Send className="w-4 h-4" />
+                    <span>{isSendingEmail ? 'Dispatching...' : 'Send Invoice Email'}</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

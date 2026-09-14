@@ -133,6 +133,19 @@ class PayrollService {
     return period;
   }
 
+  public async fetchPayrollPeriods(): Promise<PayrollPeriod[]> {
+    try {
+      const res = await apiFetch<{ success: boolean; periods: PayrollPeriod[] }>('/payroll');
+      if (res && res.success && res.periods && res.periods.length > 0) {
+        this.saveStorage(res.periods);
+        return res.periods;
+      }
+    } catch (err) {
+      console.warn('Failed to fetch /payroll:', err);
+    }
+    return this.getPayrollPeriods();
+  }
+
   public getPayrollPeriods(): PayrollPeriod[] {
     // Async background sync with backend
     apiFetch<{ success: boolean; periods: PayrollPeriod[] }>('/payroll').then(res => {

@@ -130,6 +130,19 @@ export interface AuditLogItem {
   ipAddress?: string;
 }
 
+export interface TimeRecord {
+  id: string;
+  userId: string;
+  employeeId?: string;
+  employeeName: string;
+  clockIn: string;
+  clockOut?: string;
+  totalHours: number;
+  status: 'ClockedIn' | 'ClockedOut';
+  notes?: string;
+  createdAt?: string;
+}
+
 export interface PermissionMatrix {
   dashboard: { view: boolean };
   employees: { view: boolean; create: boolean; edit: boolean; delete: boolean };
@@ -143,6 +156,8 @@ export interface PermissionMatrix {
   permissions: { view: boolean; edit: boolean };
   userAccounts: { view: boolean; manage: boolean };
   settings: { view: boolean; edit: boolean };
+  accounts?: { view: boolean };
+  myTime?: { view: boolean; clock: boolean; export: boolean };
 }
 
 // -------------------------------------------------------------

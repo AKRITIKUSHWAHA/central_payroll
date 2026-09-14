@@ -1,7 +1,8 @@
 import { Customer, Invoice, Payment, GeneralLedgerEntry, AgingSummary, AccountingKPIs } from '../types';
 import importedData from '../mock/importedAccountingData.json';
+import { apiFetch } from './api';
 
-const STORAGE_KEY = 'cdlAccountingV1';
+const STORAGE_KEY = 'cdlAccountingV2';
 
 interface AccountingState {
   version: number;
@@ -11,6 +12,121 @@ interface AccountingState {
   customLedger: GeneralLedgerEntry[];
   selectedCustomerId: string;
   asOf: string;
+}
+
+function extractInitialInvoicesAndPayments(
+  customersList: Customer[],
+  generalLedgerList: GeneralLedgerEntry[]
+): { invoices: Invoice[]; payments: Payment[] } {
+  const custMap = new Map<string, Customer>();
+  customersList.forEach(c => {
+    const names = [c.name, c.customerName, ...(c.aliases || [])].filter(Boolean).map(n => (n as string).toLowerCase().trim());
+    names.forEach(n => custMap.set(n, c));
+  });
+
+  const findCustomer = (name?: string): Customer | null => {
+    if (!name) return null;
+    const clean = name.toLowerCase().trim();
+    if (custMap.has(clean)) return custMap.get(clean)!;
+    for (const [k, v] of custMap.entries()) {
+      if (clean.includes(k) || (k.length > 5 && k.includes(clean))) {
+        return v;
+      }
+    }
+    return null;
+  };
+
+  const invoiceGroups = new Map<string, Invoice>();
+  (generalLedgerList || []).forEach((g: any) => {
+    if (g.type === 'Pledge') {
+      const invNum = g.number ? `INV-${g.number}` : `INV-PLEDGE-${g.id}`;
+      const cust = findCustomer(g.name);
+      const custId = cust ? cust.id : `cust_anon_${g.id}`;
+      const custName = cust ? cust.name : (g.name || 'Account Customer');
+      const custEmail = cust ? cust.email : '';
+      const key = `${invNum}_${custId}`;
+      const amt = Number(g.debit || g.credit || 0);
+
+      if (!invoiceGroups.has(key)) {
+        invoiceGroups.set(key, {
+          id: `inv-${g.id || Math.random().toString(36).slice(2, 7)}`,
+          customerId: custId,
+          customerName: custName,
+          customerEmail: custEmail,
+          number: invNum,
+          terms: 'Net 30',
+          date: g.date,
+          dueDate: g.date,
+          items: [],
+          memo: g.memo || 'Dispatch & Taxi Service Voucher',
+          amount: 0,
+          paidAmount: 0,
+          balance: 0,
+          status: 'Owing',
+          createdAt: g.date,
+        });
+      }
+
+      const grp = invoiceGroups.get(key)!;
+      grp.items.push({
+        service: 'Island Taxi',
+        description: g.memo || g.account || 'Taxi & Dispatch Transportation',
+        quantity: 1,
+        rate: amt,
+        amount: amt,
+      });
+      grp.amount += amt;
+    }
+  });
+
+  const invoices: Invoice[] = [];
+  invoiceGroups.forEach(inv => {
+    const d = new Date(inv.date);
+    d.setDate(d.getDate() + 30);
+    inv.dueDate = d.toISOString().slice(0, 10);
+    inv.balance = inv.amount;
+    inv.paidAmount = 0;
+    inv.status = 'Owing';
+    invoices.push(inv);
+  });
+
+  const payments: Payment[] = [];
+  (generalLedgerList || []).forEach((g: any) => {
+    if (g.type === 'Payment') {
+      const cust = findCustomer(g.name);
+      const custId = cust ? cust.id : `cust_anon_${g.id}`;
+      const custName = cust ? cust.name : (g.name || 'Account Customer');
+      const amt = Number(g.debit || g.credit || 0);
+
+      payments.push({
+        id: `pmt-${g.id || Math.random().toString(36).slice(2, 7)}`,
+        customerId: custId,
+        customerName: custName,
+        invoiceId: '',
+        amount: amt,
+        date: g.date,
+        method: g.number && g.number.includes('AX') ? 'Credit Card' : 'Bank Transfer',
+        reference: g.number || 'PAYMENT-REF',
+        note: g.memo || g.account || 'Account Payment',
+        createdAt: g.date,
+      });
+    }
+  });
+
+  payments.forEach(pmt => {
+    const matchInv = invoices.find(inv => inv.customerId === pmt.customerId && (inv.balance || 0) > 0);
+    if (matchInv) {
+      const applyAmt = Math.min(matchInv.balance || 0, pmt.amount || 0);
+      pmt.invoiceId = matchInv.id;
+      matchInv.paidAmount = (matchInv.paidAmount || 0) + applyAmt;
+      matchInv.balance = Math.max(0, matchInv.amount - matchInv.paidAmount);
+      if (matchInv.balance <= 0.004) {
+        matchInv.status = 'Paid';
+      }
+    }
+  });
+
+  return { invoices, payments };
 }
 
 class AccountingService {
@@ -29,29 +145,39 @@ class AccountingService {
   }
 
   private loadState(): AccountingState {
+    const { invoices: defaultInvoices, payments: defaultPayments } = extractInitialInvoicesAndPayments(
+      (importedData.customers as Customer[]) || [],
+      (importedData.generalLedger as GeneralLedgerEntry[]) || []
+    );
+
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        return {
-          version: parsed.version || 1,
-          customers: parsed.customers?.length ? parsed.customers : (importedData.customers as Customer[]) || [],
-          invoices: parsed.invoices || [],
-          payments: parsed.payments || [],
-          customLedger: parsed.customLedger || [],
-          selectedCustomerId: parsed.selectedCustomerId || '',
-          asOf: parsed.asOf || this.getTodayStr(),
-        };
+        if (parsed && Array.isArray(parsed.customers) && parsed.customers.length > 0) {
+          const invoices = parsed.invoices && parsed.invoices.length > 0 ? parsed.invoices : defaultInvoices;
+          const payments = parsed.payments && parsed.payments.length > 0 ? parsed.payments : defaultPayments;
+
+          return {
+            version: 2,
+            customers: parsed.customers,
+            invoices,
+            payments,
+            customLedger: parsed.customLedger || [],
+            selectedCustomerId: parsed.selectedCustomerId || '',
+            asOf: parsed.asOf || this.getTodayStr(),
+          };
+        }
       }
     } catch (_) {
       // Fallback
     }
 
     const initial: AccountingState = {
-      version: 1,
+      version: 2,
       customers: (importedData.customers as Customer[]) || [],
-      invoices: [],
-      payments: [],
+      invoices: defaultInvoices,
+      payments: defaultPayments,
       customLedger: [],
       selectedCustomerId: '',
       asOf: this.getTodayStr(),
@@ -72,10 +198,30 @@ class AccountingService {
   }
 
   // ----------------------------------------------------------------
-  // Customer Methods
+  // Customer Methods (Menu: "Customers & Ledgers" -> /api/customers-and-ledgers)
   // ----------------------------------------------------------------
 
   public getCustomers(): Customer[] {
+    // Sync with backend menu endpoint in background
+    apiFetch<{ success: boolean; customers: Customer[] }>('/customers-and-ledgers').then(res => {
+      if (res && res.success && res.customers && res.customers.length > 0) {
+        this.state.customers = res.customers;
+        this.saveState();
+      }
+    });
+    return [...this.state.customers];
+  }
+
+  public async fetchCustomers(): Promise<Customer[]> {
+    try {
+      const res = await apiFetch<{ success: boolean; customers: Customer[] }>('/customers-and-ledgers');
+      if (res && res.success && res.customers && res.customers.length > 0) {
+        this.state.customers = res.customers;
+        this.saveState();
+      }
+    } catch (e) {
+      console.error('Failed to fetch customers:', e);
+    }
     return [...this.state.customers];
   }
 
@@ -142,6 +288,13 @@ class AccountingService {
 
     this.state.selectedCustomerId = record.id;
     this.saveState();
+
+    // Sync POST/PUT to backend menu endpoint
+    apiFetch('/customers-and-ledgers', {
+      method: 'POST',
+      body: JSON.stringify(record)
+    });
+
     return record;
   }
 
@@ -160,6 +313,10 @@ class AccountingService {
       this.state.selectedCustomerId = this.state.customers[0]?.id || '';
     }
     this.saveState();
+
+    // Sync DELETE to backend menu endpoint
+    apiFetch(`/customers-and-ledgers/${id}`, { method: 'DELETE' });
+
     return { success: true };
   }
 
@@ -261,11 +418,32 @@ class AccountingService {
   }
 
   // ----------------------------------------------------------------
-  // Invoices & Payments Methods
+  // Invoices & Payments Methods (Menus: "Create Invoice" -> /api/create-invoice, "Record Payment" -> /api/record-payment)
   // ----------------------------------------------------------------
 
   public getInvoices(): Invoice[] {
+    // Sync with backend menu endpoint in background
+    apiFetch<{ success: boolean; invoices: Invoice[] }>('/create-invoice').then(res => {
+      if (res && res.success && res.invoices && res.invoices.length > 0) {
+        this.state.invoices = res.invoices;
+        this.saveState();
+      }
+    });
     return [...this.state.invoices].sort((a, b) => b.date.localeCompare(a.date));
+  }
+
+  public async fetchInvoices(): Promise<Invoice[]> {
+    try {
+      const res = await apiFetch<{ success: boolean; invoices: Invoice[] }>('/create-invoice');
+      if (res && res.success && Array.isArray(res.invoices)) {
+        this.state.invoices = res.invoices;
+        this.saveState();
+        return [...this.state.invoices].sort((a, b) => b.date.localeCompare(a.date));
+      }
+    } catch (err) {
+      console.warn('Failed to fetch invoices from API:', err);
+    }
+    return this.getInvoices();
   }
 
   public getInvoiceById(id: string): Invoice | undefined {
@@ -304,6 +482,13 @@ class AccountingService {
     }
 
     this.saveState();
+
+    // Sync POST/PUT to backend menu endpoint
+    apiFetch('/create-invoice', {
+      method: 'POST',
+      body: JSON.stringify(record)
+    });
+
     return record;
   }
 
@@ -313,11 +498,74 @@ class AccountingService {
     }
     this.state.invoices = this.state.invoices.filter(i => i.id !== id);
     this.saveState();
+
+    // Sync DELETE to backend menu endpoint
+    apiFetch(`/create-invoice/${id}`, { method: 'DELETE' });
+
     return { success: true };
   }
 
   public getPayments(): Payment[] {
+    // Sync with backend menu endpoint in background
+    apiFetch<{ success: boolean; payments: Payment[] }>('/record-payment').then(res => {
+      if (res && res.success && res.payments && res.payments.length > 0) {
+        this.state.payments = res.payments;
+        this.saveState();
+      }
+    });
     return [...this.state.payments].sort((a, b) => b.date.localeCompare(a.date));
+  }
+
+  public async fetchPayments(): Promise<Payment[]> {
+    try {
+      const res = await apiFetch<{ success: boolean; payments: Payment[] }>('/record-payment');
+      if (res && res.success && Array.isArray(res.payments)) {
+        this.state.payments = res.payments;
+        this.saveState();
+        return [...this.state.payments].sort((a, b) => b.date.localeCompare(a.date));
+      }
+    } catch (err) {
+      console.warn('Failed to fetch payments from API:', err);
+    }
+    return this.getPayments();
+  }
+
+  public async savePaymentAsync(paymentData: Omit<Payment, 'id'> & { id?: string }): Promise<Payment> {
+    const id = paymentData.id || this.generateUid('pmt');
+    const customer = this.getCustomerById(paymentData.customerId);
+
+    const record: Payment = {
+      id,
+      customerId: paymentData.customerId,
+      customerName: customer?.name || paymentData.customerName || '',
+      invoiceId: paymentData.invoiceId || '',
+      amount: Number(paymentData.amount || 0),
+      date: paymentData.date || this.getTodayStr(),
+      method: paymentData.method || 'Bank Transfer',
+      reference: paymentData.reference?.trim() || '',
+      note: paymentData.note?.trim() || '',
+      createdAt: this.getTodayStr(),
+    };
+
+    const existingIndex = this.state.payments.findIndex(p => p.id === id);
+    if (existingIndex >= 0) {
+      this.state.payments[existingIndex] = record;
+    } else {
+      this.state.payments.push(record);
+    }
+
+    this.saveState();
+
+    try {
+      await apiFetch('/record-payment', {
+        method: 'POST',
+        body: JSON.stringify(record)
+      });
+    } catch (err) {
+      console.warn('Failed to post payment to MySQL API:', err);
+    }
+
+    return record;
   }
 
   public savePayment(paymentData: Omit<Payment, 'id'> & { id?: string }): Payment {
@@ -345,12 +593,33 @@ class AccountingService {
     }
 
     this.saveState();
+
+    // Sync POST to backend menu endpoint
+    apiFetch('/record-payment', {
+      method: 'POST',
+      body: JSON.stringify(record)
+    });
+
     return record;
+  }
+
+  public async deletePaymentAsync(id: string): Promise<void> {
+    this.state.payments = this.state.payments.filter(p => p.id !== id);
+    this.saveState();
+
+    try {
+      await apiFetch(`/record-payment/${id}`, { method: 'DELETE' });
+    } catch (err) {
+      console.warn('Failed to delete payment from MySQL API:', err);
+    }
   }
 
   public deletePayment(id: string) {
     this.state.payments = this.state.payments.filter(p => p.id !== id);
     this.saveState();
+
+    // Sync DELETE to backend menu endpoint
+    apiFetch(`/record-payment/${id}`, { method: 'DELETE' });
   }
 
   // ----------------------------------------------------------------

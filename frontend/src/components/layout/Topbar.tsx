@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, ShieldAlert, Clock, Menu } from 'lucide-react';
+import { Calendar, ShieldAlert, Menu } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 interface TopbarProps {
@@ -36,24 +36,19 @@ export const Topbar: React.FC<TopbarProps> = ({ onOpenMobile }) => {
           <Calendar className="w-3.5 h-3.5 text-[#2f6fb3]" />
           <span>{todayStr}</span>
         </div>
-
-        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-[#eaf4fb] border border-[#c9def6] rounded-xl text-xs font-bold text-[#102f52]">
-          <Clock className="w-3.5 h-3.5 text-[#2f6fb3]" />
-          <span>Pay Period: Sept 3 - Sept 9, 2026</span>
-        </div>
       </div>
 
       <div className="flex items-center gap-2 sm:gap-3">
         <span className="hidden md:inline-flex items-center gap-1.5 px-3 py-1 bg-[#edf4fa] border border-[#d6e7f4] rounded-lg text-xs font-extrabold text-[#0f766e]">
           <span className="w-2 h-2 rounded-full bg-[#0f766e] animate-pulse"></span>
-          Bermuda System Active
+          Bermuda Active
         </span>
 
         {currentUser?.role === 'staff' && (
           <span className="flex items-center gap-1.5 px-2.5 py-1 bg-[#fff8c7] border border-[#eadc64] rounded-lg text-[11px] sm:text-xs font-bold text-[#6e5a00]">
             <ShieldAlert className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Staff Assistant Mode</span>
-            <span className="sm:hidden">Staff Mode</span>
+            <span className="sm:hidden">Staff</span>
           </span>
         )}
       </div>

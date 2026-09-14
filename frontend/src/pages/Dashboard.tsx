@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { employeeService } from '../services/employeeService';
@@ -6,6 +6,7 @@ import { payrollService } from '../services/payrollService';
 import { leaveService } from '../services/leaveService';
 import { scheduleService } from '../services/scheduleService';
 import { accountingService } from '../services/accountingService';
+import { apiFetch } from '../services/api';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell, PieChart, Pie } from 'recharts';
 import { 
   Users, 
@@ -24,18 +25,35 @@ import {
   ArrowRight, 
   Search 
 } from 'lucide-react';
+import { Employee, Customer } from '../types';
 
 export const Dashboard: React.FC = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
 
   const [customerSearch, setCustomerSearch] = useState('');
+  const [dashboardData, setDashboardData] = useState<any>(null);
 
-  const employees = employeeService.getEmployees();
-  const currentDraft = payrollService.getCurrentDraft();
-  const leaves = leaveService.getLeaves();
+  const [employees, setEmployees] = useState<Employee[]>(() => employeeService.getEmployees());
+  const [allCustomers, setAllCustomers] = useState<Customer[]>(() => accountingService.getCustomers());
+
+  useEffect(() => {
+    apiFetch<{ success: boolean; data: any }>('/dashboard').then(res => {
+      if (res && res.success && res.data) {
+        setDashboardData(res.data);
+        if (res.data.employees && res.data.employees.length > 0) {
+          setEmployees(res.data.employees);
+        }
+        if (res.data.customers && res.data.customers.length > 0) {
+          setAllCustomers(res.data.customers);
+        }
+      }
+    });
+  }, []);
+
+  const currentDraft = dashboardData?.activePeriod || payrollService.getCurrentDraft();
+  const leaves = dashboardData?.leaves || leaveService.getLeaves();
   const currentSchedule = scheduleService.getWeeklySchedules('2026-09-07');
-  const allCustomers = accountingService.getCustomers();
 
   // Dynamic greeting date (e.g. "It's Friday, 11 Sept 2026.")
   const dynamicGreetingDate = (() => {
@@ -60,21 +78,21 @@ export const Dashboard: React.FC = () => {
   };
 
   // Chart data for Payroll by Employee
-  const payrollChartData = currentDraft?.items.map(item => ({
-    name: item.employeeName.split(' ')[0],
+  const payrollChartData = currentDraft?.items?.map((item: any) => ({
+    name: (item.employeeName || '').split(' ')[0] || 'Staff',
     gross: item.grossPay || 0,
-    fullName: item.employeeName,
+    fullName: item.employeeName || 'Staff',
   })) || [
-    { name: 'Ali', gross: 0 },
-    { name: 'Alesia', gross: 0 },
-    { name: 'Tyonika', gross: 0 },
-    { name: 'Neli', gross: 0 },
-    { name: 'SSH', gross: 0 },
+    { name: 'Ali', gross: 0, fullName: 'Ali' },
+    { name: 'Alesia', gross: 0, fullName: 'Alesia' },
+    { name: 'Tyonika', gross: 0, fullName: 'Tyonika' },
+    { name: 'Neli', gross: 0, fullName: 'Neli' },
+    { name: 'SSH', gross: 0, fullName: 'SSH' },
   ];
 
   // Leave ring chart data
-  const sickCount = leaves.filter(l => l.leaveType === 'Sick').reduce((acc, curr) => acc + curr.daysCount, 0);
-  const holidayCount = leaves.filter(l => l.leaveType === 'Vacation' || l.leaveType === 'Holiday').reduce((acc, curr) => acc + curr.daysCount, 0);
+  const sickCount = (leaves || []).filter((l: any) => l.leaveType === 'Sick').reduce((acc: number, curr: any) => acc + (curr.daysCount || 1), 0);
+  const holidayCount = (leaves || []).filter((l: any) => l.leaveType === 'Vacation' || l.leaveType === 'Holiday').reduce((acc: number, curr: any) => acc + (curr.daysCount || 1), 0);
   
   const leaveRingData = [
     { name: 'Sick', value: sickCount || 1, color: '#3157d4' },
@@ -87,6 +105,8 @@ export const Dashboard: React.FC = () => {
     accountingService.setSelectedCustomerId(id);
     navigate('/customers');
   };
+
+  const isSuperAdmin = currentUser?.role === 'superadmin';
 
   return (
     <div className="space-y-6">
@@ -105,278 +125,351 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* TOP HOME LAUNCHER (4 Groups Grid matching target screenshot) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        {/* Left Big Column: Customers & Employees */}
-        <div className="lg:col-span-8 space-y-5">
-          {/* Group 1: Customers */}
-          <div className="bg-white border border-[#d8e3ec] rounded-2xl p-5 shadow-cdCard relative">
-            <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-[#e5efff] text-[#12345b] text-xs font-black px-5 py-1 rounded-full shadow-xs border border-[#c9def6]">
-              Customers
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => navigate('/customers')}
-                className="flex flex-col items-center justify-center p-3.5 rounded-2xl border border-[#d6e2eb] bg-[#f9fcff] hover:bg-white hover:border-[#2f70b7] hover:shadow-md transition-all text-center min-h-[120px] group"
-              >
-                <div className="w-12 h-12 rounded-full bg-[#e8f3f7] flex items-center justify-center text-xl mb-2 group-hover:scale-105 transition-transform">
-                  👥
-                </div>
-                <strong className="text-xs font-black text-[#17324f] leading-tight block">
-                  Customers &amp; Ledgers
-                </strong>
-                <small className="text-[10px] font-semibold text-[#64748b] mt-0.5">
-                  View and edit customers
-                </small>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => navigate('/invoices')}
-                className="flex flex-col items-center justify-center p-3.5 rounded-2xl border border-[#d6e2eb] bg-[#f9fcff] hover:bg-white hover:border-[#2f70b7] hover:shadow-md transition-all text-center min-h-[120px] group"
-              >
-                <div className="w-12 h-12 rounded-full bg-[#e8f3f7] flex items-center justify-center text-xl mb-2 group-hover:scale-105 transition-transform">
-                  🧾
-                </div>
-                <strong className="text-xs font-black text-[#17324f] leading-tight block">
-                  Create Invoice
-                </strong>
-                <small className="text-[10px] font-semibold text-[#64748b] mt-0.5">
-                  Build and email invoices
-                </small>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => navigate('/payments')}
-                className="flex flex-col items-center justify-center p-3.5 rounded-2xl border border-[#d6e2eb] bg-[#f9fcff] hover:bg-white hover:border-[#2f70b7] hover:shadow-md transition-all text-center min-h-[120px] group"
-              >
-                <div className="w-12 h-12 rounded-full bg-[#e8f3f7] flex items-center justify-center text-xl mb-2 group-hover:scale-105 transition-transform">
-                  💳
-                </div>
-                <strong className="text-xs font-black text-[#17324f] leading-tight block">
-                  Record Payment
-                </strong>
-                <small className="text-[10px] font-semibold text-[#64748b] mt-0.5">
-                  Apply received payments
-                </small>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => navigate('/aging')}
-                className="flex flex-col items-center justify-center p-3.5 rounded-2xl border border-[#d6e2eb] bg-[#f9fcff] hover:bg-white hover:border-[#2f70b7] hover:shadow-md transition-all text-center min-h-[120px] group"
-              >
-                <div className="w-12 h-12 rounded-full bg-[#e8f3f7] flex items-center justify-center text-xl mb-2 group-hover:scale-105 transition-transform">
-                  📅
-                </div>
-                <strong className="text-xs font-black text-[#17324f] leading-tight block">
-                  A/R Aging
-                </strong>
-                <small className="text-[10px] font-semibold text-[#64748b] mt-0.5">
-                  Review overdue balances
-                </small>
-              </button>
-            </div>
+      {/* TOP HOME LAUNCHER (Balanced 2x2 Category Grid with Zero Uneven Gaps) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {/* Box 1: Customers */}
+        <div className="bg-white border border-[#d8e3ec] rounded-2xl p-5 shadow-cdCard relative flex flex-col justify-between">
+          <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-[#e5efff] text-[#12345b] text-xs font-black px-5 py-1 rounded-full shadow-xs border border-[#c9def6]">
+            Customers
           </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => navigate('/customers')}
+              className="flex flex-col items-center justify-center p-3 rounded-2xl border border-[#d6e2eb] bg-[#f9fcff] hover:bg-white hover:border-[#2f70b7] hover:shadow-md transition-all text-center min-h-[115px] group"
+            >
+              <div className="w-11 h-11 rounded-full bg-[#e8f3f7] flex items-center justify-center text-xl mb-1.5 group-hover:scale-105 transition-transform">
+                👥
+              </div>
+              <strong className="text-xs font-black text-[#17324f] leading-tight block truncate w-full">
+                Customers &amp; Ledgers
+              </strong>
+              <small className="text-[10px] font-semibold text-[#64748b] mt-0.5 truncate w-full">
+                View &amp; edit
+              </small>
+            </button>
 
-          {/* Group 2: Employees & Payroll */}
-          <div className="bg-white border border-[#d8e3ec] rounded-2xl p-5 shadow-cdCard relative">
-            <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-[#e5efff] text-[#12345b] text-xs font-black px-5 py-1 rounded-full shadow-xs border border-[#c9def6]">
-              Employees &amp; Payroll
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => navigate('/payroll')}
-                className="flex flex-col items-center justify-center p-3.5 rounded-2xl border border-[#d6e2eb] bg-[#f9fcff] hover:bg-white hover:border-[#2f70b7] hover:shadow-md transition-all text-center min-h-[120px] group"
-              >
-                <div className="w-12 h-12 rounded-full bg-[#e8f3f7] flex items-center justify-center text-xl mb-2 group-hover:scale-105 transition-transform">
-                  💰
-                </div>
-                <strong className="text-xs font-black text-[#17324f] leading-tight block">
-                  Weekly Payroll
-                </strong>
-                <small className="text-[10px] font-semibold text-[#64748b] mt-0.5">
-                  Enter hours and pay
-                </small>
-              </button>
+            <button
+              type="button"
+              onClick={() => navigate('/invoices')}
+              className="flex flex-col items-center justify-center p-3 rounded-2xl border border-[#d6e2eb] bg-[#f9fcff] hover:bg-white hover:border-[#2f70b7] hover:shadow-md transition-all text-center min-h-[115px] group"
+            >
+              <div className="w-11 h-11 rounded-full bg-[#e8f3f7] flex items-center justify-center text-xl mb-1.5 group-hover:scale-105 transition-transform">
+                🧾
+              </div>
+              <strong className="text-xs font-black text-[#17324f] leading-tight block truncate w-full">
+                Create Invoice
+              </strong>
+              <small className="text-[10px] font-semibold text-[#64748b] mt-0.5 truncate w-full">
+                Build &amp; email
+              </small>
+            </button>
 
-              <button
-                type="button"
-                onClick={() => navigate('/employees')}
-                className="flex flex-col items-center justify-center p-3.5 rounded-2xl border border-[#d6e2eb] bg-[#f9fcff] hover:bg-white hover:border-[#2f70b7] hover:shadow-md transition-all text-center min-h-[120px] group"
-              >
-                <div className="w-12 h-12 rounded-full bg-[#e8f3f7] flex items-center justify-center text-xl mb-2 group-hover:scale-105 transition-transform">
-                  🪪
-                </div>
-                <strong className="text-xs font-black text-[#17324f] leading-tight block">
-                  Employee Records
-                </strong>
-                <small className="text-[10px] font-semibold text-[#64748b] mt-0.5">
-                  Add or edit staff
-                </small>
-              </button>
+            <button
+              type="button"
+              onClick={() => navigate('/payments')}
+              className="flex flex-col items-center justify-center p-3 rounded-2xl border border-[#d6e2eb] bg-[#f9fcff] hover:bg-white hover:border-[#2f70b7] hover:shadow-md transition-all text-center min-h-[115px] group"
+            >
+              <div className="w-11 h-11 rounded-full bg-[#e8f3f7] flex items-center justify-center text-xl mb-1.5 group-hover:scale-105 transition-transform">
+                💳
+              </div>
+              <strong className="text-xs font-black text-[#17324f] leading-tight block truncate w-full">
+                Record Payment
+              </strong>
+              <small className="text-[10px] font-semibold text-[#64748b] mt-0.5 truncate w-full">
+                Apply received
+              </small>
+            </button>
 
-              <button
-                type="button"
-                onClick={() => navigate('/schedules')}
-                className="flex flex-col items-center justify-center p-3.5 rounded-2xl border border-[#d6e2eb] bg-[#f9fcff] hover:bg-white hover:border-[#2f70b7] hover:shadow-md transition-all text-center min-h-[120px] group"
-              >
-                <div className="w-12 h-12 rounded-full bg-[#e8f3f7] flex items-center justify-center text-xl mb-2 group-hover:scale-105 transition-transform">
-                  🕒
-                </div>
-                <strong className="text-xs font-black text-[#17324f] leading-tight block">
-                  Weekly Schedules
-                </strong>
-                <small className="text-[10px] font-semibold text-[#64748b] mt-0.5">
-                  Plan employee shifts
-                </small>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => navigate('/leave')}
-                className="flex flex-col items-center justify-center p-3.5 rounded-2xl border border-[#d6e2eb] bg-[#f9fcff] hover:bg-white hover:border-[#2f70b7] hover:shadow-md transition-all text-center min-h-[120px] group"
-              >
-                <div className="w-12 h-12 rounded-full bg-[#e8f3f7] flex items-center justify-center text-xl mb-2 group-hover:scale-105 transition-transform">
-                  🏖️
-                </div>
-                <strong className="text-xs font-black text-[#17324f] leading-tight block">
-                  Leave Calendars
-                </strong>
-                <small className="text-[10px] font-semibold text-[#64748b] mt-0.5">
-                  Manage staff leave
-                </small>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => navigate('/payslips')}
-                className="flex flex-col items-center justify-center p-3.5 rounded-2xl border border-[#d6e2eb] bg-[#f9fcff] hover:bg-white hover:border-[#2f70b7] hover:shadow-md transition-all text-center min-h-[120px] group"
-              >
-                <div className="w-12 h-12 rounded-full bg-[#e8f3f7] flex items-center justify-center text-xl mb-2 group-hover:scale-105 transition-transform">
-                  📄
-                </div>
-                <strong className="text-xs font-black text-[#17324f] leading-tight block">
-                  Payslips
-                </strong>
-                <small className="text-[10px] font-semibold text-[#64748b] mt-0.5">
-                  Review &amp; print payslips
-                </small>
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => navigate('/aging')}
+              className="flex flex-col items-center justify-center p-3 rounded-2xl border border-[#d6e2eb] bg-[#f9fcff] hover:bg-white hover:border-[#2f70b7] hover:shadow-md transition-all text-center min-h-[115px] group"
+            >
+              <div className="w-11 h-11 rounded-full bg-[#e8f3f7] flex items-center justify-center text-xl mb-1.5 group-hover:scale-105 transition-transform">
+                📅
+              </div>
+              <strong className="text-xs font-black text-[#17324f] leading-tight block truncate w-full">
+                A/R Aging
+              </strong>
+              <small className="text-[10px] font-semibold text-[#64748b] mt-0.5 truncate w-full">
+                Overdue report
+              </small>
+            </button>
           </div>
         </div>
 
-        {/* Right Column: Company & Administration */}
-        <div className="lg:col-span-4 space-y-5">
-          {/* Group 3: Company & Reports */}
-          <div className="bg-white border border-[#d8e3ec] rounded-2xl p-5 shadow-cdCard relative">
-            <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-[#e5efff] text-[#12345b] text-xs font-black px-4 py-1 rounded-full shadow-xs border border-[#c9def6] whitespace-nowrap">
-              Company &amp; Reports
-            </div>
-            <div className="grid grid-cols-2 gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => navigate('/accounts')}
-                className="flex flex-col items-center justify-center p-3 rounded-2xl border border-[#d6e2eb] bg-[#f9fcff] hover:bg-white hover:border-[#2f70b7] hover:shadow-md transition-all text-center min-h-[105px] group"
-              >
-                <div className="w-10 h-10 rounded-full bg-[#e8f3f7] flex items-center justify-center text-lg mb-1.5 group-hover:scale-105 transition-transform">
-                  📊
-                </div>
-                <strong className="text-xs font-black text-[#17324f] leading-tight">
-                  Accounts Overview
-                </strong>
-              </button>
+        {/* Box 2: Company & Reports */}
+        <div className="bg-white border border-[#d8e3ec] rounded-2xl p-5 shadow-cdCard relative flex flex-col justify-between">
+          <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-[#e5efff] text-[#12345b] text-xs font-black px-5 py-1 rounded-full shadow-xs border border-[#c9def6] whitespace-nowrap">
+            Company &amp; Reports
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => navigate('/accounts')}
+              className="flex flex-col items-center justify-center p-3 rounded-2xl border border-[#d6e2eb] bg-[#f9fcff] hover:bg-white hover:border-[#2f70b7] hover:shadow-md transition-all text-center min-h-[115px] group"
+            >
+              <div className="w-11 h-11 rounded-full bg-[#e8f3f7] flex items-center justify-center text-xl mb-1.5 group-hover:scale-105 transition-transform">
+                📊
+              </div>
+              <strong className="text-xs font-black text-[#17324f] leading-tight block truncate w-full">
+                Accounts Overview
+              </strong>
+              <small className="text-[10px] font-semibold text-[#64748b] mt-0.5 truncate w-full">
+                Company balances
+              </small>
+            </button>
 
-              <button
-                type="button"
-                onClick={() => navigate('/ledger')}
-                className="flex flex-col items-center justify-center p-3 rounded-2xl border border-[#d6e2eb] bg-[#f9fcff] hover:bg-white hover:border-[#2f70b7] hover:shadow-md transition-all text-center min-h-[105px] group"
-              >
-                <div className="w-10 h-10 rounded-full bg-[#e8f3f7] flex items-center justify-center text-lg mb-1.5 group-hover:scale-105 transition-transform">
-                  📚
-                </div>
-                <strong className="text-xs font-black text-[#17324f] leading-tight">
-                  General Ledger
-                </strong>
-              </button>
+            <button
+              type="button"
+              onClick={() => navigate('/ledger')}
+              className="flex flex-col items-center justify-center p-3 rounded-2xl border border-[#d6e2eb] bg-[#f9fcff] hover:bg-white hover:border-[#2f70b7] hover:shadow-md transition-all text-center min-h-[115px] group"
+            >
+              <div className="w-11 h-11 rounded-full bg-[#e8f3f7] flex items-center justify-center text-xl mb-1.5 group-hover:scale-105 transition-transform">
+                📚
+              </div>
+              <strong className="text-xs font-black text-[#17324f] leading-tight block truncate w-full">
+                General Ledger
+              </strong>
+              <small className="text-[10px] font-semibold text-[#64748b] mt-0.5 truncate w-full">
+                Transaction ledger
+              </small>
+            </button>
 
+            {isSuperAdmin ? (
               <button
                 type="button"
                 onClick={() => navigate('/reports')}
-                className="flex flex-col items-center justify-center p-3 rounded-2xl border border-[#d6e2eb] bg-[#f9fcff] hover:bg-white hover:border-[#2f70b7] hover:shadow-md transition-all text-center min-h-[105px] group"
+                className="flex flex-col items-center justify-center p-3 rounded-2xl border border-[#d6e2eb] bg-[#f9fcff] hover:bg-white hover:border-[#2f70b7] hover:shadow-md transition-all text-center min-h-[115px] group"
               >
-                <div className="w-10 h-10 rounded-full bg-[#e8f3f7] flex items-center justify-center text-lg mb-1.5 group-hover:scale-105 transition-transform">
+                <div className="w-11 h-11 rounded-full bg-[#e8f3f7] flex items-center justify-center text-xl mb-1.5 group-hover:scale-105 transition-transform">
                   📈
                 </div>
-                <strong className="text-xs font-black text-[#17324f] leading-tight">
+                <strong className="text-xs font-black text-[#17324f] leading-tight block truncate w-full">
                   Payroll Reports
                 </strong>
+                <small className="text-[10px] font-semibold text-[#64748b] mt-0.5 truncate w-full">
+                  Saved pay reports
+                </small>
               </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => navigate('/my-time')}
+                className="flex flex-col items-center justify-center p-3 rounded-2xl border border-[#d6e2eb] bg-[#f9fcff] hover:bg-white hover:border-[#2f70b7] hover:shadow-md transition-all text-center min-h-[115px] group"
+              >
+                <div className="w-11 h-11 rounded-full bg-[#e8f3f7] flex items-center justify-center text-xl mb-1.5 group-hover:scale-105 transition-transform">
+                  ⏱️
+                </div>
+                <strong className="text-xs font-black text-[#17324f] leading-tight block truncate w-full">
+                  Time Records
+                </strong>
+                <small className="text-[10px] font-semibold text-[#64748b] mt-0.5 truncate w-full">
+                  Staff shift hours
+                </small>
+              </button>
+            )}
 
+            <button
+              type="button"
+              onClick={() => navigate('/contacts')}
+              className="flex flex-col items-center justify-center p-3 rounded-2xl border border-[#d6e2eb] bg-[#f9fcff] hover:bg-white hover:border-[#2f70b7] hover:shadow-md transition-all text-center min-h-[115px] group"
+            >
+              <div className="w-11 h-11 rounded-full bg-[#e8f3f7] flex items-center justify-center text-xl mb-1.5 group-hover:scale-105 transition-transform">
+                ☎️
+              </div>
+              <strong className="text-xs font-black text-[#17324f] leading-tight block truncate w-full">
+                Staff Contacts
+              </strong>
+              <small className="text-[10px] font-semibold text-[#64748b] mt-0.5 truncate w-full">
+                Phone directory
+              </small>
+            </button>
+          </div>
+        </div>
+
+        {/* Box 3: Employees & Operations / Payroll */}
+        <div className="bg-white border border-[#d8e3ec] rounded-2xl p-5 shadow-cdCard relative flex flex-col justify-between">
+          <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-[#e5efff] text-[#12345b] text-xs font-black px-5 py-1 rounded-full shadow-xs border border-[#c9def6]">
+            {isSuperAdmin ? 'Employees & Payroll' : 'Staff & Operations'}
+          </div>
+          <div className={`grid grid-cols-2 ${isSuperAdmin ? 'sm:grid-cols-5' : 'sm:grid-cols-4'} gap-3 pt-2`}>
+            {isSuperAdmin && (
+              <button
+                type="button"
+                onClick={() => navigate('/payroll')}
+                className="flex flex-col items-center justify-center p-3 rounded-2xl border border-[#d6e2eb] bg-[#f9fcff] hover:bg-white hover:border-[#2f70b7] hover:shadow-md transition-all text-center min-h-[115px] group"
+              >
+                <div className="w-11 h-11 rounded-full bg-[#e8f3f7] flex items-center justify-center text-xl mb-1.5 group-hover:scale-105 transition-transform">
+                  💰
+                </div>
+                <strong className="text-xs font-black text-[#17324f] leading-tight block truncate w-full">
+                  Weekly Payroll
+                </strong>
+                <small className="text-[10px] font-semibold text-[#64748b] mt-0.5 truncate w-full">
+                  Enter hours &amp; pay
+                </small>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => navigate('/employees')}
+              className="flex flex-col items-center justify-center p-3 rounded-2xl border border-[#d6e2eb] bg-[#f9fcff] hover:bg-white hover:border-[#2f70b7] hover:shadow-md transition-all text-center min-h-[115px] group"
+            >
+              <div className="w-11 h-11 rounded-full bg-[#e8f3f7] flex items-center justify-center text-xl mb-1.5 group-hover:scale-105 transition-transform">
+                🪪
+              </div>
+              <strong className="text-xs font-black text-[#17324f] leading-tight block truncate w-full">
+                Staff &amp; Pay Rates
+              </strong>
+              <small className="text-[10px] font-semibold text-[#64748b] mt-0.5 truncate w-full">
+                Add or edit staff
+              </small>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate('/schedules')}
+              className="flex flex-col items-center justify-center p-3 rounded-2xl border border-[#d6e2eb] bg-[#f9fcff] hover:bg-white hover:border-[#2f70b7] hover:shadow-md transition-all text-center min-h-[115px] group"
+            >
+              <div className="w-11 h-11 rounded-full bg-[#e8f3f7] flex items-center justify-center text-xl mb-1.5 group-hover:scale-105 transition-transform">
+                🕒
+              </div>
+              <strong className="text-xs font-black text-[#17324f] leading-tight block truncate w-full">
+                Weekly Schedules
+              </strong>
+              <small className="text-[10px] font-semibold text-[#64748b] mt-0.5 truncate w-full">
+                Plan shifts
+              </small>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate('/leave')}
+              className="flex flex-col items-center justify-center p-3 rounded-2xl border border-[#d6e2eb] bg-[#f9fcff] hover:bg-white hover:border-[#2f70b7] hover:shadow-md transition-all text-center min-h-[115px] group"
+            >
+              <div className="w-11 h-11 rounded-full bg-[#e8f3f7] flex items-center justify-center text-xl mb-1.5 group-hover:scale-105 transition-transform">
+                🏖️
+              </div>
+              <strong className="text-xs font-black text-[#17324f] leading-tight block truncate w-full">
+                Leave Calendars
+              </strong>
+              <small className="text-[10px] font-semibold text-[#64748b] mt-0.5 truncate w-full">
+                Manage leave
+              </small>
+            </button>
+
+            {isSuperAdmin ? (
+              <button
+                type="button"
+                onClick={() => navigate('/payslips')}
+                className="flex flex-col items-center justify-center p-3 rounded-2xl border border-[#d6e2eb] bg-[#f9fcff] hover:bg-white hover:border-[#2f70b7] hover:shadow-md transition-all text-center min-h-[115px] group"
+              >
+                <div className="w-11 h-11 rounded-full bg-[#e8f3f7] flex items-center justify-center text-xl mb-1.5 group-hover:scale-105 transition-transform">
+                  📄
+                </div>
+                <strong className="text-xs font-black text-[#17324f] leading-tight block truncate w-full">
+                  Payslips
+                </strong>
+                <small className="text-[10px] font-semibold text-[#64748b] mt-0.5 truncate w-full">
+                  Review &amp; print
+                </small>
+              </button>
+            ) : (
               <button
                 type="button"
                 onClick={() => navigate('/contacts')}
-                className="flex flex-col items-center justify-center p-3 rounded-2xl border border-[#d6e2eb] bg-[#f9fcff] hover:bg-white hover:border-[#2f70b7] hover:shadow-md transition-all text-center min-h-[105px] group"
+                className="flex flex-col items-center justify-center p-3 rounded-2xl border border-[#d6e2eb] bg-[#f9fcff] hover:bg-white hover:border-[#2f70b7] hover:shadow-md transition-all text-center min-h-[115px] group"
               >
-                <div className="w-10 h-10 rounded-full bg-[#e8f3f7] flex items-center justify-center text-lg mb-1.5 group-hover:scale-105 transition-transform">
+                <div className="w-11 h-11 rounded-full bg-[#e8f3f7] flex items-center justify-center text-xl mb-1.5 group-hover:scale-105 transition-transform">
                   ☎️
                 </div>
-                <strong className="text-xs font-black text-[#17324f] leading-tight">
+                <strong className="text-xs font-black text-[#17324f] leading-tight block truncate w-full">
                   Staff Contacts
                 </strong>
+                <small className="text-[10px] font-semibold text-[#64748b] mt-0.5 truncate w-full">
+                  Phone directory
+                </small>
               </button>
-            </div>
+            )}
           </div>
+        </div>
 
-          {/* Group 4: Administration */}
-          <div className="bg-white border border-[#d8e3ec] rounded-2xl p-5 shadow-cdCard relative">
-            <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-[#e5efff] text-[#12345b] text-xs font-black px-4 py-1 rounded-full shadow-xs border border-[#c9def6] whitespace-nowrap">
-              Administration
-            </div>
-            <div className="grid grid-cols-3 gap-2.5 pt-2">
+        {/* Box 4: Administration */}
+        <div className="bg-white border border-[#d8e3ec] rounded-2xl p-5 shadow-cdCard relative flex flex-col justify-between">
+          <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-[#e5efff] text-[#12345b] text-xs font-black px-5 py-1 rounded-full shadow-xs border border-[#c9def6] whitespace-nowrap">
+            Administration
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+            {isSuperAdmin && (
               <button
                 type="button"
                 onClick={() => navigate('/permissions')}
-                className="flex flex-col items-center justify-center p-2.5 rounded-2xl border border-[#d6e2eb] bg-[#f9fcff] hover:bg-white hover:border-[#2f70b7] hover:shadow-md transition-all text-center min-h-[105px] group"
+                className="flex flex-col items-center justify-center p-3 rounded-2xl border border-[#d6e2eb] bg-[#f9fcff] hover:bg-white hover:border-[#2f70b7] hover:shadow-md transition-all text-center min-h-[115px] group"
               >
-                <div className="w-9 h-9 rounded-full bg-[#e8f3f7] flex items-center justify-center text-base mb-1.5 group-hover:scale-105 transition-transform">
+                <div className="w-11 h-11 rounded-full bg-[#e8f3f7] flex items-center justify-center text-xl mb-1.5 group-hover:scale-105 transition-transform">
                   🔐
                 </div>
-                <strong className="text-[11px] font-black text-[#17324f] leading-tight">
+                <strong className="text-xs font-black text-[#17324f] leading-tight block truncate w-full">
                   Permissions
                 </strong>
+                <small className="text-[10px] font-semibold text-[#64748b] mt-0.5 truncate w-full">
+                  Role rules
+                </small>
               </button>
+            )}
 
+            {isSuperAdmin && (
               <button
                 type="button"
                 onClick={() => navigate('/users')}
-                className="flex flex-col items-center justify-center p-2.5 rounded-2xl border border-[#d6e2eb] bg-[#f9fcff] hover:bg-white hover:border-[#2f70b7] hover:shadow-md transition-all text-center min-h-[105px] group"
+                className="flex flex-col items-center justify-center p-3 rounded-2xl border border-[#d6e2eb] bg-[#f9fcff] hover:bg-white hover:border-[#2f70b7] hover:shadow-md transition-all text-center min-h-[115px] group"
               >
-                <div className="w-9 h-9 rounded-full bg-[#e8f3f7] flex items-center justify-center text-base mb-1.5 group-hover:scale-105 transition-transform">
+                <div className="w-11 h-11 rounded-full bg-[#e8f3f7] flex items-center justify-center text-xl mb-1.5 group-hover:scale-105 transition-transform">
                   ⚙️
                 </div>
-                <strong className="text-[11px] font-black text-[#17324f] leading-tight">
+                <strong className="text-xs font-black text-[#17324f] leading-tight block truncate w-full">
                   User Accounts
                 </strong>
+                <small className="text-[10px] font-semibold text-[#64748b] mt-0.5 truncate w-full">
+                  Admin &amp; staff
+                </small>
               </button>
+            )}
 
-              <button
-                type="button"
-                onClick={() => navigate('/accounts')}
-                className="flex flex-col items-center justify-center p-2.5 rounded-2xl border border-[#d6e2eb] bg-[#f9fcff] hover:bg-white hover:border-[#2f70b7] hover:shadow-md transition-all text-center min-h-[105px] group"
-              >
-                <div className="w-9 h-9 rounded-full bg-[#e8f3f7] flex items-center justify-center text-base mb-1.5 group-hover:scale-105 transition-transform">
-                  💾
-                </div>
-                <strong className="text-[11px] font-black text-[#17324f] leading-tight">
-                  Backup &amp; Restore
-                </strong>
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => navigate('/settings')}
+              className="flex flex-col items-center justify-center p-3 rounded-2xl border border-[#d6e2eb] bg-[#f9fcff] hover:bg-white hover:border-[#2f70b7] hover:shadow-md transition-all text-center min-h-[115px] group"
+            >
+              <div className="w-11 h-11 rounded-full bg-[#e8f3f7] flex items-center justify-center text-xl mb-1.5 group-hover:scale-105 transition-transform">
+                🏢
+              </div>
+              <strong className="text-xs font-black text-[#17324f] leading-tight block truncate w-full">
+                Company Settings
+              </strong>
+              <small className="text-[10px] font-semibold text-[#64748b] mt-0.5 truncate w-full">
+                Company profile
+              </small>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate('/accounts')}
+              className="flex flex-col items-center justify-center p-3 rounded-2xl border border-[#d6e2eb] bg-[#f9fcff] hover:bg-white hover:border-[#2f70b7] hover:shadow-md transition-all text-center min-h-[115px] group"
+            >
+              <div className="w-11 h-11 rounded-full bg-[#e8f3f7] flex items-center justify-center text-xl mb-1.5 group-hover:scale-105 transition-transform">
+                💾
+              </div>
+              <strong className="text-xs font-black text-[#17324f] leading-tight block truncate w-full">
+                Backup Data
+              </strong>
+              <small className="text-[10px] font-semibold text-[#64748b] mt-0.5 truncate w-full">
+                Save JSON backup
+              </small>
+            </button>
           </div>
         </div>
       </div>
@@ -403,23 +496,27 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Card 3: Gross Payroll */}
+        {/* Card 3: Gross Payroll (Super Admin) or Total Customers (Admin) */}
         <div className="bg-white border border-[#dce4eb] rounded-2xl p-5 shadow-cdCard flex flex-col justify-between min-h-[120px]">
           <div className="text-sm font-extrabold text-[#5d9e14]">
-            Gross Payroll
+            {isSuperAdmin ? 'Gross Payroll' : 'Total Customers'}
           </div>
           <div className="text-2xl font-black text-[#12345b] tracking-tight mt-3 tabular-nums">
-            {currentDraft?.totalGrossPayroll ? formatMoney(currentDraft.totalGrossPayroll) : '$0.00'}
+            {isSuperAdmin
+              ? (currentDraft?.totalGrossPayroll ? formatMoney(currentDraft.totalGrossPayroll) : '$0.00')
+              : allCustomers.length}
           </div>
         </div>
 
-        {/* Card 4: Payroll To Pay */}
+        {/* Card 4: Payroll To Pay (Super Admin) or Accounts Receivable (Admin) */}
         <div className="bg-white border border-[#dce4eb] rounded-2xl p-5 shadow-cdCard flex flex-col justify-between min-h-[120px]">
           <div className="text-sm font-extrabold text-[#ef7217]">
-            Payroll To Pay
+            {isSuperAdmin ? 'Payroll To Pay' : 'A/R Receivables'}
           </div>
           <div className="text-2xl font-black text-[#12345b] tracking-tight mt-3 tabular-nums">
-            {currentDraft?.totalNetPayroll ? formatMoney(currentDraft.totalNetPayroll) : '$0.00'}
+            {isSuperAdmin
+              ? (currentDraft?.totalNetPayroll ? formatMoney(currentDraft.totalNetPayroll) : '$0.00')
+              : formatMoney(accountingService.getKPIs().accountsReceivable)}
           </div>
         </div>
       </div>
@@ -446,7 +543,7 @@ export const Dashboard: React.FC = () => {
                   contentStyle={{ backgroundColor: '#12345b', color: '#fff', borderRadius: '8px', border: 'none' }}
                 />
                 <Bar dataKey="gross" fill="#3157d4" radius={[6, 6, 0, 0]}>
-                  {payrollChartData.map((_, index) => (
+                  {payrollChartData.map((_: any, index: number) => (
                     <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#3157d4' : '#7e99ec'} />
                   ))}
                 </Bar>
@@ -603,8 +700,16 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
+        {/* Mobile Scroll Hint */}
+        <div className="mobile-scroll-hint">
+          <span>👉 Swipe table to view phone, email &amp; balance</span>
+          <span className="text-[10px] uppercase bg-white px-2 py-0.5 rounded border border-[#cbd5e1] font-extrabold">
+            6 Columns
+          </span>
+        </div>
+
         {/* Customers Table */}
-        <div className="overflow-x-auto max-h-[480px]">
+        <div className="table-responsive-container max-h-[480px]">
           <table className="w-full text-left border-collapse text-xs">
             <thead className="bg-[#12345b] text-white sticky top-0 z-10">
               <tr>

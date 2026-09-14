@@ -15,7 +15,7 @@ export const AppLayout: React.FC = () => {
         mobileOpen={mobileOpen}
         onCloseMobile={() => setMobileOpen(false)}
       />
-      <div className={`flex-1 flex flex-col min-w-0 w-full overflow-x-hidden transition-all duration-300 ${
+      <div className={`flex-1 flex flex-col min-w-0 w-full overflow-x-hidden transition-[margin] duration-300 ${
         sidebarCollapsed ? 'md:ml-[72px]' : 'md:ml-[250px]'
       }`}>
         <Topbar onOpenMobile={() => setMobileOpen(true)} />

@@ -3,10 +3,36 @@
 @tailwind utilities;
 
 @layer base {
+  html, body, #root {
+    max-width: 100%;
+    overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
     background-color: #f4f7fb;
     color: #1c2b3a;
     font-family: 'Inter', Segoe UI, system-ui, sans-serif;
+  }
+
+  /* Ensure touch inputs meet minimum tap size */
+  @media (max-width: 768px) {
+    input[type="text"],
+    input[type="email"],
+    input[type="tel"],
+    input[type="password"],
+    input[type="date"],
+    input[type="month"],
+    input[type="number"],
+    select,
+    textarea {
+      font-size: 14px !important; /* Prevents iOS auto-zoom on focus */
+      min-height: 42px;
+    }
+
+    button {
+      min-height: 40px;
+    }
   }
 }
 
@@ -28,6 +54,33 @@
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}
+
+/* Responsive Table Container with smooth touch scrolling */
+.table-responsive-container {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  position: relative;
+}
+
+/* Mobile Scroll Affordance Bar */
+.mobile-scroll-hint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background-color: #f0f4f8;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 11px;
+  font-weight: 700;
+  color: #456078;
+}
+
+@media (min-width: 769px) {
+  .mobile-scroll-hint {
+    display: none !important;
+  }
 }
 
 @media print {

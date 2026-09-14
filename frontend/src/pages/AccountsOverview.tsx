@@ -4,6 +4,7 @@ import { accountingService } from '../services/accountingService';
 import { useToast } from '../context/ToastContext';
 import { AccountingKPIs } from '../types';
 import { Download, Upload } from 'lucide-react';
+import { apiFetch } from '../services/api';
 
 export const AccountsOverview: React.FC = () => {
   const navigate = useNavigate();
@@ -11,7 +12,20 @@ export const AccountsOverview: React.FC = () => {
   const [kpis, setKpis] = useState<AccountingKPIs>(accountingService.getKPIs());
 
   const refreshData = () => {
-    setKpis(accountingService.getKPIs());
+    apiFetch<{ success: boolean; data: any }>('/accounts-overview').then(res => {
+      if (res && res.success && res.data) {
+        setKpis({
+          customerCount: res.data.totalCustomers || 0,
+          openInvoices: res.data.openInvoicesCount || 0,
+          accountsReceivable: res.data.accountsReceivable || 0,
+          overdue: 0,
+          paymentsReceived: res.data.totalPaymentsReceived || 0,
+          importSummary: `${res.data.totalCustomers} customers • ${res.data.totalInvoices} invoices on file`
+        });
+      }
+    }).catch(() => {
+      setKpis(accountingService.getKPIs());
+    });
   };
 
   useEffect(() => {
@@ -99,38 +113,38 @@ export const AccountsOverview: React.FC = () => {
 
         {/* KPIs Grid */}
         <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white border border-[#d8e3ec] rounded-2xl p-5 shadow-sm">
-            <span className="block text-xs font-extrabold text-[#607286] uppercase tracking-wider">
+          <div className="bg-white border border-[#d8e3ec] rounded-2xl p-4 sm:p-5 shadow-sm">
+            <span className="block text-[11px] font-extrabold text-[#607286] uppercase tracking-wider">
               Total Customers
             </span>
-            <strong className="block text-2xl sm:text-3xl font-black text-[#12345b] mt-2">
+            <strong className="block text-xl font-bold text-[#12345b] mt-1.5 tabular-nums">
               {kpis.customerCount.toLocaleString()}
             </strong>
           </div>
 
-          <div className="bg-white border border-[#d8e3ec] rounded-2xl p-5 shadow-sm">
-            <span className="block text-xs font-extrabold text-[#2f6fb3] uppercase tracking-wider">
+          <div className="bg-white border border-[#d8e3ec] rounded-2xl p-4 sm:p-5 shadow-sm">
+            <span className="block text-[11px] font-extrabold text-[#2f6fb3] uppercase tracking-wider">
               Open Invoices
             </span>
-            <strong className="block text-2xl sm:text-3xl font-black text-[#12345b] mt-2">
+            <strong className="block text-xl font-bold text-[#12345b] mt-1.5 tabular-nums">
               {kpis.openInvoices.toLocaleString()}
             </strong>
           </div>
 
-          <div className="bg-white border border-[#d8e3ec] rounded-2xl p-5 shadow-sm">
-            <span className="block text-xs font-extrabold text-[#0f766e] uppercase tracking-wider">
+          <div className="bg-white border border-[#d8e3ec] rounded-2xl p-4 sm:p-5 shadow-sm">
+            <span className="block text-[11px] font-extrabold text-[#0f766e] uppercase tracking-wider">
               Accounts Receivable
             </span>
-            <strong className="block text-2xl sm:text-3xl font-black text-[#0f766e] mt-2">
+            <strong className="block text-xl font-bold text-[#0f766e] mt-1.5 tabular-nums">
               {formatMoney(kpis.accountsReceivable)}
             </strong>
           </div>
 
-          <div className="bg-white border border-[#d8e3ec] rounded-2xl p-5 shadow-sm">
-            <span className="block text-xs font-extrabold text-[#b42318] uppercase tracking-wider">
+          <div className="bg-white border border-[#d8e3ec] rounded-2xl p-4 sm:p-5 shadow-sm">
+            <span className="block text-[11px] font-extrabold text-[#b42318] uppercase tracking-wider">
               Overdue Balances
             </span>
-            <strong className="block text-2xl sm:text-3xl font-black text-[#b42318] mt-2">
+            <strong className="block text-xl font-bold text-[#b42318] mt-1.5 tabular-nums">
               {formatMoney(kpis.overdue)}
             </strong>
           </div>

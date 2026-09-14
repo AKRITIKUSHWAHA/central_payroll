@@ -57,7 +57,7 @@ export const Employees: React.FC = () => {
       id: emp.id,
       name: emp.displayName || `${emp.firstName || ''} ${emp.lastName || ''}`.trim(),
       status: emp.status || 'Active',
-      phone: emp.personalPhone || emp.phone || '',
+      phone: emp.personalPhone || emp.workPhone || '',
       email: emp.email || '',
       address: emp.address || '',
     });
@@ -131,7 +131,7 @@ export const Employees: React.FC = () => {
   };
 
   const formatPhone = (emp: Employee) => {
-    return emp.personalPhone || emp.phone || emp.workPhone || '—';
+    return emp.personalPhone || emp.workPhone || '—';
   };
 
   return (
@@ -304,7 +304,7 @@ export const Employees: React.FC = () => {
                   <span>Personal Phone</span>
                 </div>
                 <div className="text-sm font-black text-[#0f172a]">
-                  {viewModalEmployee.personalPhone || viewModalEmployee.phone || '—'}
+                  {viewModalEmployee.personalPhone || viewModalEmployee.workPhone || '—'}
                 </div>
               </div>
 

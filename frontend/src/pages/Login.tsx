@@ -1,25 +1,32 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Shield, KeyRound, UserCheck, AlertTriangle, Eye, EyeOff } from 'lucide-react';
+import { AlertTriangle, Eye, EyeOff } from 'lucide-react';
 
 export const Login: React.FC = () => {
-  const [username, setUsername] = useState('superadmin');
-  const [password, setPassword] = useState('ChangeMe123!');
+  const [searchParams] = useSearchParams();
+  const urlUsername = searchParams.get('username') || '';
+  const [username, setUsername] = useState(urlUsername);
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, logout, isAuthenticated, currentUser } = useAuth();
   const navigate = useNavigate();
 
-  const handleAuthSuccess = (userOrName: string) => {
-    const uName = userOrName.toLowerCase();
-    if (uName === 'staff') {
-      navigate('/schedules');
-    } else {
-      navigate('/dashboard');
+  useEffect(() => {
+    if (urlUsername) {
+      setUsername(urlUsername);
+      if (currentUser && currentUser.username.toLowerCase() !== urlUsername.toLowerCase()) {
+        logout();
+      }
     }
-  };
+  }, [urlUsername, currentUser, logout]);
+
+  // If already authenticated and no explicit url username switch, redirect directly into the app
+  if (isAuthenticated && currentUser && !urlUsername) {
+    return <Navigate to={currentUser.role === 'staff' ? '/schedules' : '/dashboard'} replace />;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,9 +35,15 @@ export const Login: React.FC = () => {
     try {
       const success = await login(username, password);
       if (success) {
-        handleAuthSuccess(username);
+        const saved = localStorage.getItem('cdl_current_auth_user');
+        const user = saved ? JSON.parse(saved) : null;
+        if (user?.role === 'staff' || username.toLowerCase() === 'staff') {
+          navigate('/schedules', { replace: true });
+        } else {
+          navigate('/dashboard', { replace: true });
+        }
       } else {
-        setError('Invalid username or password. Use superadmin / ChangeMe123! or admin / staff.');
+        setError('Invalid username or password.');
       }
     } catch {
       setError('An error occurred during sign in. Please try again.');
@@ -39,43 +52,21 @@ export const Login: React.FC = () => {
     }
   };
 
-  const handleQuickLogin = async (roleUser: string) => {
-    setUsername(roleUser);
-    setPassword('ChangeMe123!');
-    setError('');
-    setLoading(true);
-    try {
-      const success = await login(roleUser, 'ChangeMe123!');
-      if (success) {
-        handleAuthSuccess(roleUser);
-      } else {
-        setError(`Failed to sign in as ${roleUser}.`);
-      }
-    } catch {
-      setError('Sign in error.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-[#f4f7fb] flex items-center justify-center p-4">
-      <div className="w-full max-w-[480px] bg-white border border-[#d7e2ec] rounded-2xl p-6 sm:p-8 shadow-cdModal">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-9 h-9 rounded-full bg-[#0b7895] text-white flex items-center justify-center font-black text-sm shadow-md shrink-0">
-            ▶
-          </div>
-          <h1 className="text-xl sm:text-2xl font-extrabold text-[#12345b] tracking-tight">
-            Central Dispatch Payroll
-          </h1>
-        </div>
+    <div className="min-h-screen min-h-[100dvh] bg-[#f4f7fb] flex items-center justify-center p-3.5 xs:p-5 sm:p-6 md:p-8 animate-fadeIn w-full">
+      <div className="w-full max-w-[440px] bg-white border border-[#dde7f0] rounded-2xl sm:rounded-3xl p-5 xs:p-6 sm:p-8 shadow-sm transition-all mx-auto">
+        {/* Title */}
+        <h1 className="text-xl xs:text-2xl sm:text-[26px] font-black text-[#102f52] tracking-tight mb-1.5 sm:mb-2 leading-tight">
+          Central Dispatch Payroll
+        </h1>
         
-        <p className="text-xs sm:text-sm text-[#607286] font-medium mb-6 leading-relaxed">
-          Secure Bermuda workspace sign-in for Super Admin, Admin, and Staff members.
+        {/* Subtitle */}
+        <p className="text-xs sm:text-sm text-[#475569] font-medium mb-5 sm:mb-6 leading-relaxed sm:leading-snug">
+          Secure workspace sign-in for Super Admin, Admin, and Staff.
         </p>
 
         {error && (
-          <div className="mb-4 p-3 bg-[#f7d8d5] border border-[#a33b32] text-[#8d251d] text-xs font-bold rounded-xl flex items-center gap-2">
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-xs font-bold rounded-xl flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 flex-shrink-0" />
             <span>{error}</span>
           </div>
@@ -83,23 +74,22 @@ export const Login: React.FC = () => {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-extrabold text-[#38516b] uppercase tracking-wider mb-1.5">
+            <label className="block text-xs sm:text-sm font-bold text-[#102f52] mb-1.5">
               Username
             </label>
-            <div className="relative">
-              <input
-                type="text"
-                value={username}
-                onChange={e => setUsername(e.target.value)}
-                required
-                className="w-full px-3.5 py-2.5 bg-white border border-[#b9c9d9] rounded-xl text-sm font-semibold text-[#1c2b3a] focus:outline-none focus:border-[#2f6fb3] focus:ring-2 focus:ring-[#2f6fb3]/20"
-                placeholder="Enter username"
-              />
-            </div>
+            <input
+              type="text"
+              value={username}
+              onChange={e => setUsername(e.target.value)}
+              required
+              autoFocus={!urlUsername}
+              placeholder="e.g. superadmin"
+              className="w-full px-3.5 py-2.5 min-h-[44px] bg-white border border-[#cbd5e1] rounded-xl text-sm font-semibold text-[#1e293b] focus:outline-none focus:border-[#2f6fb3] focus:ring-2 focus:ring-[#2f6fb3]/20"
+            />
           </div>
 
           <div>
-            <label className="block text-xs font-extrabold text-[#38516b] uppercase tracking-wider mb-1.5">
+            <label className="block text-xs sm:text-sm font-bold text-[#102f52] mb-1.5">
               Password
             </label>
             <div className="relative">
@@ -108,15 +98,15 @@ export const Login: React.FC = () => {
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 required
-                className="w-full pl-3.5 pr-10 py-2.5 bg-white border border-[#b9c9d9] rounded-xl text-sm font-semibold text-[#1c2b3a] focus:outline-none focus:border-[#2f6fb3] focus:ring-2 focus:ring-[#2f6fb3]/20"
+                autoFocus={Boolean(urlUsername)}
                 placeholder="Enter password"
+                className="w-full pl-3.5 pr-10 py-2.5 min-h-[44px] bg-white border border-[#cbd5e1] rounded-xl text-sm font-semibold text-[#1e293b] focus:outline-none focus:border-[#2f6fb3] focus:ring-2 focus:ring-[#2f6fb3]/20"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#607286] hover:text-[#12345b] focus:outline-none p-1 rounded-md transition-colors cursor-pointer"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#64748b] hover:text-[#102f52] p-1.5 cursor-pointer touch-manipulation"
                 title={showPassword ? 'Hide password' : 'Show password'}
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -126,48 +116,15 @@ export const Login: React.FC = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 px-4 bg-[#2f6fb3] hover:bg-[#245a96] text-white font-extrabold text-sm rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+            className="w-full py-3 min-h-[44px] px-4 bg-[#2f6fb3] hover:bg-[#245a96] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer mt-2"
           >
-            <KeyRound className="w-4 h-4" />
             <span>{loading ? 'Signing In...' : 'Sign In'}</span>
           </button>
         </form>
 
-        {/* Quick Role Selection Buttons */}
-        <div className="mt-6 pt-5 border-t border-[#e1e8ef]">
-          <div className="text-xs font-extrabold text-[#607286] mb-2 uppercase tracking-wider">
-            Quick Sign-In Presets:
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              type="button"
-              onClick={() => handleQuickLogin('superadmin')}
-              className="py-1.5 px-2 bg-[#eaf4fb] hover:bg-[#d6e7f4] text-[#12345b] text-xs font-bold rounded-lg border border-[#c9def6] flex items-center justify-center gap-1 cursor-pointer"
-            >
-              <Shield className="w-3 h-3 text-[#2f6fb3]" />
-              <span>Super Admin</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickLogin('admin')}
-              className="py-1.5 px-2 bg-[#f0f4f7] hover:bg-[#e2e8ee] text-[#12345b] text-xs font-bold rounded-lg border border-[#dde6ee] flex items-center justify-center gap-1 cursor-pointer"
-            >
-              <UserCheck className="w-3 h-3 text-[#0f766e]" />
-              <span>Admin</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickLogin('staff')}
-              className="py-1.5 px-2 bg-[#fff8c7] hover:bg-[#f5ebaa] text-[#6e5a00] text-xs font-bold rounded-lg border border-[#eadc64] flex items-center justify-center gap-1 cursor-pointer"
-            >
-              <span>Staff</span>
-            </button>
-          </div>
-        </div>
-
-        <div className="mt-5 p-3.5 bg-[#fff8d7] border border-[#eadb83] rounded-xl text-xs text-[#675600] leading-relaxed">
-          <strong className="block mb-1 font-bold">First-time setup:</strong>
-          Sign in with username <strong>superadmin</strong> and temporary password <strong>ChangeMe123!</strong>, or select a Quick Sign-In Preset above.
+        {/* First-time setup yellow callout box */}
+        <div className="mt-5 sm:mt-6 p-3.5 sm:p-4 bg-[#fefce8] border border-[#fef08a] rounded-xl text-[11px] sm:text-xs leading-relaxed text-[#713f12]">
+          <strong>First-time setup:</strong> sign in with username <strong className="font-bold text-[#1e293b]">superadmin</strong> and temporary password <strong className="font-bold text-[#1e293b]">ChangeMe123!</strong>, then immediately create your own Super Admin account/password in User Accounts and disable or change the temporary account.
         </div>
       </div>
     </div>

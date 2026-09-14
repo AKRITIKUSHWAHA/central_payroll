@@ -14,7 +14,8 @@ import {
   Eye,
   EyeOff,
   MoreVertical,
-  Power
+  Power,
+  Trash2
 } from 'lucide-react';
 import { ChangePasswordModal } from '../components/ChangePasswordModal';
 
@@ -32,13 +33,30 @@ export const UserAccounts: React.FC = () => {
   const { showToast } = useToast();
 
   const loadUsersFromDB = async () => {
-    const fetched = await userService.fetchUsers();
-    setUsers([...fetched]);
+    try {
+      const data = await userService.fetchUsers();
+      setUsers(data);
+    } catch {
+      setUsers(userService.getUsers());
+    }
   };
 
   useEffect(() => {
     loadUsersFromDB();
   }, []);
+
+  // Close actions modal on Escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSelectedUserForActions(null);
+    };
+    if (selectedUserForActions) {
+      window.addEventListener('keydown', handleKeyDown);
+      return () => {
+        window.removeEventListener('keydown', handleKeyDown);
+      };
+    }
+  }, [selectedUserForActions]);
 
   // Lock body scroll when Quick Actions modal is open
   useEffect(() => {
@@ -87,6 +105,24 @@ export const UserAccounts: React.FC = () => {
       }
     } catch (err: any) {
       showToast('Error updating user status: ' + err.message);
+    }
+  };
+
+  const handleDeleteUser = async (user: UserAccount) => {
+    if (user.username.toLowerCase() === 'superadmin') {
+      showToast('Primary Super Admin account cannot be deleted.');
+      return;
+    }
+    if (!window.confirm(`Are you sure you want to delete user account "${user.displayName || user.username}"?`)) {
+      return;
+    }
+    try {
+      await userService.deleteUser(user.id);
+      setSelectedUserForActions(null);
+      await loadUsersFromDB();
+      showToast(`User account for ${user.displayName || user.username} has been deleted.`);
+    } catch (err: any) {
+      showToast('Error deleting user: ' + err.message);
     }
   };
 
@@ -455,6 +491,29 @@ export const UserAccounts: React.FC = () => {
                     </div>
                   </div>
                 </button>
+
+                {/* Action 5: Delete User (for non-primary accounts) */}
+                {selectedUserForActions.username.toLowerCase() !== 'superadmin' && (
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteUser(selectedUserForActions)}
+                    className="w-full p-3.5 bg-red-50/50 hover:bg-red-50 border border-red-200 hover:border-red-400 rounded-xl text-left flex items-center justify-between transition-all group cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-red-100 text-red-700 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
+                        <Trash2 className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <strong className="block text-xs font-black text-red-700">
+                          Delete User Account
+                        </strong>
+                        <span className="block text-[11px] font-semibold text-red-500">
+                          Permanently remove this user account
+                        </span>
+                      </div>
+                    </div>
+                  </button>
+                )}
               </div>
 
               {/* Modal Footer */}

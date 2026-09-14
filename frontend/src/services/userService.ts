@@ -80,71 +80,11 @@ class UserService {
       {
         id: 'usr-3',
         username: 'staff',
-        displayName: 'General Staff',
+        displayName: 'Staff',
         email: 'staff@centraldispatch.bm',
         role: 'staff',
         status: 'Active',
         lastLogin: '2026-09-10 08:45 AM',
-        createdAt: '2026-01-01'
-      },
-      {
-        id: 'usr-alesia',
-        username: 'alesia.brangman',
-        displayName: 'Alesia Brangman',
-        email: 'alesia.brangman@centraldispatch.bm',
-        role: 'staff',
-        status: 'Active',
-        lastLogin: '2026-09-12 09:00 AM',
-        createdAt: '2026-01-01'
-      },
-      {
-        id: 'usr-global',
-        username: 'global',
-        displayName: 'Global',
-        email: 'global@centraldispatch.bm',
-        role: 'staff',
-        status: 'Active',
-        lastLogin: '2026-09-12 09:15 AM',
-        createdAt: '2026-01-01'
-      },
-      {
-        id: 'usr-ssh',
-        username: 'ssh',
-        displayName: 'SSH',
-        email: 'ssh@centraldispatch.bm',
-        role: 'staff',
-        status: 'Active',
-        lastLogin: '2026-09-12 09:30 AM',
-        createdAt: '2026-01-01'
-      },
-      {
-        id: 'usr-neli',
-        username: 'neli.outerbridge',
-        displayName: 'Neli Outerbridge',
-        email: 'neli.outerbridge@centraldispatch.bm',
-        role: 'staff',
-        status: 'Active',
-        lastLogin: '2026-09-12 09:45 AM',
-        createdAt: '2026-01-01'
-      },
-      {
-        id: 'usr-ty',
-        username: 'ty.mcgowan',
-        displayName: 'Tyonika McGowan (Ty)',
-        email: 'tyonika.mcgowan@centraldispatch.bm',
-        role: 'staff',
-        status: 'Active',
-        lastLogin: '2026-09-12 10:00 AM',
-        createdAt: '2026-01-01'
-      },
-      {
-        id: 'usr-tanuvi',
-        username: 'tanuvi.patel',
-        displayName: 'Tanuvi Patel',
-        email: 'tanuvi.patel@centraldispatch.bm',
-        role: 'staff',
-        status: 'Active',
-        lastLogin: '2026-09-12 10:15 AM',
         createdAt: '2026-01-01'
       }
     ];
@@ -155,7 +95,14 @@ class UserService {
     }
     try {
       const parsed = JSON.parse(data);
-      return Array.isArray(parsed) && parsed.length > 0 ? parsed : defaultUsers;
+      // Clean out any unwanted auto-seeded staff accounts from previous session
+      const filtered = Array.isArray(parsed)
+        ? parsed.filter((u: any) => !['usr-alesia', 'usr-global', 'usr-ssh', 'usr-neli', 'usr-ty', 'usr-tanuvi'].includes(u.id))
+        : defaultUsers;
+      if (filtered.length !== parsed.length) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+      }
+      return filtered.length > 0 ? filtered : defaultUsers;
     } catch {
       return defaultUsers;
     }
@@ -255,6 +202,19 @@ class UserService {
       return { success: false, error: res?.error || 'Failed to update password' };
     } catch (err: any) {
       return { success: false, error: err.message || 'Network error updating password' };
+    }
+  }
+
+  public async deleteUser(id: string): Promise<boolean> {
+    try {
+      await apiFetch(`/user-accounts/${id}`, { method: 'DELETE' });
+      const users = this.getStorage().filter(u => u.id !== id && u.username.toLowerCase() !== id.toLowerCase());
+      this.saveStorage(users);
+      return true;
+    } catch {
+      const users = this.getStorage().filter(u => u.id !== id && u.username.toLowerCase() !== id.toLowerCase());
+      this.saveStorage(users);
+      return true;
     }
   }
 

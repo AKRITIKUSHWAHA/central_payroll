@@ -314,71 +314,11 @@ export class MySQLDatabase {
         {
           id: 'usr-3',
           username: 'staff',
-          displayName: 'General Staff',
+          displayName: 'Staff',
           email: 'staff@centraldispatch.bm',
           role: 'staff',
           status: 'Active',
           lastLogin: '2026-09-10 08:45 AM',
-          createdAt: '2026-01-01'
-        },
-        {
-          id: 'usr-alesia',
-          username: 'alesia.brangman',
-          displayName: 'Alesia Brangman',
-          email: 'alesia.brangman@centraldispatch.bm',
-          role: 'staff',
-          status: 'Active',
-          lastLogin: '2026-09-12 09:00 AM',
-          createdAt: '2026-01-01'
-        },
-        {
-          id: 'usr-global',
-          username: 'global',
-          displayName: 'Global',
-          email: 'global@centraldispatch.bm',
-          role: 'staff',
-          status: 'Active',
-          lastLogin: '2026-09-12 09:15 AM',
-          createdAt: '2026-01-01'
-        },
-        {
-          id: 'usr-ssh',
-          username: 'ssh',
-          displayName: 'SSH',
-          email: 'ssh@centraldispatch.bm',
-          role: 'staff',
-          status: 'Active',
-          lastLogin: '2026-09-12 09:30 AM',
-          createdAt: '2026-01-01'
-        },
-        {
-          id: 'usr-neli',
-          username: 'neli.outerbridge',
-          displayName: 'Neli Outerbridge',
-          email: 'neli.outerbridge@centraldispatch.bm',
-          role: 'staff',
-          status: 'Active',
-          lastLogin: '2026-09-12 09:45 AM',
-          createdAt: '2026-01-01'
-        },
-        {
-          id: 'usr-ty',
-          username: 'ty.mcgowan',
-          displayName: 'Tyonika McGowan (Ty)',
-          email: 'tyonika.mcgowan@centraldispatch.bm',
-          role: 'staff',
-          status: 'Active',
-          lastLogin: '2026-09-12 10:00 AM',
-          createdAt: '2026-01-01'
-        },
-        {
-          id: 'usr-tanuvi',
-          username: 'tanuvi.patel',
-          displayName: 'Tanuvi Patel',
-          email: 'tanuvi.patel@centraldispatch.bm',
-          role: 'staff',
-          status: 'Active',
-          lastLogin: '2026-09-12 10:15 AM',
           createdAt: '2026-01-01'
         }
       ];
@@ -391,6 +331,9 @@ export class MySQLDatabase {
           [u.id, u.username, u.displayName, u.email, 'ChangeMe123!', u.role, u.status, u.lastLogin, u.createdAt]
         );
       }
+
+      // Remove unwanted user accounts so only 1 for each role remains
+      await pool.query("DELETE FROM users WHERE id IN ('usr-alesia', 'usr-global', 'usr-ssh', 'usr-neli', 'usr-ty', 'usr-tanuvi') OR username IN ('alesia.brangman', 'global', 'ssh', 'neli.outerbridge', 'ty.mcgowan', 'tanuvi.patel')").catch(() => {});
       // Clean up deleted/test staff and test customers per client directive
       await pool.query("DELETE FROM employees WHERE id IN ('staff6', 'staff7', 'shonee', 'tiffany', 'aman') OR displayName LIKE '%aman singh%' OR displayName LIKE '%Shonee%' OR displayName LIKE '%Tiffany%'").catch(() => {});
       await pool.query("DELETE FROM customers WHERE id IN ('aaa', 'abc') OR name IN ('aaa', 'abc') OR email IN ('k@gmail.com', 'a@gmail.com')").catch(() => {});
@@ -1280,6 +1223,14 @@ export class MySQLDatabase {
       'UPDATE users SET password = ? WHERE id = ? OR LOWER(username) = LOWER(?)',
       [newPassword, userIdOrUsername, userIdOrUsername]
     );
+    return result.affectedRows > 0;
+  }
+
+  public async deleteUser(idOrUsername: string): Promise<boolean> {
+    const [result]: any = await pool.query('DELETE FROM users WHERE id = ? OR LOWER(username) = LOWER(?)', [
+      idOrUsername,
+      idOrUsername
+    ]);
     return result.affectedRows > 0;
   }
 

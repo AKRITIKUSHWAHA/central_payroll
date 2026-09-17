@@ -206,8 +206,9 @@ export const InvoicesView: React.FC = () => {
   };
 
   const handleSendServerEmail = async () => {
-    if (!emailRecipient || !emailRecipient.includes('@')) {
-      alert('Please enter a valid recipient email address.');
+    const trimmedEmail = emailRecipient.trim();
+    if (!trimmedEmail || !trimmedEmail.includes('@') || !trimmedEmail.includes('.')) {
+      alert('Please enter a valid recipient email address (e.g. name@example.com).');
       return;
     }
     if (!emailModalInvoice) return;
@@ -217,7 +218,7 @@ export const InvoicesView: React.FC = () => {
       const res = await apiFetch<{ success: boolean; message?: string; error?: string }>('/email/send-invoice', {
         method: 'POST',
         body: JSON.stringify({
-          recipientEmail: emailRecipient.trim(),
+          recipientEmail: trimmedEmail,
           customerName: emailModalInvoice.customerName,
           invoiceNumber: emailModalInvoice.number,
           amount: emailModalInvoice.amount,
@@ -228,10 +229,10 @@ export const InvoicesView: React.FC = () => {
       });
 
       if (res && res.success) {
-        showToast(`Invoice ${emailModalInvoice.number} emailed successfully to ${emailRecipient}!`);
+        showToast(`Invoice ${emailModalInvoice.number} emailed successfully to ${trimmedEmail}!`);
         setEmailModalInvoice(null);
       } else {
-        alert(res?.error || 'Failed to dispatch email.');
+        alert(res?.error || 'Failed to dispatch email. Please check your network and recipient email.');
       }
     } catch (err: any) {
       alert('Email dispatch error: ' + err.message);

@@ -21,11 +21,11 @@ export const apiFetch = async <T>(endpoint: string, options?: RequestInit): Prom
     });
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.message || errData.error || `HTTP ${res.status}`);
+      return { success: false, error: errData.error || errData.message || `HTTP ${res.status}` } as unknown as T;
     }
     return await res.json();
-  } catch (error) {
+  } catch (error: any) {
     console.warn(`[API] Server request failed for ${endpoint}:`, error);
-    return null;
+    return { success: false, error: error?.message || 'Server connection failed' } as unknown as T;
   }
 };

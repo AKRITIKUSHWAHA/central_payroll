@@ -117,6 +117,17 @@ class UserService {
   }
 
   public async fetchUsers(): Promise<UserAccount[]> {
+    const authUser = localStorage.getItem('cdl_current_auth_user');
+    let isSuper = false;
+    if (authUser) {
+      try {
+        isSuper = JSON.parse(authUser)?.role === 'superadmin';
+      } catch (_) {}
+    }
+    if (!isSuper) {
+      return this.getStorage();
+    }
+
     try {
       const res = await apiFetch<{ success: boolean; users: UserAccount[] }>('/user-accounts');
       if (res && res.success && res.users) {
@@ -130,11 +141,21 @@ class UserService {
   }
 
   public getUsers(): UserAccount[] {
-    apiFetch<{ success: boolean; users: UserAccount[] }>('/user-accounts').then(res => {
-      if (res && res.success && res.users) {
-        this.saveStorage(res.users);
-      }
-    }).catch(() => {});
+    const authUser = localStorage.getItem('cdl_current_auth_user');
+    let isSuper = false;
+    if (authUser) {
+      try {
+        isSuper = JSON.parse(authUser)?.role === 'superadmin';
+      } catch (_) {}
+    }
+
+    if (isSuper) {
+      apiFetch<{ success: boolean; users: UserAccount[] }>('/user-accounts').then(res => {
+        if (res && res.success && res.users) {
+          this.saveStorage(res.users);
+        }
+      }).catch(() => {});
+    }
 
     return this.getStorage();
   }

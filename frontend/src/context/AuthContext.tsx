@@ -39,13 +39,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (username: string, pass: string): Promise<boolean> => {
     const cleanUsername = username.trim();
+    if (!cleanUsername || !pass) return false;
 
-    // 1. Try API login with backend MySQL database
+    // 1. Primary Auth: Verify against backend MySQL database
     try {
       const res = await apiFetch<{ success: boolean; user: UserAccount; token?: string; error?: string }>('/auth/login', {
         method: 'POST',
         body: JSON.stringify({ username: cleanUsername, password: pass })
       });
+
       if (res && res.success && res.user) {
         setCurrentUser(res.user);
         setPermissions(userService.getPermissions(res.user.role));
@@ -53,74 +55,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (res.token) {
           localStorage.setItem('cdl_token', res.token);
         }
+        // Update local cache password to match new credentials
+        const users = userService.getUsers();
+        const found = users.find(u => u.username.toLowerCase() === cleanUsername.toLowerCase() || u.id === res.user.id);
+        if (found) {
+          found.password = pass;
+          userService.saveStorage(users);
+        }
         return true;
       }
-    } catch (err) {
-      console.warn('API login failed, checking local fallback:', err);
-    }
 
-    // 2. Check LocalStorage fallback
-    const users = userService.getUsers();
-    const found = users.find(u => u.username.toLowerCase() === cleanUsername.toLowerCase());
-    if (found) {
-      if (found.status !== 'Active') {
+      // If backend explicitly rejected the login credentials, return false immediately
+      if (res && res.success === false) {
         return false;
       }
-      const expectedPassword = found.password || 'ChangeMe123!';
-      if (pass === expectedPassword) {
+    } catch (err) {
+      console.warn('Backend connection failed, checking offline fallback:', err);
+    }
+
+    // 2. Offline Fallback ONLY if backend server is unreachable
+    const users = userService.getUsers();
+    const found = users.find(u => u.username.toLowerCase() === cleanUsername.toLowerCase());
+    if (found && found.status === 'Active') {
+      const stored = found.password || 'ChangeMe123!';
+      if (pass === stored) {
         setCurrentUser(found);
         setPermissions(userService.getPermissions(found.role));
         localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(found));
-        return true;
-      }
-    }
-
-    // 3. Guaranteed initial role fallbacks
-    const normalized = cleanUsername.toLowerCase();
-    if (pass === 'ChangeMe123!' || pass === 'ChangeMe123') {
-      if (normalized === 'admin') {
-        const adminUser: UserAccount = {
-          id: 'usr-1',
-          username: 'admin',
-          displayName: 'Administrator',
-          email: 'operations@centraldispatch.bm',
-          role: 'admin',
-          status: 'Active',
-          createdAt: '2026-01-01'
-        };
-        setCurrentUser(adminUser);
-        setPermissions(userService.getPermissions('admin'));
-        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(adminUser));
-        return true;
-      }
-      if (normalized === 'staff') {
-        const staffUser: UserAccount = {
-          id: 'usr-3',
-          username: 'staff',
-          displayName: 'Staff',
-          email: 'staff@centraldispatch.bm',
-          role: 'staff',
-          status: 'Active',
-          createdAt: '2026-01-01'
-        };
-        setCurrentUser(staffUser);
-        setPermissions(userService.getPermissions('staff'));
-        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(staffUser));
-        return true;
-      }
-      if (normalized === 'superadmin') {
-        const superAdminUser: UserAccount = {
-          id: 'usr-2',
-          username: 'superadmin',
-          displayName: 'Super Admin',
-          email: 'admin@centraldispatch.bm',
-          role: 'superadmin',
-          status: 'Active',
-          createdAt: '2026-01-01'
-        };
-        setCurrentUser(superAdminUser);
-        setPermissions(userService.getPermissions('superadmin'));
-        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(superAdminUser));
         return true;
       }
     }

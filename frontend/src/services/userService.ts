@@ -108,8 +108,12 @@ class UserService {
     }
   }
 
-  private saveStorage(users: UserAccount[]) {
+  public saveStorage(users: UserAccount[]) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
+  }
+
+  public saveUsers(users: UserAccount[]) {
+    this.saveStorage(users);
   }
 
   public async fetchUsers(): Promise<UserAccount[]> {

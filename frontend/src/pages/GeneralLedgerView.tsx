@@ -114,19 +114,19 @@ export const GeneralLedgerView: React.FC = () => {
       </div>
 
       {/* 2. Filtered Debits & Filtered Credits KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md">
         {/* Filtered Debits Card */}
-        <div className="bg-white border border-[#dde7f0] rounded-2xl p-5 shadow-sm">
-          <span className="text-xs sm:text-sm font-bold text-[#64748b]">Filtered Debits</span>
-          <div className="text-2xl sm:text-3xl font-extrabold text-[#12345b] tracking-tight mt-1.5">
+        <div className="bg-white border border-[#dde7f0] rounded-xl px-4 py-3 shadow-xs">
+          <span className="text-xs font-semibold text-[#64748b]">Filtered Debits</span>
+          <div className="text-lg sm:text-xl font-bold text-[#12345b] tracking-tight mt-0.5">
             {formatMoney(totalDebits)}
           </div>
         </div>
 
         {/* Filtered Credits Card */}
-        <div className="bg-white border border-[#dde7f0] rounded-2xl p-5 shadow-sm">
-          <span className="text-xs sm:text-sm font-bold text-[#64748b]">Filtered Credits</span>
-          <div className="text-2xl sm:text-3xl font-extrabold text-[#12345b] tracking-tight mt-1.5">
+        <div className="bg-white border border-[#dde7f0] rounded-xl px-4 py-3 shadow-xs">
+          <span className="text-xs font-semibold text-[#64748b]">Filtered Credits</span>
+          <div className="text-lg sm:text-xl font-bold text-[#12345b] tracking-tight mt-0.5">
             {formatMoney(totalCredits)}
           </div>
         </div>

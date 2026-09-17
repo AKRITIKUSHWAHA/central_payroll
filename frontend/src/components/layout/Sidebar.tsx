@@ -1,0 +1,270 @@
+import React, { useState } from 'react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import {
+  LayoutDashboard,
+  Users,
+  DollarSign,
+  CalendarDays,
+  Contact,
+  CalendarRange,
+  FileText,
+  FileSpreadsheet,
+  ShieldCheck,
+  UserCog,
+  Settings,
+  LogOut,
+  ChevronLeft,
+  ChevronRight,
+  PieChart,
+  ClipboardList,
+  Clock,
+  X,
+  KeyRound
+} from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { ChangePasswordModal } from '../ChangePasswordModal';
+
+interface SidebarProps {
+  collapsed: boolean;
+  onToggleCollapse: () => void;
+  mobileOpen?: boolean;
+  onCloseMobile?: () => void;
+}
+
+export const Sidebar: React.FC<SidebarProps> = ({
+  collapsed,
+  onToggleCollapse,
+  mobileOpen = false,
+  onCloseMobile
+}) => {
+  const { currentUser, logout, permissions } = useAuth();
+  const navigate = useNavigate();
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+
+  const handleLogout = () => {
+    if (onCloseMobile) onCloseMobile();
+    logout();
+    navigate('/login');
+  };
+
+  const handleNavClick = () => {
+    if (onCloseMobile) onCloseMobile();
+  };
+
+  const getRoleLabel = (role?: string) => {
+    switch (role) {
+      case 'superadmin': return 'Super Admin';
+      case 'admin': return 'Admin';
+      case 'staff': return 'Staff';
+      default: return 'User';
+    }
+  };
+
+  const isStaff = currentUser?.role === 'staff';
+  const isSuperAdmin = currentUser?.role === 'superadmin';
+
+  const workspaceNavItems = [
+    { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, visible: isSuperAdmin && !!permissions.dashboard?.view },
+    { to: '/payroll', label: 'Payroll', icon: DollarSign, visible: isSuperAdmin && !!permissions.payroll?.view },
+    { to: '/leave', label: 'Leave Calendars', icon: CalendarDays, visible: !isStaff && !!permissions.leave?.view },
+    { to: '/contacts', label: 'Staff Contact Details', icon: Contact, visible: !isStaff && !!permissions.contacts?.view },
+    { to: '/schedules', label: 'Weekly Schedules', icon: CalendarRange, visible: true },
+    { to: '/reports', label: 'Payroll Reports', icon: FileText, visible: isSuperAdmin && !!permissions.reports?.view },
+    { to: '/payslips', label: 'Payslips', icon: PieChart, visible: isSuperAdmin && !!permissions.payslips?.view },
+  ];
+
+  const customersNavItems = [
+    { to: '/accounts', label: 'Accounts Overview', icon: LayoutDashboard, visible: !isStaff },
+    { to: '/customers', label: 'Customers & Ledgers', icon: Users, visible: !isStaff },
+    { to: '/invoices', label: 'Create Invoice', icon: FileSpreadsheet, visible: !isStaff },
+    { to: '/payments', label: 'Record Payment', icon: DollarSign, visible: !isStaff },
+    { to: '/aging', label: 'A/R Aging', icon: CalendarDays, visible: !isStaff },
+    { to: '/ledger', label: 'General Ledger', icon: FileText, visible: !isStaff },
+    { to: '/employees', label: 'Employee Records', icon: Users, visible: isSuperAdmin && !!permissions.employees?.view },
+    { to: '/permissions', label: 'Permissions', icon: ShieldCheck, visible: isSuperAdmin && !!permissions.permissions?.view },
+    { to: '/users', label: 'User Accounts', icon: UserCog, visible: isSuperAdmin && !!permissions.userAccounts?.view },
+    { to: '/settings', label: 'Settings', icon: Settings, visible: !isStaff && !!permissions.settings?.view },
+  ];
+
+  return (
+    <>
+      {/* Mobile Backdrop Overlay */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-40 md:hidden transition-opacity"
+          onClick={onCloseMobile}
+          aria-hidden="true"
+        />
+      )}
+
+      <aside
+        className={`sidebar-container bg-white border-r border-[#dde6ee] flex flex-col justify-between transition-transform md:transition-all duration-300 z-50 md:z-30 h-screen fixed top-0 left-0 overflow-hidden flex-shrink-0 ${
+          /* Mobile layout positioning */
+          mobileOpen
+            ? 'w-[260px] p-4 translate-x-0 shadow-2xl md:shadow-none'
+            : '-translate-x-full md:translate-x-0'
+        } ${
+          /* Desktop collapsed sizing */
+          collapsed ? 'md:w-[72px] md:p-3' : 'md:w-[250px] md:p-4'
+        }`}
+      >
+        {/* Mobile Close Button */}
+        <button
+          onClick={onCloseMobile}
+          className="md:hidden absolute right-3 top-4 text-[#607286] hover:text-[#12345b] p-1.5 rounded-lg bg-[#f4f7fb]"
+          aria-label="Close sidebar"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        {/* Desktop Collapse Toggle Button */}
+        <button
+          onClick={onToggleCollapse}
+          className="hidden md:flex absolute -right-3 top-6 bg-white border border-[#c9d7e6] text-[#456078] hover:text-[#12345b] p-1 rounded-full shadow-sm z-40 transition-transform hover:scale-105"
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+        </button>
+
+        {/* Brand Header (Fixed at top) */}
+        <div className={`flex-shrink-0 flex items-center gap-2.5 pb-4 mb-2 border-b border-[#f0f4f8] ${collapsed ? 'md:justify-center' : 'px-1'}`}>
+          <div className="w-7 h-7 rounded-full bg-[#0b7895] text-white flex items-center justify-center font-black text-xs shadow-sm flex-shrink-0">
+            ▶
+          </div>
+          {(!collapsed || mobileOpen) && (
+            <span className="font-extrabold text-[#25384b] text-lg tracking-tight">
+              Central Dispatch
+            </span>
+          )}
+        </div>
+
+        {/* Middle Navigation Links (Scrolls internally) */}
+        <div className="flex-1 overflow-y-auto min-h-0 space-y-4 pr-1">
+          {/* WORKSPACE Category */}
+          <div>
+            {(!collapsed || mobileOpen) && (
+              <div className="text-[11px] font-extrabold tracking-wider text-[#8292a3] uppercase px-3 py-1.5 mb-1">
+                WORKSPACE
+              </div>
+            )}
+            <nav className="space-y-0.5">
+              {workspaceNavItems.filter(item => item.visible).map(item => {
+                const Icon = item.icon;
+                return (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    onClick={handleNavClick}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold text-sm transition-all ${
+                        isActive
+                          ? 'bg-[#e6e8ea] text-[#20262d] font-bold shadow-sm'
+                          : 'text-[#4b5563] hover:bg-[#f0f4f7] hover:text-[#12345b]'
+                      } ${collapsed && !mobileOpen ? 'md:justify-center md:px-0' : ''}`
+                    }
+                    title={collapsed && !mobileOpen ? item.label : undefined}
+                  >
+                    <Icon className="w-4 h-4 flex-shrink-0 text-[#2f6fb3]" />
+                    {(!collapsed || mobileOpen) && <span className="truncate">{item.label}</span>}
+                  </NavLink>
+                );
+              })}
+            </nav>
+          </div>
+
+          {/* CUSTOMERS & ACCOUNTS Category */}
+          {customersNavItems.some(i => i.visible) && (
+            <div>
+              {(!collapsed || mobileOpen) && (
+                <div className="text-[11px] font-extrabold tracking-wider text-[#8292a3] uppercase px-3 py-1.5 mb-1">
+                  CUSTOMERS &amp; ACCOUNTS
+                </div>
+              )}
+              <nav className="space-y-0.5">
+                {customersNavItems.filter(item => item.visible).map(item => {
+                  const Icon = item.icon;
+                  return (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      onClick={handleNavClick}
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold text-sm transition-all ${
+                          isActive
+                            ? 'bg-[#e6e8ea] text-[#20262d] font-bold shadow-sm'
+                            : 'text-[#4b5563] hover:bg-[#f0f4f7] hover:text-[#12345b]'
+                        } ${collapsed && !mobileOpen ? 'md:justify-center md:px-0' : ''}`
+                      }
+                      title={collapsed && !mobileOpen ? item.label : undefined}
+                    >
+                      <Icon className="w-4 h-4 flex-shrink-0 text-[#2f6fb3]" />
+                      {(!collapsed || mobileOpen) && <span className="truncate">{item.label}</span>}
+                    </NavLink>
+                  );
+                })}
+              </nav>
+            </div>
+          )}
+        </div>
+
+        {/* User Chip Section (Fixed at bottom) */}
+        <div className={`flex-shrink-0 border-t border-[#d7e2ec] pt-3 ${collapsed && !mobileOpen ? 'md:text-center' : 'px-1'}`}>
+          {!collapsed || mobileOpen ? (
+            <div className="space-y-2">
+              <div>
+                <div className="font-extrabold text-[#12345b] text-sm truncate">
+                  {currentUser?.displayName || currentUser?.username || 'Not signed in'}
+                </div>
+                <div className="text-xs font-semibold text-[#607286]">
+                  {getRoleLabel(currentUser?.role)}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setIsChangePasswordOpen(true)}
+                  className="w-full flex items-center justify-center gap-2 py-1.5 px-3 bg-[#edf5fb] hover:bg-[#deecf8] text-[#2f6fb3] font-bold text-xs rounded-xl transition-all border border-[#d2e4f3]"
+                >
+                  <KeyRound className="w-3.5 h-3.5" />
+                  <span>Change Password</span>
+                </button>
+
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center justify-center gap-2 py-1.5 px-3 bg-white border border-[#d7e2ec] hover:bg-[#fff0f0] hover:border-red-300 text-[#607286] hover:text-red-700 font-bold text-xs rounded-xl transition-all shadow-sm"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>Sign Out</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-1.5 flex flex-col items-center">
+              <button
+                type="button"
+                onClick={() => setIsChangePasswordOpen(true)}
+                className="w-full p-2 bg-[#edf5fb] hover:bg-[#deecf8] text-[#2f6fb3] rounded-xl flex items-center justify-center transition-all"
+                title="Change Password"
+              >
+                <KeyRound className="w-4 h-4" />
+              </button>
+              <button
+                onClick={handleLogout}
+                className="w-full p-2 bg-white border border-[#d7e2ec] hover:bg-[#fff0f0] hover:text-red-700 text-[#607286] rounded-xl flex items-center justify-center transition-all"
+                title="Sign Out"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+        </div>
+      </aside>
+
+      <ChangePasswordModal
+        isOpen={isChangePasswordOpen}
+        onClose={() => setIsChangePasswordOpen(false)}
+      />
+    </>
+  );
+};

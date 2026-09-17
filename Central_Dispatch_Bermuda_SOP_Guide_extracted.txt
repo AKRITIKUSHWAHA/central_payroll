@@ -1,0 +1,162 @@
+﻿CENTRAL DISPATCH LIMITED / BERMUDA ISLAND TAXI
+
+Software Navigation & Standard Operating Procedure (SOP)
+
+
+
+Document Version: 1.0 (Live Operations)
+
+System Name: Central Dispatch Management System
+
+Target Audience: Owners, Operations Supervisors & Dispatchers
+
+Last Updated: September 2026
+
+
+
+
+1. Business Context & Role-Based Access
+
+This software serves as the single centralized system for Central Dispatch Limited and Bermuda Island Taxi. To ensure data safety and smooth operations, access is strictly managed using Role-Based Access Control:
+
+
+Super Admin / Owner: Full access to all system modules, including sensitive financial management (Payroll approval, Accounts Overview, Overdue/A/R Aging, and Customer Ledgers).
+
+
+Operations Supervisor / Admin: Manages day-to-day operations, including staff duty schedules, leave/sick status updates, customer profiling, invoice creation, and payment recording.
+
+
+Staff / Dispatchers: Restricted operational access limited to viewing personal and assigned work schedules, duty shifts, weekly calendar, off-days, and operational notes.
+
+
+2. Daily Operations Workflow
+
+2.1 Shift & Attendance Check
+
+Every operational day begins with verifying staff availability and duty shifts:
+
+Step 1: Open the 'Weekly Schedules' section from the main navigation menu.
+
+Step 2: Review the assigned duty shifts for the day (e.g., Ali, Alesia, Ty).
+
+Step 3: If an employee is unavailable (e.g., calling in sick), click on their schedule block and update their status to 'Sick' or 'On Leave'.
+
+Step 4: Save the updated schedule. The change reflects immediately across the dispatch environment as the live operational reference.
+
+2.2 Customer Payments & Invoicing
+
+To process corporate client billing and individual driver/trip payment entries:
+
+Step 1: Recording Customer Payments: Go to 'Payments' > Click 'Record Payment' > Select the customer/account name > Enter payment amount, payment method, and reference notes > Click Save.
+
+Step 2: Creating Corporate Invoices: Go to 'Invoices' > Click 'Create Invoice' > Select or add the client profile > Add line items (trip details, fixed fees) > Click Generate Invoice.
+
+Step 3: System Tracking: Paid and outstanding balances update dynamically to ensure accurate financial reporting.
+
+
+3. Weekly Payroll & Rota Cycle (Thursday – Wednesday)
+
+The official weekly business cycle runs from Thursday morning through Wednesday evening.
+
+3.1 Wednesday Evening / Thursday Morning – Payroll Approval
+
+(Restricted to Super Admin / Owner)
+
+Step 1: Navigate to the 'Payroll' module from the primary menu.
+
+Step 2: Select the active Thursday–Wednesday payroll period.
+
+Step 3: The system auto-calculates logged hours for all staff based on their pre-configured hourly rates (e.g., $20, $18, $16.50).
+
+Step 4: Add Adjustments: Enter any special Allowances (e.g., overtime, performance bonus) or Deductions (e.g., advance repayments, loans).
+
+Step 5: Review final net payable amounts and click 'Approve & Mark Paid'. Once approved, records become permanent payroll logs.
+
+3.2 Payslip Generation & Distribution
+
+1. Open the 'Payslips' module.2. Select the completed payroll period.3. Click 'Print' to produce paper copies for physical filing OR click 'Email Payslips' to deliver digital slips directly to staff email addresses.
+
+3.3 Preparing Next Week's Rota / Schedule
+
+1. Operations Supervisor opens 'Weekly Schedules'.2. Select the upcoming Monday–Sunday roster frame.3. Assign staff shifts, off days, and operational duties.4. Review and click 'Publish Schedule'.5. (Optional) Use 'Export to Excel' to print a physical schedule for dispatch office noticeboards.
+
+
+4. Monthly Financials & Overdue Accounts Review
+
+4.1 Accounts Overview
+
+The Owner opens the 'Accounts Overview' dashboard to inspect total outstanding receivables, current open invoices, and key financial summaries (e.g., reviewing overdue targets like $6,660.64).
+
+4.2 Accounts Receivable (A/R) Aging Analysis
+
+Open 'A/R Aging' to analyze client payment delays grouped by duration:• Current (0–30 Days)• Overdue (31–60 Days)• Critical Overdue (61–90+ Days)This enables clear prioritization for client collection calls.
+
+4.3 Customer Statements & Ledgers
+
+Navigate to 'Customers & Ledgers', select a client profile to view their full transaction ledger, and click 'Send Statement' to automatically email an itemized bill statement to the client.
+
+
+5. Core Modules Reference Table
+
+Module Name
+
+Primary Purpose & Operational Actions
+
+Access Level
+
+Weekly Schedules
+
+Manage daily duty shifts, staff leave status, and publish upcoming weekly rotas.
+
+Admin / Supervisor
+
+Employees
+
+Manage employee profiles, contact details, hourly pay rates, and employment roles.
+
+Admin / Super Admin
+
+Payroll
+
+Automated weekly hours calculation, additions/deductions, and payroll approval.
+
+Super Admin Only
+
+Payslips
+
+View, print, and send individual employee payslips post-approval.
+
+Admin / Super Admin
+
+Customers & Ledgers
+
+Client record management, account ledgers review, and statement delivery.
+
+Admin / Super Admin
+
+Invoices & Payments
+
+Generate corporate client bills and log received payments against open invoices.
+
+Admin / Super Admin
+
+A/R Aging & Accounts
+
+Track total open receivables, overdue aging brackets (30/60/90+ days), and overview metrics.
+
+Super Admin Only
+
+
+6. Key Operational Rules & Guidelines
+
+
+Fixed Payroll Cycle: The payroll cycle strictly spans Thursday through Wednesday. Final approvals should be completed every Thursday morning.
+
+
+Strict Role Separation: Dispatch staff must never be given access to payroll or accounts modules. Access remains restricted to shift calendars.
+
+
+Persistent Data Safety: All live operational data is directly stored in the production server database. Server reboots or system updates will NOT reset or wipe live records.
+
+
+Linked Financials: All invoices and payments must remain properly attached to specific customer profiles to maintain accurate ledger balances.

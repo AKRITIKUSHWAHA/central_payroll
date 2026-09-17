@@ -220,7 +220,6 @@ CREATE TABLE IF NOT EXISTS app_settings (
 1. **Restored Full 11-Column Payroll Layout (`/payroll`)**:
    - Reverted simplified view to the client's mandatory 11-column structure: `Employee`, `Regular Rate`, `Regular Hours`, `Regular Pay`, `Holiday Rate`, `Holiday Hours`, `Holiday Pay`, `Other Pay`, `Deductions`, `Total Hours`, `Gross Pay`, `Net Pay`.
    - Connected live automatic calculation: $\text{Regular Pay} = \text{Regular Rate} \times \text{Regular Hours}$, $\text{Holiday Pay} = \text{Holiday Rate} \times \text{Holiday Hours}$, $\text{Gross Pay} = \text{Regular Pay} + \text{Holiday Pay} + \text{Other Pay}$, $\text{Net Pay} = \text{Gross Pay} - \text{Deductions}$.
-   - Connected live automatic calculation: $\text{Regular Pay} = \text{Regular Rate} \times \text{Regular Hours}$, $\text{Holiday Pay} = \text{Holiday Rate} \times \text{Holiday Hours}$, $\text{Gross Pay} = \text{Regular Pay} + \text{Holiday Pay} + \text{Other Pay}$, $\text{Net Pay} = \text{Gross Pay} - \text{Deductions}$.
 2. **Weekly Schedules Shift & Hours Direct Entry (`/schedules`)**:
    - Eliminated static/fixed placeholder dropdowns; enabled direct plain number (`8`, `6.5`, `10`), shift timing (`8am-4pm`, `8-4`), and status (`OFF`, `Sick`) typing.
    - Connected real-time auto-calculation for `Weekly Hours` per employee and `TOTAL SCHEDULED HOURS` across the entire team.

@@ -106,19 +106,42 @@ export const InvoicesView: React.FC = () => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'BMD' }).format(Number(val) || 0);
   };
 
-  const handleSaveInvoice = (status: 'Owing' | 'Paid' = 'Owing') => {
-    if (typeof status === 'object' && status !== null && 'preventDefault' in status) {
-      (status as any).preventDefault();
-      status = 'Owing';
+  const handleCustomerSelect = (id: string) => {
+    setSelectedCustomerId(id);
+    if (!id) {
+      setCustomerEmail('');
+      return;
     }
+    const cust = accountingService.getCustomerById(id);
+    if (cust) {
+      if (cust.email) setCustomerEmail(cust.email);
+      if (cust.terms) setTerms(cust.terms);
+      if (!invoiceNumber) {
+        setInvoiceNumber(`INV-${Date.now().toString().slice(-5)}`);
+      }
+      const daysMap: Record<string, number> = {
+        'Due on receipt': 0,
+        'Net 7': 7,
+        'Net 15': 15,
+        'Net 30': 30,
+        'Net 60': 60,
+      };
+      const days = daysMap[cust.terms || terms] ?? 30;
+      const d = new Date(invoiceDate || new Date().toISOString().slice(0, 10));
+      d.setDate(d.getDate() + days);
+      setDueDate(d.toISOString().slice(0, 10));
+    }
+  };
+
+  const createInvoiceObject = (status: 'Owing' | 'Paid' = 'Owing'): Invoice | null => {
     if (!selectedCustomerId) {
       alert('Please select a customer first.');
-      return;
+      return null;
     }
     const invNum = invoiceNumber.trim() || `INV-${Date.now().toString().slice(-5)}`;
     const cust = accountingService.getCustomerById(selectedCustomerId);
 
-    const invoice: Invoice = {
+    return {
       id: `inv_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
       customerId: selectedCustomerId,
       customerName: cust?.name || 'Customer',
@@ -135,10 +158,29 @@ export const InvoicesView: React.FC = () => {
       status,
       createdAt: new Date().toISOString(),
     };
+  };
+
+  const handleSaveInvoice = (status: 'Owing' | 'Paid' = 'Owing') => {
+    if (typeof status === 'object' && status !== null && 'preventDefault' in status) {
+      (status as any).preventDefault();
+      status = 'Owing';
+    }
+    const invoice = createInvoiceObject(status);
+    if (!invoice) return;
 
     accountingService.saveInvoice(invoice);
-    showToast(`Invoice ${invNum} saved successfully.`);
+    showToast(`Invoice ${invoice.number} saved successfully.`);
     setPreviewInvoice(invoice);
+  };
+
+  const handleSaveAndEmail = (e?: React.MouseEvent) => {
+    if (e) e.preventDefault();
+    const invoice = createInvoiceObject('Owing');
+    if (!invoice) return;
+
+    accountingService.saveInvoice(invoice);
+    showToast(`Invoice ${invoice.number} saved! Opening email modal...`);
+    handleOpenEmailModal(invoice);
   };
 
   const handleDeleteInvoice = (id: string) => {
@@ -149,7 +191,7 @@ export const InvoicesView: React.FC = () => {
 
   const handleOpenEmailModal = (inv: Invoice) => {
     const cust = accountingService.getCustomerById(inv.customerId);
-    const targetEmail = cust?.email || inv.customerEmail || '';
+    const targetEmail = customerEmail.trim() || inv.customerEmail || cust?.email || '';
     const payUrl = company.paymentLink || 'https://ridebermuda-prod.web.app/paylink';
     const isPaid = inv.status === 'Paid';
     const lines = inv.items.map((it, idx) => `${idx + 1}. ${it.service} - ${it.description} | Qty ${it.quantity} @ ${formatMoney(it.rate)} = ${formatMoney(it.amount)}`).join('\n');
@@ -225,12 +267,7 @@ export const InvoicesView: React.FC = () => {
               <select
                 required
                 value={selectedCustomerId}
-                onChange={e => {
-                  const val = e.target.value;
-                  setSelectedCustomerId(val);
-                  const cust = accountingService.getCustomerById(val);
-                  if (cust?.email) setCustomerEmail(cust.email);
-                }}
+                onChange={e => handleCustomerSelect(e.target.value)}
                 className="w-full px-3 py-2.5 bg-white border border-[#bdcbd9] rounded-xl text-xs font-bold text-[#1c2b3a]"
               >
                 <option value="">Select customer</option>
@@ -421,12 +458,32 @@ export const InvoicesView: React.FC = () => {
                 {formatMoney(totalAmount)}
               </strong>
             </div>
-            <button
-              type="submit"
-              className="px-6 py-2.5 bg-[#2f6fb3] hover:bg-[#235891] text-white text-xs font-black rounded-xl shadow-sm transition-all"
-            >
-              Save &amp; Preview Invoice
-            </button>
+
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <button
+                type="button"
+                onClick={handleSaveAndEmail}
+                className="px-5 py-2.5 bg-[#0284c7] hover:bg-[#0369a1] text-white text-xs font-black rounded-xl shadow-sm flex items-center gap-1.5 transition-all cursor-pointer hover:shadow-md active:scale-95"
+              >
+                <Mail className="w-4 h-4" />
+                <span>Save &amp; Email to Customer</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleSaveInvoice('Paid')}
+                className="px-4 py-2.5 bg-[#16a34a] hover:bg-[#15803d] text-white text-xs font-black rounded-xl shadow-sm transition-all cursor-pointer"
+              >
+                Save as Paid
+              </button>
+
+              <button
+                type="submit"
+                className="px-5 py-2.5 bg-[#2f6fb3] hover:bg-[#235891] text-white text-xs font-black rounded-xl shadow-sm transition-all cursor-pointer"
+              >
+                Save &amp; Preview Invoice
+              </button>
+            </div>
           </div>
         </form>
       </div>
@@ -494,16 +551,26 @@ export const InvoicesView: React.FC = () => {
                       {formatMoney(inv.balance || inv.amount)}
                     </td>
 
-                    {/* 3-Dot Actions Menu */}
+                    {/* Quick Action Buttons */}
                     <td className="py-3 px-2.5 text-center whitespace-nowrap relative invoice-action-menu" onClick={e => e.stopPropagation()}>
-                      <button
-                        type="button"
-                        onClick={() => setActiveMenuId(activeMenuId === inv.id ? null : inv.id)}
-                        className="p-1.5 rounded-lg border border-[#cbd5e1] bg-white hover:bg-[#f1f5f9] text-[#1e293b] hover:text-[#1d4ed8] transition-all shadow-2xs inline-flex items-center justify-center cursor-pointer"
-                        title="Invoice Actions"
-                      >
-                        <MoreVertical className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEmailModal(inv)}
+                          className="p-1.5 rounded-lg border border-[#bae6fd] bg-[#f0f9ff] hover:bg-[#e0f2fe] text-[#0284c7] transition-all shadow-2xs inline-flex items-center justify-center cursor-pointer"
+                          title="Send Invoice Email"
+                        >
+                          <Mail className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setActiveMenuId(activeMenuId === inv.id ? null : inv.id)}
+                          className="p-1.5 rounded-lg border border-[#cbd5e1] bg-white hover:bg-[#f1f5f9] text-[#1e293b] hover:text-[#1d4ed8] transition-all shadow-2xs inline-flex items-center justify-center cursor-pointer"
+                          title="Invoice Actions"
+                        >
+                          <MoreVertical className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
 
                       {/* Dropdown Menu */}
                       {activeMenuId === inv.id && (

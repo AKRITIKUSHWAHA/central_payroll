@@ -159,6 +159,7 @@ export interface Customer {
   billingAddress?: string;
   shippingAddress?: string;
   status: 'Active' | 'Inactive';
+  terms?: string;
   notes?: string;
   aliases?: string[];
   balance?: number;

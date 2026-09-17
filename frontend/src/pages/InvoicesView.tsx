@@ -54,6 +54,17 @@ export const InvoicesView: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    if (previewInvoice || emailModalInvoice) {
+      document.body.classList.add('modal-open');
+      document.documentElement.classList.add('modal-open');
+      return () => {
+        document.body.classList.remove('modal-open');
+        document.documentElement.classList.remove('modal-open');
+      };
+    }
+  }, [previewInvoice, emailModalInvoice]);
+
+  useEffect(() => {
     const daysMap: Record<string, number> = {
       'Due on receipt': 0,
       'Net 7': 7,
@@ -197,8 +208,8 @@ export const InvoicesView: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-white border border-[#dde7f0] rounded-2xl shadow-cdCard overflow-hidden">
+      {/* Header & Invoice Form */}
+      <div className="invoice-form-section no-print bg-white border border-[#dde7f0] rounded-2xl shadow-cdCard overflow-hidden">
         <div className="px-6 py-5 bg-[#edf4fa] border-b border-[#d9e4ee]">
           <h1 className="text-2xl font-black text-[#12345b] tracking-tight">
             Create Customer Invoice
@@ -420,7 +431,7 @@ export const InvoicesView: React.FC = () => {
       </div>
 
       {/* Invoice History */}
-      <div className="bg-white border border-[#dde7f0] rounded-2xl shadow-cdCard overflow-hidden w-full max-w-full">
+      <div className="invoice-history-section no-print bg-white border border-[#dde7f0] rounded-2xl shadow-cdCard overflow-hidden w-full max-w-full">
         <div className="p-4 sm:px-6 sm:py-5 bg-[#edf4fa] border-b border-[#d9e4ee] flex flex-col xs:flex-row xs:items-center justify-between gap-2">
           <h2 className="text-base font-extrabold text-[#12345b]">Saved Invoices</h2>
           <span className="text-xs font-bold text-[#607286] bg-white px-3 py-1 rounded-lg border border-[#cbd5e1] self-start xs:self-auto">
@@ -546,37 +557,40 @@ export const InvoicesView: React.FC = () => {
 
       {/* Invoice Preview Modal */}
       {previewInvoice && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-[#d7e2ec]">
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto overscroll-contain invoice-modal-overlay">
+          <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[88vh] overflow-y-auto overscroll-contain my-auto shadow-2xl border border-[#d7e2ec] modal-dialog-container invoice-modal-container">
             <div className="px-6 py-4 bg-[#12345b] text-white flex items-center justify-between no-print">
               <h2 className="text-lg font-black tracking-tight">Customer Invoice Preview</h2>
               <div className="flex items-center gap-2">
                 <button
+                  type="button"
                   onClick={() => handleOpenEmailModal(previewInvoice)}
-                  className="px-3 py-1.5 bg-[#2f6fb3] hover:bg-[#235891] text-white text-xs font-black rounded-lg flex items-center gap-1"
+                  className="px-3 py-1.5 bg-[#2f6fb3] hover:bg-[#235891] text-white text-xs font-black rounded-lg flex items-center gap-1 cursor-pointer"
                 >
                   <Mail className="w-3.5 h-3.5" />
                   <span>Email</span>
                 </button>
                 <button
+                  type="button"
                   onClick={handlePrint}
-                  className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-black rounded-lg flex items-center gap-1"
+                  className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-black rounded-lg flex items-center gap-1 cursor-pointer"
                 >
                   <Printer className="w-3.5 h-3.5" />
                   <span>Print</span>
                 </button>
                 <button
+                  type="button"
                   onClick={() => setPreviewInvoice(null)}
-                  className="p-1 text-white/70 hover:text-white"
+                  className="p-1 text-white/70 hover:text-white cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
 
-            <div className="p-8 space-y-6">
+            <div id="invoice-print-area" className="invoice-print-area p-6 sm:p-8 space-y-4 bg-white">
               {/* Header */}
-              <div className="flex justify-between items-start border-b border-[#e1e9f0] pb-6">
+              <div className="flex justify-between items-start border-b border-[#e1e9f0] pb-4">
                 <div>
                   <h3 className="text-2xl font-black text-[#12345b] tracking-tight">
                     {company.organizationName || 'Central Dispatch Limited'}
@@ -600,7 +614,7 @@ export const InvoicesView: React.FC = () => {
               </div>
 
               {/* Billed To & Dates */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-[#f8fbfd] p-4 rounded-xl border border-[#e1e9f0] text-xs">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-[#f8fbfd] p-3.5 rounded-xl border border-[#e1e9f0] text-xs">
                 <div>
                   <span className="text-[10px] uppercase font-bold text-[#607286] block">Billed To</span>
                   <strong className="text-[#12345b] font-black">{previewInvoice.customerName}</strong>
@@ -621,26 +635,26 @@ export const InvoicesView: React.FC = () => {
 
               {/* Items */}
               <div className="overflow-x-auto w-full min-w-0">
-                <table className="w-full text-left text-xs border-collapse min-w-[500px]">
+                <table className="w-full text-left text-xs border-collapse min-w-[480px]">
                   <thead>
                     <tr className="border-b border-[#bdcbd9] text-[#456078]">
-                      <th className="py-2">#</th>
-                      <th className="py-2">Product or Service</th>
-                      <th className="py-2">Description</th>
-                      <th className="py-2 text-right">Qty</th>
-                      <th className="py-2 text-right">Rate</th>
-                      <th className="py-2 text-right">Amount</th>
+                      <th className="py-2 px-1">#</th>
+                      <th className="py-2 px-1">Product or Service</th>
+                      <th className="py-2 px-1">Description</th>
+                      <th className="py-2 px-1 text-right">Qty</th>
+                      <th className="py-2 px-1 text-right">Rate</th>
+                      <th className="py-2 px-1 text-right">Amount</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#e5ebf1]">
                     {previewInvoice.items.map((item, n) => (
                       <tr key={n}>
-                        <td className="py-2.5 font-bold">{n + 1}</td>
-                        <td className="py-2.5 font-extrabold text-[#12345b]">{item.service}</td>
-                        <td className="py-2.5 text-[#607286]">{item.description}</td>
-                        <td className="py-2.5 text-right font-semibold">{item.quantity}</td>
-                        <td className="py-2.5 text-right font-semibold">{formatMoney(item.rate)}</td>
-                        <td className="py-2.5 text-right font-black text-[#12345b]">{formatMoney(item.amount)}</td>
+                        <td className="py-2 px-1 font-bold">{n + 1}</td>
+                        <td className="py-2 px-1 font-extrabold text-[#12345b]">{item.service}</td>
+                        <td className="py-2 px-1 text-[#607286]">{item.description}</td>
+                        <td className="py-2 px-1 text-right font-semibold">{item.quantity}</td>
+                        <td className="py-2 px-1 text-right font-semibold">{formatMoney(item.rate)}</td>
+                        <td className="py-2 px-1 text-right font-black text-[#12345b]">{formatMoney(item.amount)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -648,7 +662,7 @@ export const InvoicesView: React.FC = () => {
               </div>
 
               {/* Totals */}
-              <div className="w-full sm:w-72 sm:ml-auto space-y-1.5 border-t-2 border-[#12345b] pt-3 text-xs">
+              <div className="w-full sm:w-72 sm:ml-auto space-y-1.5 border-t-2 border-[#12345b] pt-3 text-xs avoid-break">
                 <div className="flex justify-between">
                   <span className="font-bold text-[#607286]">Invoice Total:</span>
                   <strong className="font-black text-[#12345b]">{formatMoney(previewInvoice.amount)}</strong>
@@ -664,9 +678,9 @@ export const InvoicesView: React.FC = () => {
               </div>
 
               {/* Payment Link Card */}
-              <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between gap-3">
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between gap-3 avoid-break">
                 <div>
-                  <span className="text-[11px] font-bold text-emerald-800 block">Online Payment Link</span>
+                  <span className="text-[10px] font-bold text-emerald-800 block uppercase">Online Payment Link</span>
                   <a
                     href={emailPayLink}
                     target="_blank"
@@ -674,7 +688,7 @@ export const InvoicesView: React.FC = () => {
                     className="text-xs font-bold text-emerald-700 hover:underline flex items-center gap-1"
                   >
                     <span>{emailPayLink}</span>
-                    <ExternalLink className="w-3 h-3" />
+                    <ExternalLink className="w-3 h-3 no-print" />
                   </a>
                 </div>
                 <button
@@ -683,7 +697,7 @@ export const InvoicesView: React.FC = () => {
                     navigator.clipboard.writeText(emailPayLink);
                     showToast('Payment link copied to clipboard!');
                   }}
-                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer"
+                  className="no-print px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
                   <Copy className="w-3.5 h-3.5" />
                   <span>Copy Pay Link</span>
@@ -691,7 +705,7 @@ export const InvoicesView: React.FC = () => {
               </div>
 
               {previewInvoice.memo && (
-                <div className="p-3 bg-[#f8fbfd] border border-[#dce6ef] rounded-xl text-xs text-[#607286]">
+                <div className="p-3 bg-[#f8fbfd] border border-[#dce6ef] rounded-xl text-xs text-[#607286] avoid-break">
                   <strong>Message / Memo:</strong> {previewInvoice.memo}
                 </div>
               )}
@@ -702,8 +716,8 @@ export const InvoicesView: React.FC = () => {
 
       {/* Customer Invoice Email Modal */}
       {emailModalInvoice && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-[#d7e2ec] animate-fadeIn">
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto overscroll-contain no-print">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[88vh] overflow-y-auto overscroll-contain my-auto shadow-2xl border border-[#d7e2ec] modal-dialog-container animate-fadeIn">
             <div className="px-6 py-4 bg-[#12345b] text-white flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Mail className="w-5 h-5 text-[#3b82f6]" />

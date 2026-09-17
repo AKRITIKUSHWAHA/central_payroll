@@ -68,7 +68,7 @@ export const PayslipsView: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="no-print flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-extrabold text-[#12345b] tracking-tight">
             Payslips Generator
@@ -80,7 +80,7 @@ export const PayslipsView: React.FC = () => {
       </div>
 
       {/* Control Panel */}
-      <div className="bg-white border border-[#dde7f0] rounded-2xl p-6 shadow-cdCard space-y-4">
+      <div className="no-print bg-white border border-[#dde7f0] rounded-2xl p-6 shadow-cdCard space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
           <div>
             <label className="block text-xs font-bold text-[#38516b] uppercase tracking-wider mb-1.5">
@@ -118,7 +118,7 @@ export const PayslipsView: React.FC = () => {
       </div>
 
       {/* Official Central Dispatch Payslip Preview Card */}
-      <div className="bg-white border border-[#c8d7e5] rounded-2xl p-8 shadow-cdModal max-w-3xl mx-auto space-y-6 border-t-8 border-t-[#12345b]">
+      <div id="payslip-print-area" className="payslip-print-area bg-white border border-[#c8d7e5] rounded-2xl p-8 shadow-cdModal max-w-3xl mx-auto space-y-6 border-t-8 border-t-[#12345b]">
         {/* Payslip Header */}
         <div className="flex items-center justify-between border-b border-[#dde7f0] pb-6">
           <div className="flex items-center gap-3">

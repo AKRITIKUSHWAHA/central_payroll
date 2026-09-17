@@ -53,6 +53,17 @@ export const StaffContacts: React.FC = () => {
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    if (showAddModal || viewModalStaff || editModalStaff || deleteTargetStaff) {
+      document.body.classList.add('modal-open');
+      document.documentElement.classList.add('modal-open');
+      return () => {
+        document.body.classList.remove('modal-open');
+        document.documentElement.classList.remove('modal-open');
+      };
+    }
+  }, [showAddModal, viewModalStaff, editModalStaff, deleteTargetStaff]);
+
   const [newStaffForm, setNewStaffForm] = useState({
     firstName: '',
     middleInitial: '',

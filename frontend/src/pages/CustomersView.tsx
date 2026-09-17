@@ -59,10 +59,11 @@ export const CustomersView: React.FC = () => {
   // Lock body background scroll whenever modal is open
   useEffect(() => {
     if (isModalOpen || deleteTarget) {
-      const prevOverflow = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
+      document.body.classList.add('modal-open');
+      document.documentElement.classList.add('modal-open');
       return () => {
-        document.body.style.overflow = prevOverflow;
+        document.body.classList.remove('modal-open');
+        document.documentElement.classList.remove('modal-open');
       };
     }
   }, [isModalOpen, deleteTarget]);
@@ -650,8 +651,8 @@ export const CustomersView: React.FC = () => {
 
       {/* Add / Edit Customer Modal */}
       {isModalOpen && editingCustomer && (
-        <div className="fixed inset-0 bg-[#0b1d31]/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-[#d7e2ec] rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto animate-fadeIn">
+        <div className="fixed inset-0 bg-[#0b1d31]/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto overscroll-contain">
+          <div className="bg-white border border-[#d7e2ec] rounded-2xl max-w-lg w-full p-5 sm:p-6 shadow-2xl space-y-4 max-h-[88vh] overflow-y-auto overscroll-contain modal-dialog-container my-auto animate-fadeIn">
             <div className="flex items-center justify-between border-b border-[#e2e8f0] pb-3">
               <h3 className="text-lg font-black text-[#12345b]">
                 {editingCustomer.id ? 'Edit Customer' : 'Add Customer'}
@@ -779,8 +780,8 @@ export const CustomersView: React.FC = () => {
 
       {/* Delete Confirmation Modal */}
       {deleteTarget && (
-        <div className="fixed inset-0 bg-[#0b1d31]/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-[#d7e2ec] rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-fadeIn">
+        <div className="fixed inset-0 bg-[#0b1d31]/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto overscroll-contain">
+          <div className="bg-white border border-[#d7e2ec] rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-4 my-auto modal-dialog-container animate-fadeIn">
             <div className="flex items-center gap-3 text-[#dc2626]">
               <div className="w-10 h-10 rounded-full bg-[#fef2f2] flex items-center justify-center flex-shrink-0">
                 <AlertCircle className="w-6 h-6" />

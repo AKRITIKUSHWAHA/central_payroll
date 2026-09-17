@@ -36,6 +36,20 @@
   }
 }
 
+/* Universal Modal Scroll Lock & Background Isolation */
+body.modal-open,
+html.modal-open {
+  overflow: hidden !important;
+  height: 100% !important;
+  touch-action: none !important;
+}
+
+.modal-dialog-container,
+.fixed.inset-0,
+[role="dialog"] {
+  overscroll-behavior: contain !important;
+}
+
 .tabular-nums {
   font-variant-numeric: tabular-nums;
 }
@@ -84,24 +98,422 @@
 }
 
 @media print {
-  body {
+  @page {
+    size: auto;
+    margin: 6mm 8mm;
+  }
+
+  @page landscape-page {
+    size: landscape;
+    margin: 6mm 8mm;
+  }
+
+  @page portrait-page {
+    size: portrait;
+    margin: 8mm 10mm;
+  }
+
+  html, body, #root {
     background: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 11px !important;
+    width: 100% !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
-  .no-print {
+
+  /* Universal Hide for surrounding chrome & UI */
+  .no-print,
+  .sidebar-container,
+  header,
+  nav,
+  .mobile-scroll-hint,
+  button,
+  .invoice-form-section,
+  .invoice-history-section,
+  .toast-container,
+  .modal-backdrop-nontarget {
     display: none !important;
   }
-  .print-only {
+
+  /* Reset layout wrappers to bypass sidebar margin and fixed sizing */
+  .app-layout,
+  .main-content,
+  main {
     display: block !important;
-  }
-  .app-layout {
-    display: block !important;
-  }
-  .sidebar-container {
-    display: none !important;
-  }
-  .main-content {
     margin: 0 !important;
     padding: 0 !important;
     max-width: 100% !important;
+    width: 100% !important;
+    overflow: visible !important;
+    position: static !important;
+    background: transparent !important;
+  }
+
+  /* ====================================================
+     1. INVOICE PRINT ISOLATION & 1-PAGE FITTING
+     ==================================================== */
+  .invoice-modal-overlay {
+    position: static !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    border: none !important;
+    z-index: auto !important;
+    display: block !important;
+  }
+
+  .invoice-modal-container {
+    max-width: 100% !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+  }
+
+  /* ====================================================
+     1. INVOICE PRINT ISOLATION (FULL-PAGE PORTRAIT)
+     ==================================================== */
+  .invoice-print-area {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 24px 28px !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: #ffffff !important;
+    page: portrait-page;
+    font-size: 13px !important;
+    line-height: 1.5 !important;
+  }
+
+  .invoice-print-area h3 {
+    font-size: 24px !important;
+    line-height: 1.2 !important;
+  }
+
+  .invoice-print-area .grid {
+    gap: 16px !important;
+    padding: 16px 20px !important;
+    margin: 18px 0 !important;
+    background-color: #f8fbfd !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 10px !important;
+  }
+
+  .invoice-print-area table {
+    width: 100% !important;
+    margin: 20px 0 !important;
+    border-collapse: collapse !important;
+  }
+
+  .invoice-print-area th {
+    font-size: 12px !important;
+    font-weight: 800 !important;
+    padding: 10px 8px !important;
+    color: #12345b !important;
+    border-bottom: 2px solid #12345b !important;
+  }
+
+  .invoice-print-area td {
+    font-size: 13px !important;
+    padding: 12px 8px !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+  }
+
+  .invoice-print-area .w-72,
+  .invoice-print-area .sm\:w-72 {
+    width: 320px !important;
+    margin-top: 18px !important;
+    padding-top: 14px !important;
+    font-size: 13px !important;
+  }
+
+  .invoice-print-area .p-3 {
+    padding: 14px 18px !important;
+    margin-top: 16px !important;
+    border-radius: 10px !important;
+  }
+
+  /* ====================================================
+     2. PAYSLIP PRINT ISOLATION (PORTRAIT FULL-PAGE)
+     ==================================================== */
+  .payslip-print-area {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    padding: 24px 28px !important;
+    box-shadow: none !important;
+    border: 1.5px solid #cbd5e1 !important;
+    border-top: 8px solid #12345b !important;
+    border-radius: 12px !important;
+    background: #ffffff !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    page: portrait-page;
+  }
+
+  .payslip-print-area .grid {
+    gap: 14px !important;
+  }
+
+  .payslip-print-area .p-4 {
+    padding: 14px 18px !important;
+  }
+
+  .payslip-print-area .p-3 {
+    padding: 10px 14px !important;
+  }
+
+  /* ====================================================
+     3. WEEKLY SCHEDULES PRINT ISOLATION
+     ==================================================== */
+  .schedule-print-area {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: none !important;
+    border-radius: 6px !important;
+    overflow: visible !important;
+    page: landscape-page;
+  }
+
+  .schedule-print-area .table-responsive-container,
+  .schedule-print-area .overflow-x-auto {
+    overflow: visible !important;
+    width: 100% !important;
+    padding: 0 !important;
+  }
+
+  .schedule-print-area table {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    table-layout: fixed !important;
+  }
+
+  .schedule-print-area th,
+  .schedule-print-area td {
+    min-width: 0 !important;
+    padding: 4px 2px !important;
+    font-size: 8.5px !important;
+  }
+
+  .schedule-print-area input {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    font-size: 8.5px !important;
+    font-weight: 700 !important;
+    text-align: center !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
+  }
+
+  /* ====================================================
+     4. PAYROLL CONSOLE TABLE PRINT RULES (FIT ALL 12 COLS)
+     ==================================================== */
+  .payroll-console-print-area {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: none !important;
+    border-radius: 6px !important;
+    overflow: visible !important;
+    page: landscape-page;
+  }
+
+  .payroll-console-print-area .overflow-x-auto,
+  .payroll-console-print-area .table-responsive-container {
+    overflow: visible !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .payroll-console-print-area table {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    table-layout: fixed !important;
+    border-collapse: collapse !important;
+  }
+
+  .payroll-console-print-area th,
+  .payroll-console-print-area td {
+    min-width: 0 !important;
+    padding: 6px 3px !important;
+    font-size: 10.5px !important;
+    line-height: 1.25 !important;
+  }
+
+  .payroll-console-print-area th {
+    font-size: 9.5px !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.02em !important;
+    padding: 7px 3px !important;
+    text-align: right !important;
+    white-space: normal !important;
+    word-break: normal !important;
+    background-color: #102a43 !important;
+    color: #ffffff !important;
+  }
+
+  .payroll-console-print-area th:first-child,
+  .payroll-console-print-area td:first-child {
+    text-align: left !important;
+    padding-left: 6px !important;
+  }
+
+  /* 12-Column Proportional Widths to guarantee 100% full-width page fit */
+  .payroll-console-print-area th:nth-child(1),
+  .payroll-console-print-area td:nth-child(1) { width: 16% !important; } /* Employee */
+  .payroll-console-print-area th:nth-child(2),
+  .payroll-console-print-area td:nth-child(2) { width: 7% !important; } /* Reg Rate */
+  .payroll-console-print-area th:nth-child(3),
+  .payroll-console-print-area td:nth-child(3) { width: 7% !important; } /* Reg Hrs */
+  .payroll-console-print-area th:nth-child(4),
+  .payroll-console-print-area td:nth-child(4) { width: 8.5% !important; } /* Reg Pay */
+  .payroll-console-print-area th:nth-child(5),
+  .payroll-console-print-area td:nth-child(5) { width: 7% !important; } /* Hol Rate */
+  .payroll-console-print-area th:nth-child(6),
+  .payroll-console-print-area td:nth-child(6) { width: 7% !important; } /* Hol Hrs */
+  .payroll-console-print-area th:nth-child(7),
+  .payroll-console-print-area td:nth-child(7) { width: 8.5% !important; } /* Hol Pay */
+  .payroll-console-print-area th:nth-child(8),
+  .payroll-console-print-area td:nth-child(8) { width: 7% !important; } /* Other Pay */
+  .payroll-console-print-area th:nth-child(9),
+  .payroll-console-print-area td:nth-child(9) { width: 7% !important; } /* Deductions */
+  .payroll-console-print-area th:nth-child(10),
+  .payroll-console-print-area td:nth-child(10) { width: 7.5% !important; } /* Total Hrs */
+  .payroll-console-print-area th:nth-child(11),
+  .payroll-console-print-area td:nth-child(11) { width: 8.5% !important; } /* Gross Pay */
+  .payroll-console-print-area th:nth-child(12),
+  .payroll-console-print-area td:nth-child(12) { width: 9% !important; } /* Net Pay */
+
+  .payroll-console-print-area input {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    min-height: 0 !important;
+    height: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    font-size: 10.5px !important;
+    font-weight: 700 !important;
+    color: #0f172a !important;
+    text-align: right !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
+  }
+
+  .payroll-console-print-area .inline-flex {
+    display: inline-flex !important;
+    width: 100% !important;
+    justify-content: flex-end !important;
+  }
+
+  /* ====================================================
+     5. PAYROLL REPORTS & AGING PRINT ISOLATION (PORTRAIT)
+     ==================================================== */
+  .payroll-report-print-area,
+  .aging-print-area {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: none !important;
+    border-radius: 8px !important;
+    overflow: visible !important;
+    page: portrait-page;
+  }
+
+  .payroll-report-print-area .table-responsive-container,
+  .aging-print-area .table-responsive-container {
+    overflow: visible !important;
+    width: 100% !important;
+    padding: 0 !important;
+  }
+
+  .payroll-report-print-area table,
+  .aging-print-area table {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  .payroll-report-print-area th,
+  .aging-print-area th {
+    background-color: #102a43 !important;
+    color: #ffffff !important;
+    font-size: 11px !important;
+    font-weight: 800 !important;
+    padding: 10px 12px !important;
+    letter-spacing: 0.03em !important;
+  }
+
+  .payroll-report-print-area td,
+  .aging-print-area td {
+    padding: 10px 12px !important;
+    font-size: 12px !important;
+    line-height: 1.4 !important;
+    color: #0f172a !important;
+  }
+
+  /* Table rules for clean multi-page flow and avoiding mid-row cuts */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    page-break-inside: auto !important;
+  }
+
+  tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  thead {
+    display: table-header-group !important;
+  }
+
+  tfoot {
+    display: table-footer-group !important;
+  }
+
+  .avoid-break {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 }

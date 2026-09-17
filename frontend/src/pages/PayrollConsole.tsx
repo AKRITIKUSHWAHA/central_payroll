@@ -536,7 +536,7 @@ export const PayrollConsole: React.FC = () => {
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
       {/* 1. Header Card (Dark Navy `#102a43`) */}
-      <div className="bg-[#102a43] text-white rounded-2xl p-6 sm:p-7 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="no-print bg-[#102a43] text-white rounded-2xl p-6 sm:p-7 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
             Central Dispatch Payroll
@@ -560,7 +560,7 @@ export const PayrollConsole: React.FC = () => {
       </div>
 
       {/* 2. Setup Panel & KPI Stats Cards */}
-      <div className="bg-white border border-[#dde7f0] rounded-2xl p-5 sm:p-6 shadow-sm space-y-5">
+      <div className="no-print bg-white border border-[#dde7f0] rounded-2xl p-5 sm:p-6 shadow-sm space-y-5">
         {/* Active Period Toolbar Banner */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-4 bg-[#f8fafc] border border-[#cbd5e1] rounded-xl">
           <div className="flex items-center gap-2.5 flex-wrap">
@@ -689,9 +689,18 @@ export const PayrollConsole: React.FC = () => {
       </div>
 
       {/* 3. Main Employee Payroll Table Card */}
-      <div className="bg-white border border-[#dde7f0] rounded-2xl shadow-sm overflow-hidden">
+      <div id="payroll-console-print-area" className="payroll-console-print-area bg-white border border-[#dde7f0] rounded-2xl shadow-sm overflow-hidden">
+        {/* Print-Only Calculation Header */}
+        <div className="hidden print:block p-4 border-b-2 border-[#12345b] text-center bg-[#f8fbfd]">
+          <h2 className="text-xl font-black text-[#12345b] tracking-tight">CENTRAL DISPATCH LIMITED</h2>
+          <h3 className="text-sm font-black text-[#1e293b] mt-0.5">PAYROLL CALCULATION &amp; SUMMARY REPORT</h3>
+          <p className="text-xs font-bold text-[#475569] mt-1">
+            Period: {formatPeriodDate(periodStart)} – {formatPeriodDate(periodEnd)} &nbsp;•&nbsp; Pay Date: {formatPeriodDate(payDate)} &nbsp;•&nbsp; Status: {status}
+          </p>
+        </div>
+
         {/* Section Head */}
-        <div className="p-4 sm:p-5 border-b border-[#e2e8f0] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div className="no-print p-4 sm:p-5 border-b border-[#e2e8f0] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
             <h2 className="text-base sm:text-lg font-extrabold text-[#12345b]">
               Employee Payroll
@@ -877,11 +886,45 @@ export const PayrollConsole: React.FC = () => {
                 );
               })}
             </tbody>
+            <tfoot>
+              <tr className="bg-[#eef6ff] border-t-2 border-[#cbd5e1] font-extrabold text-xs">
+                <td className="py-3 px-4 text-left font-black text-[#12345b]">TOTALS</td>
+                <td className="py-3 px-3 text-right text-[#64748b]">—</td>
+                <td className="py-3 px-3 text-right font-black text-[#12345b] tabular-nums">
+                  {payrollItems.reduce((s, x) => s + (Number(x.regularHours) || 0), 0).toFixed(2)}
+                </td>
+                <td className="py-3 px-3 text-right font-black text-[#12345b] tabular-nums">
+                  {money(payrollItems.reduce((s, x) => s + (Number(x.regularPay) || 0), 0))}
+                </td>
+                <td className="py-3 px-3 text-right text-[#64748b]">—</td>
+                <td className="py-3 px-3 text-right font-black text-[#12345b] tabular-nums">
+                  {payrollItems.reduce((s, x) => s + (Number(x.holidayHours) || 0), 0).toFixed(2)}
+                </td>
+                <td className="py-3 px-3 text-right font-black text-[#12345b] tabular-nums">
+                  {money(payrollItems.reduce((s, x) => s + (Number(x.holidayPay) || 0), 0))}
+                </td>
+                <td className="py-3 px-3 text-right font-black text-[#12345b] tabular-nums">
+                  {money(payrollItems.reduce((s, x) => s + (Number(x.otherPay) || 0), 0))}
+                </td>
+                <td className="py-3 px-3 text-right font-black text-[#a33b32] tabular-nums">
+                  {money(payrollItems.reduce((s, x) => s + (Number(x.deductions) || 0), 0))}
+                </td>
+                <td className="py-3 px-3 text-right font-black text-[#12345b] tabular-nums">
+                  {totals.hours.toFixed(2)} hrs
+                </td>
+                <td className="py-3 px-3 text-right font-black text-[#12345b] tabular-nums">
+                  {money(totals.gross)}
+                </td>
+                <td className="py-3 px-4 text-right font-black text-[#176b55] tabular-nums text-sm">
+                  {money(totals.net)}
+                </td>
+              </tr>
+            </tfoot>
           </table>
         </div>
 
         {/* Action Buttons Toolbar */}
-        <div className="p-4 sm:p-5 bg-white border-t border-[#e2e8f0] flex flex-wrap items-center gap-2.5">
+        <div className="no-print p-4 sm:p-5 bg-white border-t border-[#e2e8f0] flex flex-wrap items-center gap-2.5">
           <button
             type="button"
             onClick={handleSaveDraft}
@@ -947,13 +990,13 @@ export const PayrollConsole: React.FC = () => {
         </div>
 
         {/* Disclaimer Notice */}
-        <div className="px-4 sm:px-5 pb-5 text-xs font-semibold text-[#64748b] leading-relaxed">
+        <div className="no-print px-4 sm:px-5 pb-5 text-xs font-semibold text-[#64748b] leading-relaxed">
           This app stores data in this browser only. Use Backup Payroll Data regularly and keep the downloaded backup file somewhere safe. It does not calculate Bermuda payroll tax, Social Insurance, pension, or statutory deductions automatically.
         </div>
       </div>
 
       {/* 4. Payroll History Card */}
-      <div className="bg-white border border-[#dde7f0] rounded-2xl shadow-sm overflow-hidden">
+      <div className="no-print bg-white border border-[#dde7f0] rounded-2xl shadow-sm overflow-hidden">
         <div className="p-4 sm:p-5 border-b border-[#e2e8f0]">
           <h2 className="text-base font-extrabold text-[#12345b]">
             Payroll History

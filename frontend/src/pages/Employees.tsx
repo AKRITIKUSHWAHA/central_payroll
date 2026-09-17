@@ -60,6 +60,17 @@ export const Employees: React.FC = () => {
     loadData();
   }, []);
 
+  useEffect(() => {
+    if (showModal || viewModalEmployee || deleteTarget) {
+      document.body.classList.add('modal-open');
+      document.documentElement.classList.add('modal-open');
+      return () => {
+        document.body.classList.remove('modal-open');
+        document.documentElement.classList.remove('modal-open');
+      };
+    }
+  }, [showModal, viewModalEmployee, deleteTarget]);
+
   const openAddModal = () => {
     setEditingEmployee(null);
     setFormData(emptyForm);

@@ -429,7 +429,7 @@ export const WeeklySchedules: React.FC = () => {
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12 w-full max-w-full overflow-hidden">
       {/* 1. Workspace Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="no-print flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-[#12345b] tracking-tight">
             Weekly Schedules
@@ -446,9 +446,18 @@ export const WeeklySchedules: React.FC = () => {
       </div>
 
       {/* 2. Top Schedule Panel */}
-      <div className="bg-white border border-[#dde7f0] rounded-2xl shadow-sm overflow-hidden w-full max-w-full">
+      <div id="schedule-print-area" className="schedule-print-area bg-white border border-[#dde7f0] rounded-2xl shadow-sm overflow-hidden w-full max-w-full">
+        {/* Print-Only Schedule Header */}
+        <div className="hidden print:block p-4 border-b border-[#cbd5e1] text-center">
+          <h2 className="text-xl font-black text-[#12345b] tracking-tight">CENTRAL DISPATCH LIMITED</h2>
+          <h3 className="text-sm font-extrabold text-[#1e293b] mt-0.5">WEEKLY STAFF SCHEDULE</h3>
+          <p className="text-xs font-bold text-[#64748b] mt-1">
+            {weekStart ? (weekEnd ? `Period: ${formatScheduleDate(weekStart)} – ${formatScheduleDate(weekEnd)}` : `Week of ${formatScheduleDate(weekStart)}`) : 'All Staff Rota'}
+          </p>
+        </div>
+
         {/* Schedule Toolbar */}
-        <div className="p-4 sm:p-5 border-b border-[#e2e8f0] flex flex-col md:flex-row items-stretch md:items-end justify-between gap-4">
+        <div className="no-print p-4 sm:p-5 border-b border-[#e2e8f0] flex flex-col md:flex-row items-stretch md:items-end justify-between gap-4">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 flex-1">
             <div className="w-full sm:w-64">
               <label htmlFor="scheduleStart" className="block text-xs font-bold text-[#334155] mb-1.5">
@@ -616,12 +625,12 @@ export const WeeklySchedules: React.FC = () => {
         </div>
 
         {/* Yellow Notice Bar */}
-        <div className="mx-4 sm:mx-5 mb-4 p-3 bg-[#fff8c7] border border-[#eadc64] rounded-xl text-xs sm:text-sm font-bold text-[#6e5a00]">
+        <div className="no-print mx-4 sm:mx-5 mb-4 p-3 bg-[#fff8c7] border border-[#eadc64] rounded-xl text-xs sm:text-sm font-bold text-[#6e5a00]">
           Please give your best effort to be on time. If you need to change your shift, advise your supervisor first.
         </div>
 
         {/* Schedule Bottom Actions */}
-        <div className="px-4 sm:px-5 pb-5 flex items-center flex-wrap gap-2.5 sm:gap-3">
+        <div className="no-print px-4 sm:px-5 pb-5 flex items-center flex-wrap gap-2.5 sm:gap-3">
           <button
             onClick={() => window.print()}
             className="px-4 py-2 bg-white hover:bg-[#f8fafc] text-[#1e293b] border border-[#cbd5e1] text-xs font-extrabold rounded-xl transition-all shadow-xs"
@@ -638,7 +647,7 @@ export const WeeklySchedules: React.FC = () => {
       </div>
 
       {/* 3. Weekly Schedule Notes Panel */}
-      <div className="bg-white border border-[#dde7f0] rounded-2xl shadow-sm overflow-hidden p-4 sm:p-6 space-y-4 w-full max-w-full">
+      <div className="no-print bg-white border border-[#dde7f0] rounded-2xl shadow-sm overflow-hidden p-4 sm:p-6 space-y-4 w-full max-w-full">
         <div>
           <h2 className="text-base font-extrabold text-[#12345b]">
             Weekly Schedule Notes
@@ -685,7 +694,7 @@ export const WeeklySchedules: React.FC = () => {
       </div>
 
       {/* 4. Schedule History Card */}
-      <div className="bg-white border border-[#dde7f0] rounded-2xl shadow-sm overflow-hidden w-full max-w-full">
+      <div className="no-print bg-white border border-[#dde7f0] rounded-2xl shadow-sm overflow-hidden w-full max-w-full">
         <div className="p-4 sm:p-5 border-b border-[#e2e8f0] flex items-center justify-between">
           <div>
             <h2 className="text-base font-extrabold text-[#12345b]">

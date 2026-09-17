@@ -80,7 +80,7 @@ export const PayrollReports: React.FC = () => {
   return (
     <div className="space-y-5 sm:space-y-6 max-w-7xl mx-auto pb-12 w-full">
       {/* 1. Workspace Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="no-print flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-[#12345b] tracking-tight">
             Payroll Reports
@@ -106,7 +106,7 @@ export const PayrollReports: React.FC = () => {
       </div>
 
       {/* 2. 3 KPI Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4 w-full">
+      <div className="no-print grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4 w-full">
         {/* Processed Reports */}
         <div className="bg-[#edf4fa] border border-[#d2e2f0] rounded-2xl p-4 sm:p-5 shadow-sm overflow-hidden flex flex-col justify-between">
           <span className="text-xs sm:text-sm font-bold text-[#475569] truncate">Processed Reports</span>
@@ -133,8 +133,30 @@ export const PayrollReports: React.FC = () => {
       </div>
 
       {/* 3. Payroll Report Archive Panel */}
-      <div className="bg-white border border-[#dde7f0] rounded-2xl shadow-sm overflow-hidden">
-        <div className="p-4 sm:p-5 border-b border-[#e2e8f0]">
+      <div id="payroll-report-print-area" className="payroll-report-print-area bg-white border border-[#dde7f0] rounded-2xl shadow-sm overflow-hidden">
+        {/* Print-Only Report Header */}
+        <div className="hidden print:block p-6 border-b-2 border-[#12345b] text-center bg-[#f8fbfd]">
+          <h2 className="text-2xl font-black text-[#12345b] tracking-tight">CENTRAL DISPATCH LIMITED</h2>
+          <h3 className="text-sm font-black text-[#1e293b] mt-1 tracking-wide">PAYROLL REPORT SUMMARY &amp; ARCHIVE</h3>
+          <p className="text-xs font-bold text-[#64748b] mt-1">Generated: {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+
+          <div className="grid grid-cols-3 gap-4 mt-4 pt-3 border-t border-[#cbd5e1] text-xs">
+            <div className="p-2.5 bg-white rounded-lg border border-[#cbd5e1] text-center">
+              <span className="text-[#64748b] font-bold block text-[10px] uppercase">Processed Reports</span>
+              <strong className="text-base font-black text-[#12345b] mt-0.5 block">{periods.length}</strong>
+            </div>
+            <div className="p-2.5 bg-white rounded-lg border border-[#cbd5e1] text-center">
+              <span className="text-[#64748b] font-bold block text-[10px] uppercase">Total Gross</span>
+              <strong className="text-base font-black text-[#12345b] mt-0.5 block">{formatMoney(currentTotals.gross)}</strong>
+            </div>
+            <div className="p-2.5 bg-white rounded-lg border border-[#cbd5e1] text-center">
+              <span className="text-[#64748b] font-bold block text-[10px] uppercase">Total Net</span>
+              <strong className="text-base font-black text-[#0f766e] mt-0.5 block">{formatMoney(currentTotals.net)}</strong>
+            </div>
+          </div>
+        </div>
+
+        <div className="no-print p-4 sm:p-5 border-b border-[#e2e8f0]">
           <h2 className="text-base font-extrabold text-[#12345b]">
             Payroll Report Archive
           </h2>

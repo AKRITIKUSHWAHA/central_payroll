@@ -77,7 +77,7 @@ export const AgingView: React.FC = () => {
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
       {/* 1. Workspace Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="no-print flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-[#12345b] tracking-tight">
             Accounts Receivable Aging
@@ -86,18 +86,33 @@ export const AgingView: React.FC = () => {
             Outstanding invoices grouped by the number of days past due.
           </p>
         </div>
-        <button
-          onClick={handleExportExcel}
-          className="px-5 py-2.5 bg-[#1d4ed8] hover:bg-[#1e40af] text-white text-sm font-extrabold rounded-xl transition-all shadow-md self-start sm:self-auto hover:shadow-lg active:scale-95"
-        >
-          Export Aging to Excel
-        </button>
+        <div className="flex items-center gap-2.5 self-start sm:self-auto flex-wrap">
+          <button
+            onClick={handleExportExcel}
+            className="px-5 py-2.5 bg-[#1d4ed8] hover:bg-[#1e40af] text-white text-sm font-extrabold rounded-xl transition-all shadow-md hover:shadow-lg active:scale-95"
+          >
+            Export Aging to Excel
+          </button>
+          <button
+            onClick={() => window.print()}
+            className="px-4 py-2.5 bg-white hover:bg-[#f8fafc] text-[#1e293b] border border-[#cbd5e1] text-sm font-extrabold rounded-xl transition-all shadow-xs"
+          >
+            Print Aging Report
+          </button>
+        </div>
       </div>
 
       {/* 2. Main Panel */}
-      <div className="bg-white border border-[#dde7f0] rounded-2xl shadow-sm overflow-hidden">
+      <div id="aging-print-area" className="aging-print-area bg-white border border-[#dde7f0] rounded-2xl shadow-sm overflow-hidden">
+        {/* Print-Only Aging Header */}
+        <div className="hidden print:block p-4 border-b border-[#cbd5e1] text-center">
+          <h2 className="text-xl font-black text-[#12345b] tracking-tight">CENTRAL DISPATCH LIMITED</h2>
+          <h3 className="text-sm font-extrabold text-[#1e293b] mt-0.5">ACCOUNTS RECEIVABLE AGING REPORT</h3>
+          <p className="text-xs font-bold text-[#64748b] mt-1">As of: {asOfDate} • Generated: {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+        </div>
+
         {/* Accounting Toolbar */}
-        <div className="p-4 sm:p-5 border-b border-[#e2e8f0]">
+        <div className="no-print p-4 sm:p-5 border-b border-[#e2e8f0]">
           <div className="max-w-xs">
             <label htmlFor="agingAsOf" className="block text-xs font-bold text-[#334155] mb-1.5">
               Aging as of
@@ -198,7 +213,7 @@ export const AgingView: React.FC = () => {
         </div>
 
         {/* Accounting Note */}
-        <div className="p-4 border-t border-[#edf2f7] bg-[#fcfdfe] text-xs font-semibold text-[#64748b]">
+        <div className="no-print p-4 border-t border-[#edf2f7] bg-[#fcfdfe] text-xs font-semibold text-[#64748b]">
           The imported customer and general-ledger files did not contain open-invoice due dates. Aging starts with invoices created in this app.
         </div>
       </div>

@@ -10,6 +10,10 @@ export const InvoicesView: React.FC = () => {
   const { showToast } = useToast();
   const customers = accountingService.getCustomers();
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>(accountingService.getSelectedCustomerId());
+  const [customerEmail, setCustomerEmail] = useState<string>(() => {
+    const initCust = accountingService.getCustomerById(accountingService.getSelectedCustomerId());
+    return initCust?.email || '';
+  });
   const [invoiceNumber, setInvoiceNumber] = useState<string>('');
   const [terms, setTerms] = useState<string>('Net 30');
   const [invoiceDate, setInvoiceDate] = useState<string>(new Date().toISOString().slice(0, 10));
@@ -118,7 +122,7 @@ export const InvoicesView: React.FC = () => {
       id: `inv_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
       customerId: selectedCustomerId,
       customerName: cust?.name || 'Customer',
-      customerEmail: cust?.email || '',
+      customerEmail: customerEmail.trim() || cust?.email || '',
       number: invNum,
       terms,
       date: invoiceDate,
@@ -194,14 +198,6 @@ export const InvoicesView: React.FC = () => {
     }
   };
 
-  const handleOpenMailto = () => {
-    if (!emailRecipient) {
-      alert('Please enter a recipient email.');
-      return;
-    }
-    window.location.href = `mailto:${encodeURIComponent(emailRecipient)}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
-  };
-
   const handlePrint = () => {
     window.print();
   };
@@ -229,7 +225,12 @@ export const InvoicesView: React.FC = () => {
               <select
                 required
                 value={selectedCustomerId}
-                onChange={e => setSelectedCustomerId(e.target.value)}
+                onChange={e => {
+                  const val = e.target.value;
+                  setSelectedCustomerId(val);
+                  const cust = accountingService.getCustomerById(val);
+                  if (cust?.email) setCustomerEmail(cust.email);
+                }}
                 className="w-full px-3 py-2.5 bg-white border border-[#bdcbd9] rounded-xl text-xs font-bold text-[#1c2b3a]"
               >
                 <option value="">Select customer</option>
@@ -246,11 +247,11 @@ export const InvoicesView: React.FC = () => {
                 Customer Email
               </label>
               <input
-                type="text"
-                readOnly
-                placeholder="Email from customer record"
-                value={selectedCustomer?.email || ''}
-                className="w-full px-3 py-2.5 bg-[#f4f7fa] border border-[#bdcbd9] rounded-xl text-xs font-semibold text-[#607286]"
+                type="email"
+                placeholder="Enter customer email (e.g. name@domain.com)"
+                value={customerEmail}
+                onChange={e => setCustomerEmail(e.target.value)}
+                className="w-full px-3 py-2.5 bg-white border border-[#bdcbd9] rounded-xl text-xs font-bold text-[#1c2b3a] focus:ring-2 focus:ring-[#2f6fb3]/20 focus:border-[#2f6fb3]"
               />
             </div>
 
@@ -814,34 +815,23 @@ export const InvoicesView: React.FC = () => {
               </div>
 
               {/* Action Buttons */}
-              <div className="pt-3 border-t border-[#edf2f7] flex flex-wrap items-center justify-between gap-3">
+              <div className="pt-3 border-t border-[#edf2f7] flex items-center justify-end gap-3">
                 <button
                   type="button"
-                  onClick={handleOpenMailto}
-                  className="px-4 py-2 bg-white hover:bg-[#f8fafc] text-[#12345b] border border-[#cbd5e1] text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5"
+                  onClick={() => setEmailModalInvoice(null)}
+                  className="px-4 py-2.5 bg-white border border-[#cbd5e1] text-[#64748b] hover:text-[#12345b] text-xs font-bold rounded-xl cursor-pointer"
                 >
-                  <Mail className="w-4 h-4 text-[#2f6fb3]" />
-                  <span>Open in Mail App (mailto)</span>
+                  Cancel
                 </button>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setEmailModalInvoice(null)}
-                    className="px-4 py-2 bg-white text-[#64748b] hover:text-[#12345b] text-xs font-bold rounded-xl"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    disabled={isSendingEmail}
-                    onClick={handleSendServerEmail}
-                    className="px-5 py-2.5 bg-[#2f6fb3] hover:bg-[#235891] disabled:opacity-70 text-white text-xs font-black rounded-xl shadow-md flex items-center gap-2 cursor-pointer"
-                  >
-                    <Send className="w-4 h-4" />
-                    <span>{isSendingEmail ? 'Dispatching...' : 'Send Invoice Email'}</span>
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  disabled={isSendingEmail}
+                  onClick={handleSendServerEmail}
+                  className="px-5 py-2.5 bg-[#2f6fb3] hover:bg-[#235891] disabled:opacity-70 text-white text-xs font-black rounded-xl shadow-md flex items-center gap-2 cursor-pointer"
+                >
+                  <Send className="w-4 h-4" />
+                  <span>{isSendingEmail ? 'Dispatching...' : 'Send Invoice Email'}</span>
+                </button>
               </div>
             </div>
           </div>

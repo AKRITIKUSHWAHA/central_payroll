@@ -561,6 +561,46 @@ export const PayrollConsole: React.FC = () => {
 
       {/* 2. Setup Panel & KPI Stats Cards */}
       <div className="bg-white border border-[#dde7f0] rounded-2xl p-5 sm:p-6 shadow-sm space-y-5">
+        {/* Active Period Toolbar Banner */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-4 bg-[#f8fafc] border border-[#cbd5e1] rounded-xl">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <span className="text-xs font-black text-[#1e293b] uppercase tracking-wider">
+              Currently Editing:
+            </span>
+            <span className="text-sm font-extrabold text-[#1d4ed8]">
+              {formatPeriodDate(periodStart)} to {formatPeriodDate(periodEnd)}
+            </span>
+            <span
+              className={`px-2.5 py-0.5 text-xs font-black rounded-md uppercase ${
+                status === 'Draft'
+                  ? 'bg-[#fef3c7] text-[#92400e] border border-[#fde68a]'
+                  : status === 'Approved'
+                  ? 'bg-[#e0f2fe] text-[#0369a1] border border-[#bae6fd]'
+                  : 'bg-[#dcfce7] text-[#166534] border border-[#bbf7d0]'
+              }`}
+            >
+              {status}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <button
+              type="button"
+              onClick={handleSaveDraft}
+              className="px-4 py-2 bg-white hover:bg-[#f1f5f9] text-[#1e293b] border border-[#cbd5e1] text-xs font-extrabold rounded-xl shadow-xs transition-all active:scale-95"
+            >
+              Save Draft
+            </button>
+            <button
+              type="button"
+              onClick={handleProcessPay}
+              className="px-5 py-2 bg-[#176b55] hover:bg-[#125543] text-white text-xs font-black rounded-xl shadow-md transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
+            >
+              <span>✓</span> Process Pay (Mark Paid)
+            </button>
+          </div>
+        </div>
+
         {/* Setup Form Row */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>

@@ -234,9 +234,24 @@ class UserService {
       try {
         const parsed = JSON.parse(custom);
         if (parsed && parsed[role]) {
+          const base = role === 'admin' ? adminPermissions : staffPermissions;
+          const customRole = parsed[role];
           return {
-            ...(role === 'admin' ? adminPermissions : staffPermissions),
-            ...parsed[role]
+            ...base,
+            ...customRole,
+            dashboard: { ...base.dashboard, ...(customRole.dashboard || {}) },
+            employees: { ...base.employees, ...(customRole.employees || {}) },
+            contacts: { ...base.contacts, ...(customRole.contacts || {}) },
+            schedules: { ...base.schedules, ...(customRole.schedules || {}) },
+            leave: { ...base.leave, ...(customRole.leave || {}) },
+            accounts: { ...base.accounts, ...(customRole.accounts || {}) },
+            settings: { ...base.settings, ...(customRole.settings || {}) },
+            audit: { ...base.audit, ...(customRole.audit || {}) },
+            reports: { ...base.reports, ...(customRole.reports || {}) },
+            payslips: { ...base.payslips, ...(customRole.payslips || {}) },
+            payroll: { ...base.payroll, ...(customRole.payroll || {}) },
+            permissions: { ...base.permissions, ...(customRole.permissions || {}) },
+            userAccounts: { ...base.userAccounts, ...(customRole.userAccounts || {}) },
           };
         }
       } catch (_) {}

@@ -51,7 +51,7 @@ export const PermissionsView: React.FC = () => {
         // Map admin permissions
         const a = data.admin || {};
         setAdminState({
-          staffManagement: a.employees?.view !== false,
+          staffManagement: !!a.employees?.view,
           staffContacts: a.contacts?.view !== false,
           weeklySchedules: a.schedules?.view !== false,
           leaveCalendars: a.leave?.view !== false,
@@ -89,7 +89,7 @@ export const PermissionsView: React.FC = () => {
 
       // Build structured backend PermissionMatrix objects
       const adminPermissionsPayload: PermissionMatrix = {
-        dashboard: { view: true },
+        dashboard: { view: false },
         employees: {
           view: adminState.staffManagement,
           create: adminState.staffManagement,
@@ -165,7 +165,7 @@ export const PermissionsView: React.FC = () => {
     }
     await userService.resetRolePermissions();
     setAdminState({
-      staffManagement: true,
+      staffManagement: false,
       staffContacts: true,
       weeklySchedules: true,
       leaveCalendars: true,

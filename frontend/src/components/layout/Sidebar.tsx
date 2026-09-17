@@ -65,25 +65,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const workspaceNavItems = [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, visible: isSuperAdmin && !!permissions.dashboard?.view },
-    { to: '/payroll', label: 'Payroll', icon: DollarSign, visible: isSuperAdmin && !!permissions.payroll?.view },
-    { to: '/leave', label: 'Leave Calendars', icon: CalendarDays, visible: !isStaff && !!permissions.leave?.view },
-    { to: '/contacts', label: 'Staff Contact Details', icon: Contact, visible: !isStaff && !!permissions.contacts?.view },
-    { to: '/schedules', label: 'Weekly Schedules', icon: CalendarRange, visible: true },
+    { to: '/payroll', label: 'Payroll', icon: DollarSign, visible: isSuperAdmin || (!isStaff && !!permissions.payroll?.view) },
+    { to: '/leave', label: 'Leave Calendars', icon: CalendarDays, visible: isSuperAdmin || (!isStaff && !!permissions.leave?.view) },
+    { to: '/contacts', label: 'Staff Contact Details', icon: Contact, visible: isSuperAdmin || (!isStaff && !!permissions.contacts?.view) },
+    { to: '/schedules', label: 'Weekly Schedules', icon: CalendarRange, visible: isSuperAdmin || !!permissions.schedules?.view },
     { to: '/reports', label: 'Payroll Reports', icon: FileText, visible: isSuperAdmin && !!permissions.reports?.view },
     { to: '/payslips', label: 'Payslips', icon: PieChart, visible: isSuperAdmin && !!permissions.payslips?.view },
   ];
 
   const customersNavItems = [
-    { to: '/accounts', label: 'Accounts Overview', icon: LayoutDashboard, visible: !isStaff },
-    { to: '/customers', label: 'Customers & Ledgers', icon: Users, visible: !isStaff },
-    { to: '/invoices', label: 'Create Invoice', icon: FileSpreadsheet, visible: !isStaff },
-    { to: '/payments', label: 'Record Payment', icon: DollarSign, visible: !isStaff },
-    { to: '/aging', label: 'A/R Aging', icon: CalendarDays, visible: !isStaff },
-    { to: '/ledger', label: 'General Ledger', icon: FileText, visible: !isStaff },
-    { to: '/employees', label: 'Employee Records', icon: Users, visible: isSuperAdmin && !!permissions.employees?.view },
+    { to: '/accounts', label: 'Accounts Overview', icon: LayoutDashboard, visible: isSuperAdmin || (!isStaff && !!permissions.accounts?.view) },
+    { to: '/customers', label: 'Customers & Ledgers', icon: Users, visible: isSuperAdmin || (!isStaff && !!permissions.accounts?.view) },
+    { to: '/invoices', label: 'Create Invoice', icon: FileSpreadsheet, visible: isSuperAdmin || (!isStaff && !!permissions.accounts?.view) },
+    { to: '/payments', label: 'Record Payment', icon: DollarSign, visible: isSuperAdmin || (!isStaff && !!permissions.accounts?.view) },
+    { to: '/aging', label: 'A/R Aging', icon: CalendarDays, visible: isSuperAdmin || (!isStaff && !!permissions.audit?.view && !!permissions.accounts?.view) },
+    { to: '/ledger', label: 'General Ledger', icon: FileText, visible: isSuperAdmin || (!isStaff && !!permissions.audit?.view && !!permissions.accounts?.view) },
+    { to: '/employees', label: 'Employee Records', icon: Users, visible: isSuperAdmin || !!permissions.employees?.view },
     { to: '/permissions', label: 'Permissions', icon: ShieldCheck, visible: isSuperAdmin && !!permissions.permissions?.view },
     { to: '/users', label: 'User Accounts', icon: UserCog, visible: isSuperAdmin && !!permissions.userAccounts?.view },
-    { to: '/settings', label: 'Settings', icon: Settings, visible: !isStaff && !!permissions.settings?.view },
+    { to: '/settings', label: 'Settings', icon: Settings, visible: isSuperAdmin || (!isStaff && !!permissions.settings?.view) },
   ];
 
   return (

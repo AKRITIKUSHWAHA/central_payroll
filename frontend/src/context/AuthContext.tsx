@@ -33,9 +33,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     userService.getPermissions(currentUser?.role || 'superadmin')
   );
 
-  const refreshPermissions = () => {
+  const refreshPermissions = async () => {
+    try {
+      await userService.fetchRolePermissions();
+    } catch (_) {}
     setPermissions(userService.getPermissions(currentUser?.role || 'superadmin'));
   };
+
+  // Sync role permissions from backend on mount or role change
+  React.useEffect(() => {
+    userService.fetchRolePermissions().then(() => {
+      setPermissions(userService.getPermissions(currentUser?.role || 'superadmin'));
+    });
+  }, [currentUser?.role]);
 
   const login = async (username: string, pass: string): Promise<boolean> => {
     const cleanUsername = username.trim();
@@ -50,11 +60,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (res && res.success && res.user) {
         setCurrentUser(res.user);
-        setPermissions(userService.getPermissions(res.user.role));
-        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(res.user));
         if (res.token) {
           localStorage.setItem('cdl_token', res.token);
         }
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(res.user));
+
+        // Fetch fresh permissions from DB
+        try {
+          await userService.fetchRolePermissions();
+        } catch (_) {}
+        setPermissions(userService.getPermissions(res.user.role));
         // Update local cache password to match new credentials
         const users = userService.getUsers();
         const found = users.find(u => u.username.toLowerCase() === cleanUsername.toLowerCase() || u.id === res.user.id);

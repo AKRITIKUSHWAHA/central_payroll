@@ -170,11 +170,15 @@ export const AgingView: React.FC = () => {
                     >
                       <td className="py-3.5 px-5 font-bold text-[#0f172a]">
                         <button
+                          type="button"
                           onClick={() => handleCustomerClick(s.customerId)}
-                          className="text-[#1d4ed8] hover:underline font-bold text-left"
+                          className="text-[#1d4ed8] hover:underline font-bold text-left no-print cursor-pointer"
                         >
                           {s.customerName}
                         </button>
+                        <span className="hidden print:inline font-bold text-[#0f172a]">
+                          {s.customerName}
+                        </span>
                       </td>
                       <td className="py-3.5 px-5 text-right text-xs font-semibold text-[#334155]">
                         {s.current ? formatMoney(s.current) : '—'}

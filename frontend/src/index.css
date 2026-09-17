@@ -492,6 +492,23 @@ html.modal-open {
     color: #0f172a !important;
   }
 
+  .payroll-report-print-area td button,
+  .aging-print-area td button,
+  .payroll-console-print-area td button,
+  .schedule-print-area td button,
+  table td button {
+    display: inline !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    color: #0f172a !important;
+    font-size: inherit !important;
+    font-weight: 700 !important;
+    text-decoration: none !important;
+    box-shadow: none !important;
+  }
+
   /* Table rules for clean multi-page flow and avoiding mid-row cuts */
   table {
     width: 100% !important;

@@ -31,6 +31,9 @@ export const apiFetch = async <T>(endpoint: string, options?: RequestInit): Prom
     return await res.json();
   } catch (error: any) {
     console.warn(`[API] Server request failed for ${endpoint}:`, error);
-    return { success: false, error: error?.message || 'Server connection failed' } as unknown as T;
+    const errorMessage = error?.name === 'AbortError' 
+      ? 'Request timed out. Please try again.' 
+      : (error?.message || 'Server connection failed');
+    return { success: false, error: errorMessage } as unknown as T;
   }
 };

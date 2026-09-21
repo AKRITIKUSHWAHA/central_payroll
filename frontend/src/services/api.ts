@@ -11,7 +11,11 @@ export const apiFetch = async <T>(endpoint: string, options?: RequestInit): Prom
       authHeaders['Authorization'] = `Bearer ${token}`;
     }
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
     const res = await fetch(url, {
+      signal: options?.signal || controller.signal,
       headers: {
         'Content-Type': 'application/json',
         ...authHeaders,
@@ -19,6 +23,7 @@ export const apiFetch = async <T>(endpoint: string, options?: RequestInit): Prom
       },
       ...options,
     });
+    clearTimeout(timeoutId);
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
       return { success: false, error: errData.error || errData.message || `HTTP ${res.status}` } as unknown as T;

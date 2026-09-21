@@ -3,6 +3,9 @@
   publish = "dist"
   command = "npm run build"
 
+[build.environment]
+  VITE_API_URL = "https://central-payroll-backend-production.up.railway.app/api"
+
 [[redirects]]
   from = "/*"
   to = "/index.html"

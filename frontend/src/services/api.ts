@@ -1,4 +1,4 @@
-const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'https://central-payroll-backend-production.up.railway.app/api';
 
 export const apiFetch = async <T>(endpoint: string, options?: RequestInit): Promise<T | null> => {
   try {
